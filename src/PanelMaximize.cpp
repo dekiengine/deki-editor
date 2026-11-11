@@ -65,7 +65,7 @@ bool HoveringResizeHandle(ImGuiContext& g, ImGuiWindow* window)
     }
     for (int dir = 0; dir < ImGuiDir_COUNT; dir++)
     {
-        if (hovered == ImGui::GetWindowResizeBorderID(window, (ImGuiDir)dir))
+        if (hovered == ImGui::GetWindowResizeBorderID(window, static_cast<ImGuiDir>(dir)))
         {
             return true;
         }
@@ -171,9 +171,9 @@ void ProcessPendingReorder()
                 order.push_back(bar->Tabs[i].Window);
             }
         }
-        if (want > (int)order.size())
+        if (want > static_cast<int>(order.size()))
         {
-            want = (int)order.size();
+            want = static_cast<int>(order.size());
         }
         order.insert(order.begin() + want, w);
 
@@ -186,9 +186,9 @@ void ProcessPendingReorder()
         // The sort runs only with at least two flagged tabs (hence the whole
         // strip is flagged), and ImGui clears the flag as it scans, so this
         // lasts one frame.
-        for (int i = 0; i < (int)order.size(); ++i)
+        for (int i = 0; i < static_cast<int>(order.size()); ++i)
         {
-            order[i]->DockOrder = (short)i;
+            order[i]->DockOrder = static_cast<short>(i);
         }
         for (int i = 0; i < n; ++i)
         {

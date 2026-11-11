@@ -78,9 +78,9 @@ std::wstring Widen(const std::string& s)
     {
         return {};
     }
-    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
     std::wstring w(n, L'\0');
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), w.data(), n);
+    MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), w.data(), n);
     return w;
 }
 #endif
@@ -160,7 +160,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         if (available > 0)
         {
             DWORD got = 0;
-            if (!ReadFile(readPipe, buf, (DWORD)sizeof(buf), &got, nullptr) || got == 0)
+            if (!ReadFile(readPipe, buf, static_cast<DWORD>(sizeof(buf)), &got, nullptr) || got == 0)
             {
                 break;
             }
@@ -194,7 +194,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
     {
         CloseHandle(job);  // KILL_ON_JOB_CLOSE takes anything left behind with it
     }
-    return cancelled ? -1 : (int)exitCode;
+    return cancelled ? -1 : static_cast<int>(exitCode);
 }
 
 #else
@@ -251,7 +251,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
             {
                 break;
             }
-            lines.Feed(buf, (size_t)got);
+            lines.Feed(buf, static_cast<size_t>(got));
             continue;
         }
         if (Cancelled(cancel))

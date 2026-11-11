@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
         // Everything the command produced is already flushed to disk, and the
         // process is a moment from gone, so there is nothing to reclaim.
 #ifdef _WIN32
-        ExitProcess((UINT)rc);
+        ExitProcess(static_cast<UINT>(rc));
 #else
         _exit(rc);
 #endif
@@ -287,7 +287,7 @@ int main(int argc, char* argv[])
         {
             int w = 0, h = 0;
             SDL_GetWindowSize(ctx.window, &w, &h);
-            ImGui::GetIO().DisplaySize = ImVec2((float)w, (float)h);
+            ImGui::GetIO().DisplaySize = ImVec2(static_cast<float>(w), static_cast<float>(h));
         }
         // While capture_sequence records, animations advance exactly one 60 fps
         // frame per captured frame, so a recording shows motion as it looks
@@ -460,7 +460,8 @@ int main(int argc, char* argv[])
         const bool shown = DekiEditor::EditorRenderer::Render(ImGui::GetDrawData(), ImVec4(0.1f, 0.1f, 0.1f, 1.0f));
 
         // Screenshots read the frame just drawn.
-        DekiEditor::EditorCapture::Get().ProcessEndOfFrame((int)io.DisplaySize.x, (int)io.DisplaySize.y);
+        DekiEditor::EditorCapture::Get().ProcessEndOfFrame(static_cast<int>(io.DisplaySize.x),
+                                                           static_cast<int>(io.DisplaySize.y));
         if (!shown)
         {
             SDL_Delay(16);

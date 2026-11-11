@@ -4,6 +4,8 @@
 
 Fonts go through a compilation pipeline: TTF source file -> baked BitmapFont (.dfont) + texture atlas. Each font size produces a **separate pair of files** with deterministic GUIDs.
 
+![The Text field in the Inspector](img/gs-inspector-text.png)
+
 ```
 assets/fonts/MyFont.ttf (source)
   -> cache/{variantGuid}  (compiled .dfont for 16px)

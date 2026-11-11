@@ -1,0 +1,1109 @@
+ninja: Entering directory `C:\Users\kirby\Documents\Github\deki\deki-editor\build-rel'
+[0/2] Re-checking globbed directories...
+-- GLOB mismatch!
+The following files were added:
+  +C:/Users/kirby/Documents/Github/deki/packages/deki-2d/Deki2DApi.h
+[1/2] Re-running CMake...
+CMake Warning (deprecated) at build/_deps/freetype-src/CMakeLists.txt:113 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+This warning is for project developers.  Use -Wno-author or -Wno-deprecated
+to suppress it.
+
+-- Using the multi-header code from C:/Users/kirby/Documents/Github/deki/deki-editor/build/_deps/nlohmann_json-src/include/
+-- Generated sources: C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/include/deki/generated/AllComponentRegistration.gen.cpp;C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/include/deki/generated/AllPackageInit.gen.cpp;C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/include/deki/generated/CoreReflection0.gen.cpp;C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/include/deki/generated/CoreRegistration.gen.cpp
+-- Building deki-engine-core as SHARED library for EDITOR
+-- deki-engine-core transform: 2D=ON 3D=ON
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating core_deki_engine
+generated 5 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgtests_deki_rendering_deki_rendering
+generated 3 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgtests_deki_fsm_deki_fsm
+generated 1 components, 0 serializable structs, 26 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Deki: package test targets: 36
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_2d_deki_2d
+generated 28 components, 3 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_3d_deki_3d
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_audio_deki_audio
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_ble_deki_ble
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_desktop_integration_deki_desktop_integration
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_display_deki_display
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_esp32_integration_deki_esp32_integration
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_fsm_deki_fsm
+generated 1 components, 0 serializable structs, 26 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_gpio_deki_gpio
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_gps_deki_gps
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_http_deki_http
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_i2c_deki_i2c
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_i2s_deki_i2s
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_imu_deki_imu
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_input_deki_input
+generated 3 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_json_deki_json
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_lora_deki_lora
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Deki: package compile check skips deki-lovyangfx-integration (needs an external library)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_nodegraph_deki_nodegraph
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_particles_deki_particles
+generated 1 components, 0 serializable structs, 9 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_rendering_deki_rendering
+generated 3 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_rtc_deki_rtc
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_sdcard_deki_sdcard
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Deki: package compile check skips deki-sdl3-integration (needs an external library)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_spi_deki_spi
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_tactility_integration_deki_tactility_integration
+generated 2 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_tiledmapeditor_integration_deki_tiledmapeditor_integration
+generated 3 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_tween_deki_tween
+generated 1 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_uart_deki_uart
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Reflection codegen: building shared PCH
+-- Reflection codegen: regenerating pkgcheck_deki_wifi_deki_wifi
+generated 0 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+-- Reflection codegen: 1 package(s) in 1 work unit(s)
+-- Deki: package compile checks for 28 package(s)
+-- Configuring done (311.4s)
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  deki-engine/CMakeLists.txt:228 (deki_reflection_codegen)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:392 (deki_reflection_codegen)
+  tests/CMakeLists.txt:478 (deki_add_package_tests)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:392 (deki_reflection_codegen)
+  tests/CMakeLists.txt:676 (deki_add_package_tests)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+CMake Warning (policy) at deki-engine/cmake/DekiReflectionCodegen.cmake:352 (add_custom_command):
+  Policy CMP0116 is not set: Ninja generators transform DEPFILEs from
+  add_custom_command().  Run "cmake --help-policy CMP0116" for policy
+  details.  Use the cmake_policy command to set the policy and suppress this
+  warning.
+Call Stack (most recent call first):
+  tests/CMakeLists.txt:751 (deki_reflection_codegen)
+  tests/CMakeLists.txt:810 (deki_add_package_compile_check)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+-- Generating done (2.0s)
+-- Build files have been written to: C:/Users/kirby/Documents/Github/deki/deki-editor/build-rel
+[0/4] Re-checking globbed directories...
+[1/259] Reflection codegen shared PCH
+[2/259] Reflection codegen (C++26) for core_deki_engine
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/include/deki/reflection/Serialization.h:14,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/build-rel/deki-engine-build/reflcodegen/core_deki_engine/deki_codegen_includes.inc:31,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/tools/reflection_codegen.cpp:39:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/third_party/nlohmann/json.hpp: In static member function 'static CharType nlohmann::json_abi_v3_12_0::detail::binary_writer<BasicJsonType, CharType>::to_char_type(uint8_t)':
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-engine/third_party/nlohmann/json.hpp:17557:28: warning: 'template<class _Tp> struct std::is_trivial' is deprecated: use 'is_trivially_default_constructible && is_trivially_copyable' instead [-Wdeprecated-declarations]
+17557 |         static_assert(std::is_trivial<CharType>::value, "CharType must be trivial");
+      |                            ^~~~~~~~~~
+In file included from C:/msys64/mingw64/include/c++/16.1.0/bits/char_traits.h:52,
+                 from C:/msys64/mingw64/include/c++/16.1.0/string:45,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/build-rel/reflcodegen/_pch/2f034c4e6b40/reflection_codegen_pch.h:18:
+C:/msys64/mingw64/include/c++/16.1.0/type_traits:960:5: note: declared here
+  960 |     is_trivial
+      |     ^~~~~~~~~~
+generated 5 components, 0 serializable structs, 0 nodes (shard 0/1, 1 package(s))
+[3/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/ComponentInterfaceAdapters.cpp.obj
+[4/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Color.cpp.obj
+[5/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Storage.cpp.obj
+[6/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Component.cpp.obj
+[7/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/OperatorNew.cpp.obj
+[8/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/Buffer.cpp.obj
+[9/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/Memory.cpp.obj
+[10/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/SceneSystem.cpp.obj
+[11/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/LifecycleManager.cpp.obj
+[12/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/assets/Texture2D.cpp.obj
+[13/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Engine.cpp.obj
+[14/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Guid.cpp.obj
+[15/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/LogSystem.cpp.obj
+[16/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Object.cpp.obj
+[17/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/FPSCounter.cpp.obj
+[18/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Time.cpp.obj
+[19/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/reflection/ComponentFactory.cpp.obj
+[20/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/reflection/FormerTypeIds.cpp.obj
+[21/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/Power.cpp.obj
+[22/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/FileImage.cpp.obj
+[23/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/reflection/PropertyRef.cpp.obj
+[24/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/DekiProviderRegistryBase.cpp.obj
+[25/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/ProjectSettings.cpp.obj
+[26/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/assets/AssetLookupTable.cpp.obj
+[27/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/include/deki/generated/AllComponentRegistration.gen.cpp.obj
+[28/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/settings/CoreProjectSettings.cpp.obj
+[29/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/include/deki/generated/AllPackageInit.gen.cpp.obj
+[30/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/settings/UnitProjectSettings.cpp.obj
+[31/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/SetupComponent.cpp.obj
+[32/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/ScreenAnchor.cpp.obj
+[33/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/PlatformSetupComponent.cpp.obj
+[34/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/reflection/ComponentRegistry.cpp.obj
+[35/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/SceneMessagePack.cpp.obj
+[36/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/include/deki/generated/CoreRegistration.gen.cpp.obj
+[37/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/assets/AssetPackReader.cpp.obj
+[38/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/providers/FileSystem.cpp.obj
+[39/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/include/deki/generated/CoreReflection0.gen.cpp.obj
+[40/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorToolRegistry.cpp.obj
+[41/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetFileWatcher.cpp.obj
+[42/259] Building CXX object CMakeFiles/DekiEditor.dir/cmake_pch.hxx.gch
+[43/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorExtension.cpp.obj
+[44/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SceneView.cpp.obj
+[45/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorTexture.cpp.obj
+[46/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetDatabase.cpp.obj
+[47/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetTypeRegistry.cpp.obj
+[48/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorApplication.cpp.obj
+[49/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorWindow.cpp.obj
+[50/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/reflection/SettingsRegistry.cpp.obj
+[51/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/assets/AssetManager.cpp.obj
+[52/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/NodeCanvas.cpp.obj
+[53/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorUI.cpp.obj
+[54/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/Motion.cpp.obj
+[55/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorAssets.cpp.obj
+[56/259] Building CXX object deki-engine-build/CMakeFiles/deki-engine-core.dir/src/Scene.cpp.obj
+[57/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorTheme.cpp.obj
+[58/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorComponents.cpp.obj
+[59/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorPaths.cpp.obj
+[60/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorNaming.cpp.obj
+[61/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/CommandHistory.cpp.obj
+[62/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/TextureImporter.cpp.obj
+[63/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SchematicPicker.cpp.obj
+[64/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/GuidCache.cpp.obj
+[65/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuilderDispatch.cpp.obj
+[66/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuildActivitySink.cpp.obj
+[67/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/CliTool.cpp.obj
+[68/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetData.cpp.obj
+[69/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/ShellCommand.cpp.obj
+[70/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorHttpUtils.cpp.obj
+[71/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetPicker.cpp.obj
+[72/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SerialPorts.cpp.obj
+[73/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/ProcessLaunch.cpp.obj
+[74/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuildLoad.cpp.obj
+[75/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SafeNames.cpp.obj
+[76/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/VersionCompare.cpp.obj
+[77/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/AssetPipeline.cpp.obj
+[78/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuilderRegistry.cpp.obj
+[79/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/Localization.cpp.obj
+[80/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/CMakeCacheReader.cpp.obj
+[81/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/ProjectPaths.cpp.obj
+[82/259] Linking CXX shared library bin\libdeki-engine-core.dll
+[83/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/EditorSelection.cpp.obj
+[84/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/PlatformTemplates.cpp.obj
+[85/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuilderWidgets.cpp.obj
+[86/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/PlatformConfig.cpp.obj
+[87/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/UnsavedChangesPrompt.cpp.obj
+[88/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuilderDefinition.cpp.obj
+[89/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SimulationBootScene.cpp.obj
+[90/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/hot_reload/PluginPromotion.cpp.obj
+[91/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/ComponentUsageScan.cpp.obj
+[92/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/ToolchainComponentManager.cpp.obj
+[93/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/FirmwareBuilderBase.cpp.obj
+[94/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/FeatureResolver.cpp.obj
+[95/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/BuildStripSettings.cpp.obj
+[96/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/CMakeGenUtils.cpp.obj
+[97/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/AssetFileOps.cpp.obj
+[98/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/SceneTargetFilter.cpp.obj
+[99/259] Building CXX object deki-editor/CMakeFiles/deki-editor.dir/src/EditorSettings.cpp.obj
+[100/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/hot_reload/SourceChangeDetector.cpp.obj
+[101/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/SettingsOwnership.cpp.obj
+[102/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/HierarchyCommands.cpp.obj
+[103/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/HistoryGuards.cpp.obj
+[104/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/ObjectCommands.cpp.obj
+[105/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/EditorRecovery.cpp.obj
+[106/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/ObjectSerializationHelper.cpp.obj
+[107/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/VirtualFolders.cpp.obj
+[108/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/PropertyCommands.cpp.obj
+[109/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/AssetCommands.cpp.obj
+[110/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/ScriptRefs.cpp.obj
+[111/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/LibraryDependencies.cpp.obj
+[112/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ScriptTemplate.cpp.obj
+[113/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/BuiltLibraries.cpp.obj
+[114/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/BuildersFromPackages.cpp.obj
+[115/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/EditorLogFile.cpp.obj
+[116/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/sources/DekiRegistrySource.cpp.obj
+[117/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/InstanceCommands.cpp.obj
+[118/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageLoader.cpp.obj
+[119/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProjectLock.cpp.obj
+[120/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/SceneInstanceRefs.cpp.obj
+[121/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageManifest.cpp.obj
+[122/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/EditorLauncher.cpp.obj
+[123/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/BundledToolchain.cpp.obj
+[124/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/Project.cpp.obj
+[125/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/Prerequisites.cpp.obj
+[126/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FrameTiming.cpp.obj
+[127/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/SafeDllCall.cpp.obj
+[128/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PluginToolchain.cpp.obj
+[129/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/UpdateCheckParse.cpp.obj
+[130/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AgentCursorIntent.cpp.obj
+[131/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/sources/GitHubPackageSource.cpp.obj
+[132/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProjectScaffold.cpp.obj
+[133/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/TouchGestures.cpp.obj
+[134/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FileDialogFilter.cpp.obj
+[135/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PlayModeGuard.cpp.obj
+[136/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FaultGuard.cpp.obj
+[137/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/GitProcess.cpp.obj
+[138/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/MemoryReport.cpp.obj
+[139/259] Building CXX object CMakeFiles/DekiEditor.dir/src/DockSnap.cpp.obj
+[140/259] Building CXX object CMakeFiles/DekiEditor.dir/src/PanelMaximize.cpp.obj
+[141/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageIntegrity.cpp.obj
+[142/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/DeviceScreenshot.cpp.obj
+[143/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorDisplay.cpp.obj
+[144/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackagePins.cpp.obj
+[145/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorCli.cpp.obj
+[146/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorPlayModeFileSystem.cpp.obj
+[147/259] Building CXX object CMakeFiles/DekiEditor.dir/src/main.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/main.cpp:14:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[148/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/installers/DekiPackageInstaller.cpp.obj
+[149/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageManager.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/services/PackageManager.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[150/259] Building CXX object CMakeFiles/DekiEditor.dir/src/PlayMode.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/PlayMode.cpp:9:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[151/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorBoot.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorBoot.cpp:19:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[152/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorApp.MenuBar.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.MenuBar.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[153/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneSelection.cpp.obj
+[154/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneCoordinates.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/scene_view/SceneCoordinates.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[155/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneTextureCache.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/scene_view/SceneTextureCache.cpp:2:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[156/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/SceneViewPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/SceneViewPanel.cpp:16:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[157/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneSnapping.cpp.obj
+[158/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/EditModeRenderer.cpp.obj
+[159/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneObjectMeasurer.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/scene_view/SceneObjectMeasurer.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[160/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneGizmos.cpp.obj
+[161/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/scene_view/SceneToolbar.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/scene_view/SceneToolbar.cpp:2:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[162/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorApp.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.cpp:1:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[163/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/HierarchyPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/HierarchyPanel.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[164/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorApp.ProjectManager.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.ProjectManager.cpp:6:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[165/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/PlayViewPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlayViewPanel.cpp:7:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[166/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/InspectorUtils.cpp.obj
+[167/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/PropertyEditorFactory.Multi.cpp.obj
+[168/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/SceneInspector.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/SceneInspector.cpp:7:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[169/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/LiveSession.cpp.obj
+[170/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/ComponentManager.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/ComponentManager.cpp:7:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[171/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/CreateFolderDialog.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/asset_browser/CreateFolderDialog.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[172/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/CreateAssetDialog.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/asset_browser/CreateAssetDialog.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[173/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/AssetPropertyEditor.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/AssetPropertyEditor.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[174/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/PropertyEditorFactory.Array.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/PropertyEditorFactory.Array.cpp:7:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[175/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/DeleteConfirmDialog.cpp.obj
+[176/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/PropertyEditorFactory.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/PropertyEditorFactory.cpp:5:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/PropertyEditorFactory.cpp: In member function 'void DekiEditor::PropertyEditorFactory::DrawProperty(Deki::Component*, const Deki::PropertyInfo&)':
+C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/PropertyEditorFactory.cpp:346:56: warning: narrowing conversion of '(size_t)prop.Deki::PropertyInfo::offset' from 'size_t' {aka 'long long unsigned int'} to 'uint32_t' {aka 'unsigned int'} [-Wnarrowing]
+  346 |         RowState& row = m_RowStates[RowKey{ comp, prop.offset }];
+      |                                                   ~~~~~^~~~~~
+[177/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/UpdateCheck.cpp.obj
+[178/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/commands/ClipboardCommands.cpp.obj
+[179/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/InspectorPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/InspectorPanel.cpp:12:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[180/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/asset_browser/RenameDialog.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/asset_browser/RenameDialog.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[181/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/AssetTypeInspector.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/AssetTypeInspector.cpp:7:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[182/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/CrashHandler.cpp.obj
+[183/259] Building CXX object CMakeFiles/DekiEditor.dir/src/EditorHeadless.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorHeadless.cpp:19:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[184/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FileDialogs.cpp.obj
+[185/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/AssetBrowserPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/AssetBrowserPanel.cpp:12:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[186/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProjectMaintenance.cpp.obj
+[187/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/inspector/TextureInspector.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/inspector/TextureInspector.cpp:5:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[188/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/hot_reload/BuildOutputParser.cpp.obj
+[189/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PluginLoader.cpp.obj
+[190/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ClipboardService.cpp.obj
+[191/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/hot_reload/CMakeCacheRepair.cpp.obj
+[192/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProjectRegistry.cpp.obj
+[193/259] Building CXX object CMakeFiles/DekiEditor.dir/src/core/SceneExport.cpp.obj
+[194/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AssetImportDrop.cpp.obj
+[195/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/StartupProgress.cpp.obj
+[196/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageLifetime.cpp.obj
+[197/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/SafeDispatch.cpp.obj
+[198/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProcessRunner.cpp.obj
+[199/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FirmwareBuildService.cpp.obj
+[200/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/LanguagePicker.cpp.obj
+[201/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/Toast.cpp.obj
+[202/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProgressModal.cpp.obj
+[203/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/EngineEditorSetup.cpp.obj
+[204/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/PressMotion.cpp.obj
+[205/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/ScrollMotion.cpp.obj
+[206/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/EditorSettingsPanel.cpp.obj
+[207/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AssetPacker.cpp.obj
+[208/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/PopupMotion.cpp.obj
+[209/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/MsvcEnvironment.cpp.obj
+[210/259] Building CXX object CMakeFiles/DekiEditor.dir/src/widgets/WindowMotion.cpp.obj
+[211/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/SceneMemoryEstimate.cpp.obj
+[212/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AssetDeployer.cpp.obj
+[213/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AssetExporter.cpp.obj
+[214/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/HotReloadService.cpp.obj
+[215/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/BuildFileGenerator.cpp.obj
+[216/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/SerialMonitorPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/SerialMonitorPanel.cpp:11:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[217/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/SDCardDeployPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/SDCardDeployPanel.cpp:11:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[218/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ActivityPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ActivityPanel.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[219/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ProjectManagerScreen.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ProjectManagerScreen.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[220/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/NewProjectDialog.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/NewProjectDialog.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[221/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ToolHost.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/services/ToolHost.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[222/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProjectTemplate.cpp.obj
+[223/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ConsolePanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ConsolePanel.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[224/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/FrameCaptureService.cpp.obj
+[225/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/StbImageWrite.cpp.obj
+[226/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/BuildPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.cpp:1:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[227/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/PlatformEditorDialog.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.cpp:1:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[228/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/PackageRestore.cpp.obj
+[229/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ProjectSettingsPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ProjectSettingsPanel.cpp:5:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[230/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/ProfilingService.cpp.obj
+[231/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/AgentCursor.cpp.obj
+[232/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ProfilerPanel.FlameGraph.cpp.obj
+[233/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/PlatformManagerPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformManagerPanel.h:9,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformManagerPanel.cpp:2:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[234/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/TouchInput.cpp.obj
+[235/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpCompletion.cpp.obj
+[236/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/EditorCapture.cpp.obj
+[237/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/EditorInput.cpp.obj
+[238/259] Building CXX object CMakeFiles/DekiEditor.dir/src/render/EditorRenderer.cpp.obj
+[239/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/DeployAnalysisPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/DeployAnalysisPanel.cpp:6:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[240/259] Building CXX object CMakeFiles/DekiEditor.dir/src/engine_editors/EngineEditorRegistration.cpp.obj
+[241/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ProfilerPanel.MemoryView.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ProfilerPanel.MemoryView.cpp:2:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[242/259] Building RC object CMakeFiles/DekiEditor.dir/resources/windows/deki-editor.rc.obj
+[243/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/FrameCapturePanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/FrameCapturePanel.cpp:9:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[244/259] Linking CXX shared library bin\libdeki-editor.dll
+[245/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/ProfilerPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/ProfilerPanel.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[246/259] Building CXX object CMakeFiles/DekiEditor.dir/src/engine_editors/ScreenAnchorEditor.cpp.obj
+[247/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/PackageManagerPanel.cpp.obj
+[248/259] Building CXX object CMakeFiles/DekiEditor.dir/src/services/BoardPackManager.cpp.obj
+[249/259] Building CXX object CMakeFiles/DekiEditor.dir/src/engine_editors/AssetPackEditor.cpp.obj
+[250/259] Building CXX object CMakeFiles/DekiEditor.dir/src/panels/MemoryPanel.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/MemoryPanel.cpp:3:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[251/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpResources.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpResources.cpp:2:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[252/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpTools.Editor.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpTools.Editor.cpp:14:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[253/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpServer.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/build/_deps/httplib-src/httplib.h:184,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpServer.cpp:13:
+C:/msys64/mingw64/include/winsock2.h:15:2: warning: #warning Please include winsock2.h before windows.h [-Wcpp]
+   15 | #warning Please include winsock2.h before windows.h
+      |  ^~~~~~~
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpServer.cpp:6:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[254/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpTools.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpTools.cpp:4:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[255/259] Building CXX object CMakeFiles/DekiEditor.dir/src/mcp/McpTools.Build.cpp.obj
+In file included from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/PlatformEditorDialog.h:10,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/panels/BuildPanel.h:8,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/EditorApp.h:29,
+                 from C:/Users/kirby/Documents/Github/deki/deki-editor/src/mcp/McpTools.Build.cpp:14:
+C:/Users/kirby/Documents/Github/deki/deki-editor/deki-editor/include/deki-editor/build/TargetBuilder.h:39:6: warning: 'void DekiEditor::DrawStringListEditor(const char*, std::vector<std::__cxx11::basic_string<char>, std::allocator<std::__cxx11::basic_string<char> > >&, char*, size_t)' redeclared without dllimport attribute: previous dllimport ignored [-Wattributes]
+   39 | void DrawStringListEditor(const char* label, std::vector<std::string>& list, char* newItemBuffer, size_t bufSize);
+      |      ^~~~~~~~~~~~~~~~~~~~
+[256/259] Linking CXX executable bin\DekiEditor.exe; Copying SDL3.dll next to DekiEditor; Copying libstdc++-6.dll next to DekiEditor; Copying libwinpthread-1.dll next to DekiEditor; Copying libgcc_s_seh-1.dll next to DekiEditor
+[docs] C:\Python312\python.exe C:\Users\kirby\Documents\Github\deki\deki-editor\tools\docs\make_docs_project.py --editor C:\Users\kirby\Documents\Github\deki\deki-editor\build-rel\bin\DekiEditor.exe --out C:\Users\kirby\Documents\Github\deki\deki-editor\build\docs\project --name deki-docs
+C:\Users\kirby\Documents\Github\deki\deki-editor\build\docs\project\deki-docs
+  31 package(s) declared: deki-2d, deki-3d, deki-audio, deki-ble, deki-desktop-integration, deki-display, deki-esp32-integration, deki-fsm, deki-gpio, deki-gps, deki-http, deki-i2c, deki-i2s, deki-imu, deki-input, deki-json, deki-lilygo-boards, deki-lora, deki-lovyangfx-integration, deki-nodegraph, deki-particles, deki-rendering, deki-rtc, deki-sdcard, deki-sdl3-integration, deki-spi, deki-tactility-integration, deki-tiledmapeditor-integration, deki-tween, deki-uart, deki-wifi
+[docs] dumping reflection metadata (opens the docs project: restore + build of every package)
+[docs] C:\Users\kirby\Documents\Github\deki\deki-editor\build-rel\bin\DekiEditor.exe --dump-metadata C:\Users\kirby\Documents\Github\deki\deki-editor\build\docs\metadata.json C:\Users\kirby\Documents\Github\deki\deki-editor\build\docs\project\deki-docs
+C:\Users\kirby\Documents\Github\deki\deki-editor\build\docs\metadata.json lists no packages, so the docs would publish with an empty catalog and no package sites. Check %APPDATA%/DekiEditor/Editor.log for 'Package compatibility' errors, then rebuild the docs project by running this without --reuse-project. Pass --allow-no-packages if an empty catalog is genuinely what you want.

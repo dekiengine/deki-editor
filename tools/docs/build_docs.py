@@ -42,6 +42,7 @@ import sys
 import urllib.request
 import zipfile
 
+import class_list
 import localize
 
 def _rmtree(path):
@@ -278,6 +279,9 @@ def main(argv):
         os.makedirs(os.path.dirname(header), exist_ok=True)
         with open(header, "w", encoding="utf-8", newline="\n") as f:
             f.write(localize.header(header_template, lang))
+        package_header = os.path.join(docs_dir, "theme", lang, "header-package.html")
+        with open(package_header, "w", encoding="utf-8", newline="\n") as f:
+            f.write(localize.header(header_template, lang, package=True))
         overrides = {"HTML_HEADER": header, "HTML_OUTPUT": html_output,
                      "OUTPUT_LANGUAGE": localize.DOXYGEN_LANGUAGES[lang]}
 
@@ -297,6 +301,9 @@ def main(argv):
         index = os.path.join(out, "index.html")
         if not os.path.isfile(index):
             raise SystemExit(f"doxygen produced no index.html ({lang})")
+        annotated = os.path.join(out, "annotated.html")
+        if os.path.isfile(annotated):
+            class_list.rewrite_file(annotated)
         log(f"main site ({lang}): {index}")
 
         if not a.no_packages and os.path.isdir(lang_md_pkg):
@@ -305,7 +312,7 @@ def main(argv):
                 penv["DEKI_PKG_NAME"] = pkg_id
                 penv["DEKI_PKG_MD"] = os.path.join(lang_md_pkg, pkg_id)
                 penv["DEKI_PKG_OUT"] = os.path.join(pkg_out, pkg_id)
-                pkg_overrides = dict(overrides)
+                pkg_overrides = dict(overrides, HTML_HEADER=package_header)
                 if lang != "en":
                     pkg_overrides["PROJECT_BRIEF"] = localize.bar_word(lang, "package brief", "")
                 os.makedirs(os.path.join(pkg_out, pkg_id, html_output), exist_ok=True)

@@ -117,14 +117,15 @@ class GenerateTests(unittest.TestCase):
     def test_main_index_links_each_package_to_its_own_site(self):
         index = self.read(self.out, "index.md")
         self.assertIn("# Deki {#mainpage}", index)
-        self.assertIn("| [deki-2d](https://dekiengine.github.io/deki-2d/) | 1 | Sprites and text |", index)
+        packages = self.read(self.out, "section-packages.md")
+        self.assertIn("| [deki-2d](https://dekiengine.github.io/deki-2d/) | Sprites and text |", packages)
         # no docs field in the registry -> derived from the repository
-        self.assertIn("| [deki-rendering](https://dekiengine.github.io/deki-rendering/) | 0 | Rasterizer |", index)
-        self.assertIn("[Engine core](engine-core.html)", index)
+        self.assertIn("| [deki-rendering](https://dekiengine.github.io/deki-rendering/) | Rasterizer |", packages)
+        self.assertIn('<a href="engine-core.html">Engine core</a>', index)
         self.assertNotIn("SpriteComponent", index)
 
     def test_main_site_has_no_package_pages(self):
-        self.assertEqual(sorted(os.listdir(self.out)), ["engine.md", "index.md", "settings.md"])
+        self.assertEqual(sorted(os.listdir(self.out)), ["engine.md", "index.md", "section-packages.md", "section-reference.md", "settings.md"])
 
     def test_engine_page(self):
         engine = self.read(self.out, "engine.md")
@@ -171,6 +172,52 @@ class GenerateTests(unittest.TestCase):
     def test_table_cells_escape_pipes(self):
         self.assertEqual(gen.esc("a|b"), "a\\|b")
         self.assertEqual(gen.esc(None), "")
+
+
+class BoardTests(unittest.TestCase):
+    def package(self, root, package, board, platform):
+        folder = os.path.join(root, package, "platforms", board)
+        os.makedirs(folder)
+        with open(os.path.join(folder, board + ".json"), "w", encoding="utf-8") as f:
+            json.dump(dict(platform, id=board), f)
+
+    def test_every_platform_you_can_hold_is_a_board(self):
+        with tempfile.TemporaryDirectory() as root:
+            self.package(root, "deki-a", "new_board", {"framework": "espidf", "displayName": "New"})
+            self.package(root, "deki-b", "desktop", {"framework": "native", "displayName": "Desktop"})
+            self.package(root, "deki-c", "os_app", {"framework": "tactility", "displayName": "App"})
+            self.assertEqual([p["id"] for _, p in gen.find_boards(root)], ["new_board"])
+
+    def test_specs_come_from_the_platform_file(self):
+        specs = dict(gen.board_specs({"frameworkOptions": {"mcuChip": "esp32s3", "flashSize": 16777216},
+                                      "externalMemorySize": 8388608, "screenWidth": 320, "screenHeight": 240,
+                                      "provides": ["wifi", "external-storage"]}))
+        self.assertEqual(specs["Processor"], "ESP32-S3")
+        self.assertEqual(specs["Flash"], "16 MB")
+        self.assertEqual(specs["RAM"], "8 MB")
+        self.assertEqual(specs["Screen"], "320 x 240")
+        self.assertEqual(specs["Also has"], "Wi-Fi, SD card")
+
+
+class NavigationTests(unittest.TestCase):
+    REPO = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+
+    def test_every_guide_is_in_a_group(self):
+        docs = os.path.join(self.REPO, "docs")
+        guides = [f[:-3] for f in os.listdir(docs) if f.endswith(".md")]
+        self.assertEqual([g for heading, g in gen.grouped(gen.GUIDE_GROUPS, guides) if heading == "Other"], [])
+
+    def test_every_registry_package_is_in_a_group(self):
+        index = os.path.join(self.REPO, "..", "deki-registry", "index.json")
+        if not os.path.isfile(index):
+            self.skipTest("no deki-registry checkout beside this repository")
+        with open(index, encoding="utf-8") as f:
+            packages = json.load(f)["packages"]
+        ids = list(packages) if isinstance(packages, dict) else [p["id"] for p in packages]
+        self.assertEqual([p for heading, p in gen.grouped(gen.PACKAGE_GROUPS, ids) if heading == "Other"], [])
+
+    def test_what_no_group_lists_is_still_shown(self):
+        self.assertEqual(gen.grouped([("A", ["x"])], ["x", "new"]), [("A", ["x"]), ("Other", ["new"])])
 
 
 if __name__ == "__main__":

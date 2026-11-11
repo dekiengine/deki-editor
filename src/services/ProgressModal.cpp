@@ -53,11 +53,13 @@ void FormatElapsed(uint64_t elapsedMs, char* out, size_t outSize)
     uint64_t centis = (elapsedMs % 1000) / 10;
     if (mins > 0)
     {
-        std::snprintf(out, outSize, "%llum %02llus", (unsigned long long)mins, (unsigned long long)secs);
+        std::snprintf(out, outSize, "%llum %02llus", static_cast<unsigned long long>(mins),
+                      static_cast<unsigned long long>(secs));
     }
     else
     {
-        std::snprintf(out, outSize, "%llu.%02llus", (unsigned long long)secs, (unsigned long long)centis);
+        std::snprintf(out, outSize, "%llu.%02llus", static_cast<unsigned long long>(secs),
+                      static_cast<unsigned long long>(centis));
     }
 }
 

@@ -49,7 +49,7 @@ void SDCardDeployPanel::Draw()
         m_RemovableDrives = AssetDeployer::GetRemovableDrives();
         m_NeedsDriveRefresh = false;
 
-        if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < (int)m_RemovableDrives.size())
+        if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < static_cast<int>(m_RemovableDrives.size()))
         {
             m_SelectedDrivePath = m_RemovableDrives[m_SelectedDriveIndex].first;
         }
@@ -122,9 +122,9 @@ void SDCardDeployPanel::Draw()
             driveItems.push_back(drive.second.c_str());
         }
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (SchematicCombo("##SDCard", &m_SelectedDriveIndex, driveItems.data(), (int)driveItems.size()))
+        if (SchematicCombo("##SDCard", &m_SelectedDriveIndex, driveItems.data(), static_cast<int>(driveItems.size())))
         {
-            if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < (int)m_RemovableDrives.size())
+            if (m_SelectedDriveIndex >= 0 && m_SelectedDriveIndex < static_cast<int>(m_RemovableDrives.size()))
             {
                 m_SelectedDrivePath = m_RemovableDrives[m_SelectedDriveIndex].first;
             }

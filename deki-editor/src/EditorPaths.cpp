@@ -36,7 +36,7 @@ std::string EditorPaths::GetUserHomeDir()
 
     // Fallback: SHGetFolderPath
     char path[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, path)))
+    if (SUCCEEDED(SHGetFolderPathA(nullptr, CSIDL_PROFILE, nullptr, 0, path)))
     {
         std::string result(path);
         std::replace(result.begin(), result.end(), '\\', '/');
@@ -115,7 +115,7 @@ std::string EditorPaths::GetExecutableDir()
 {
 #ifdef _WIN32
     char buf[MAX_PATH];
-    GetModuleFileNameA(NULL, buf, MAX_PATH);
+    GetModuleFileNameA(nullptr, buf, MAX_PATH);
     std::string result = std::filesystem::path(buf).parent_path().string();
     std::replace(result.begin(), result.end(), '\\', '/');
     return result;

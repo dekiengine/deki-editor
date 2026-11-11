@@ -591,7 +591,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
         if (m_Console && ms >= 10)
         {
             char buf[256];
-            snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, (long long)ms);
+            snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, static_cast<long long>(ms));
             m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
         }
         reloadPhaseStart = now;
@@ -630,7 +630,8 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
             fs::path tempDll = ProjectPaths::RuntimeBuildTemp(b.projectPath) /
                                SharedLibFileName(ProjectPluginTarget(fs::path(b.projectPath).filename().string()));
             std::error_code ec;
-            if (!fs::exists(tempDll, ec))
+            // Unless the build made packages that still have to be loaded.
+            if (!fs::exists(tempDll, ec) && !m_LastBuildWasCold)
             {
                 if (m_Console)
                 {
@@ -685,6 +686,7 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
             // before the plugin, which links against them.
             DEKI_LOG_EDITOR("HotReload: first build produced the packages - loading them now");
             ReloadPackagesAndPlugins();
+            m_PackagesRemoved = false;
             reportReloadPhase("ReloadPackagesAndPlugins (cold)");
         }
         else
@@ -736,7 +738,8 @@ void HotReloadService::FinishPluginReload(ActiveBuild& b, bool buildSuccess)
             auto totalMs =
                 std::chrono::duration_cast<std::chrono::milliseconds>(ReloadClock::now() - reloadStart).count();
             char buf[160];
-            snprintf(buf, sizeof(buf), "[hot-reload timing] TOTAL CheckAndReload: %lldms", (long long)totalMs);
+            snprintf(buf, sizeof(buf), "[hot-reload timing] TOTAL CheckAndReload: %lldms",
+                     static_cast<long long>(totalMs));
             m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
 
             if (warningCount > 0)
@@ -1075,6 +1078,7 @@ bool HotReloadService::BuildPackagesIfStale(const std::string& projectPath)
             std::error_code rmEc;
             fs::remove(p, rmEc);
         }
+        m_PackagesRemoved = m_PackagesRemoved || !removed.empty();
         const std::string what = std::to_string(removed.size()) + " package librar" +
                                  (removed.size() == 1 ? "y" : "ies") + " built for the previous " +
                                  (std::string(reason) == "editor rebuilt" ? "editor" : "engine");
@@ -1163,7 +1167,7 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
         if (m_Console && ms >= 10)
         {
             char buf[256];
-            snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, (long long)ms);
+            snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms", label, static_cast<long long>(ms));
             m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
         }
         phaseStart = now;
@@ -1322,8 +1326,10 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
                 b = cb.generic_string();
             }
 #ifdef _WIN32
-            std::transform(a.begin(), a.end(), a.begin(), [](unsigned char c) { return (char)std::tolower(c); });
-            std::transform(b.begin(), b.end(), b.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+            std::transform(a.begin(), a.end(), a.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::transform(b.begin(), b.end(), b.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 #endif
             while (!a.empty() && a.back() == '/')
                 a.pop_back();
@@ -1364,7 +1370,8 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
     {
         char buf[256];
         snprintf(buf, sizeof(buf), "[hot-reload timing] needsConfigure=%d (hash %llx vs cached %llx)",
-                 needsConfigure ? 1 : 0, (unsigned long long)currentConfigHash, (unsigned long long)cachedConfigHash);
+                 needsConfigure ? 1 : 0, static_cast<unsigned long long>(currentConfigHash),
+                 static_cast<unsigned long long>(cachedConfigHash));
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }
 
@@ -1473,6 +1480,13 @@ bool HotReloadService::PrepareBuild(ActiveBuild& b)
                 break;
             }
         }
+    }
+
+    // Package libraries removed at open (a failed rebuild for a new editor)
+    // are built again with everything else, and loaded, as on a first build.
+    if (m_PackagesRemoved)
+    {
+        coldBuild = true;
     }
 
     // `-- -d explain` passes Ninja's "why is this rebuilt" flag through cmake.
@@ -1740,8 +1754,8 @@ void HotReloadService::PumpBuild()
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - b.stepStart)
                       .count();
         char buf[256];
-        snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms (exit %d)", step.phase.c_str(), (long long)ms,
-                 step.exitCode);
+        snprintf(buf, sizeof(buf), "[hot-reload timing] %s: %lldms (exit %d)", step.phase.c_str(),
+                 static_cast<long long>(ms), step.exitCode);
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }
 
@@ -1836,7 +1850,7 @@ void HotReloadService::FinishBuild()
         auto total =
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - b.start).count();
         char buf[160];
-        snprintf(buf, sizeof(buf), "[hot-reload timing] build total: %lldms (%s)", (long long)total,
+        snprintf(buf, sizeof(buf), "[hot-reload timing] build total: %lldms (%s)", static_cast<long long>(total),
                  ok ? "ok" : (b.cancelled ? "cancelled" : "failed"));
         m_Console->LogWithLevel(::Deki::LogLevel::Editor, buf);
     }

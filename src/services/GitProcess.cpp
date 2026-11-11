@@ -206,7 +206,7 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(SECURITY_ATTRIBUTES);
     sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor = NULL;
+    sa.lpSecurityDescriptor = nullptr;
 
     HANDLE hReadPipe, hWritePipe;
     if (!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0))
@@ -238,7 +238,8 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     std::vector<char> cmdBuf(cmdLine.begin(), cmdLine.end());
     cmdBuf.push_back('\0');
 
-    BOOL success = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    BOOL success =
+        CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
 
     CloseHandle(hWritePipe);
 
@@ -248,7 +249,7 @@ int RunGitUnchecked(const std::vector<std::string>& args, std::string& output)
     {
         char buffer[4096];
         DWORD bytesRead;
-        while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0)
+        while (ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, nullptr) && bytesRead > 0)
         {
             buffer[bytesRead] = '\0';
             output += buffer;

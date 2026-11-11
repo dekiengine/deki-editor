@@ -177,7 +177,7 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath, const std::string&
         uint32_t remaining = entry.size;
         while (remaining > 0)
         {
-            uint32_t toRead = std::min(remaining, (uint32_t)sizeof(buffer));
+            uint32_t toRead = std::min(remaining, static_cast<uint32_t>(sizeof(buffer)));
             assetFile.read(buffer, toRead);
             out.write(buffer, toRead);
             remaining -= toRead;
@@ -187,7 +187,8 @@ bool AssetPacker::BuildPack(const std::string& dpackJsonPath, const std::string&
     out.close();
 
     uint32_t totalSize = currentOffset;
-    DEKI_LOG_EDITOR("AssetPacker: Built pack (%u assets, %.1f KB):", (uint32_t)entries.size(), totalSize / 1024.0f);
+    DEKI_LOG_EDITOR("AssetPacker: Built pack (%u assets, %.1f KB):", static_cast<uint32_t>(entries.size()),
+                    totalSize / 1024.0f);
     for (const auto& entry : entries)
     {
         DEKI_LOG_DEBUG("  [%s] %s (%.1f KB)", entry.typeName.c_str(), entry.guid.c_str(), entry.size / 1024.0f);

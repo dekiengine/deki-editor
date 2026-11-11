@@ -36,8 +36,8 @@ inline void TextCol(EditorUI& ui, const ImVec4& c, const char* s)
 // Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
-    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
-                          (uint8_t)(c.w * 255.0f));
+    return EditorUI::Rgba(static_cast<uint8_t>(c.x * 255.0f), static_cast<uint8_t>(c.y * 255.0f),
+                          static_cast<uint8_t>(c.z * 255.0f), static_cast<uint8_t>(c.w * 255.0f));
 }
 // The family as the platform spells it. No table of nicer labels: the editor
 // has no list of all targets, and a family it knows should not read
@@ -105,7 +105,7 @@ void PlatformManagerPanel::RefreshPlatformList()
     auto& registry = PlatformRegistry::Instance();
     m_PlatformList = registry.GetPlatformDisplayList();
 
-    for (int i = 0; i < (int)m_PlatformList.size(); i++)
+    for (int i = 0; i < static_cast<int>(m_PlatformList.size()); i++)
     {
         if (m_PlatformList[i].first == m_SelectedPlatformId)
         {
@@ -190,7 +190,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
         return;
     }
 
-    bool hasSelection = m_SelectedIndex >= 0 && m_SelectedIndex < (int)m_PlatformList.size();
+    bool hasSelection = m_SelectedIndex >= 0 && m_SelectedIndex < static_cast<int>(m_PlatformList.size());
 
     // Full-width toolbar in the Console's style: New, Edit, Delete and Refresh
     // as icon cells. Edit and Delete need a selection; all are disabled while
@@ -239,7 +239,7 @@ void PlatformManagerPanel::DrawProjectPlatformsTab()
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(2.0f), m_App->Dpi(2.0f));
     ui.BeginChild("PlatformList", m_LeftPanelWidth, 0.0f, false);
     {
-        for (int i = 0; i < (int)m_PlatformList.size(); i++)
+        for (int i = 0; i < static_cast<int>(m_PlatformList.size()); i++)
         {
             const auto& [id, displayName] = m_PlatformList[i];
             bool selected = (i == m_SelectedIndex);
@@ -398,7 +398,7 @@ void PlatformManagerPanel::DrawPlatformDetails()
 {
     auto& ui = EditorUI::Get();
 
-    if (m_SelectedIndex < 0 || m_SelectedIndex >= (int)m_PlatformList.size())
+    if (m_SelectedIndex < 0 || m_SelectedIndex >= static_cast<int>(m_PlatformList.size()))
     {
         TextCol(ui, Palette::Dim, Tr("Select a platform to view details."));
         return;
@@ -556,7 +556,7 @@ void PlatformManagerPanel::DrawPlatformPacksTab()
             TextCol(ui, Palette::Dim, Tr("Click 'Refresh Packs' to check online."));
         }
 
-        for (int i = 0; i < (int)allPacks.size(); i++)
+        for (int i = 0; i < static_cast<int>(allPacks.size()); i++)
         {
             const auto& pack = allPacks[i];
             bool selected = (i == m_SelectedPackIndex);
@@ -594,7 +594,7 @@ void PlatformManagerPanel::DrawPackDetails()
 
     auto allPacks = m_PackManager->GetAllPacks();
 
-    if (m_SelectedPackIndex < 0 || m_SelectedPackIndex >= (int)allPacks.size())
+    if (m_SelectedPackIndex < 0 || m_SelectedPackIndex >= static_cast<int>(allPacks.size()))
     {
         TextCol(ui, Palette::Dim, Tr("Select a platform pack to view details."));
         return;
@@ -681,7 +681,7 @@ void PlatformManagerPanel::DrawPackDetails()
 
     // Platforms in this pack
     char platformsTitle[64];
-    snprintf(platformsTitle, sizeof(platformsTitle), Tr("Platforms (%d)"), (int)pack.platforms.size());
+    snprintf(platformsTitle, sizeof(platformsTitle), Tr("Platforms (%d)"), static_cast<int>(pack.platforms.size()));
     ui.Text(platformsTitle);
     ui.Indent();
 
@@ -765,7 +765,7 @@ void PlatformManagerPanel::DrawToolchainsTab()
         return;
     }
 
-    if (m_SelectedBuilder < 0 || m_SelectedBuilder >= (int)builders.size())
+    if (m_SelectedBuilder < 0 || m_SelectedBuilder >= static_cast<int>(builders.size()))
     {
         m_SelectedBuilder = 0;
     }
@@ -783,10 +783,10 @@ void PlatformManagerPanel::DrawToolchainsTab()
     ui.PushStyleVar(EditorUI::StyleVar::WindowPadding, m_App->Dpi(2.0f), m_App->Dpi(2.0f));
     ui.BeginChild("ToolchainList", m_ToolchainLeftWidth, 0.0f, false);
     {
-        for (int i = 0; i < (int)builders.size(); i++)
+        for (int i = 0; i < static_cast<int>(builders.size()); i++)
         {
             auto comps = builders[i]->GetToolchainComponents();
-            const int total = (int)comps.size();
+            const int total = static_cast<int>(comps.size());
             int installed = 0;
             for (const auto& c : comps)
             {

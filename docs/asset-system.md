@@ -2,6 +2,8 @@
 
 ## AssetRef\<T\> Template
 
+![An image's settings in the Inspector](img/asset-settings.png)
+
 **File:** `deki-engine/include/deki/assets/AssetRef.h`
 
 Every component that references an asset uses `AssetRef<T>`. It has four fields:

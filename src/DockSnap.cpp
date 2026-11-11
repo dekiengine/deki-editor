@@ -19,7 +19,8 @@
 
 // Must match the typedef and global the CMake patch adds to imgui.cpp (global
 // namespace, null by default).
-typedef void (*DekiDockSnapFn)(ImGuiDockNode*, ImGuiDockNode*, ImGuiDockNode*, ImGuiAxis, float*, float*, float, float);
+using DekiDockSnapFn = void (*)(ImGuiDockNode*, ImGuiDockNode*, ImGuiDockNode*, ImGuiAxis, float*, float*, float,
+                                float);
 extern DekiDockSnapFn GDekiDockSnapFn;
 
 namespace
@@ -56,7 +57,7 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child0, ImGuiDockNode*
     {
         ImGuiDockNode* n = stack.back();
         stack.pop_back();
-        if (n == NULL)
+        if (n == nullptr)
         {
             continue;
         }
@@ -74,7 +75,7 @@ void SnapDockSplitter(ImGuiDockNode* node, ImGuiDockNode* child0, ImGuiDockNode*
         // a nested panel's tab just under the separator) are not stable
         // targets. Only panels outside this split count.
         bool insideResizedRegion = false;
-        for (ImGuiDockNode* p = n; p != NULL; p = p->ParentNode)
+        for (ImGuiDockNode* p = n; p != nullptr; p = p->ParentNode)
         {
             if (p == node)
             {

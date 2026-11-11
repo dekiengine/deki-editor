@@ -6,14 +6,69 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### Breaking
+- **Positive rotation now draws counter-clockwise** (`deki-rendering`), the
+  way children, lights, 3D and physics already turned. A sprite whose rotation
+  was set by eye needs the sign of that rotation flipped. Saved scenes are not
+  converted; the checklist below lists what to look at.
+
 ### Added
+- **What each object in the scene costs to draw.** The `device_profile` MCP
+  tool measures a board for a few seconds and returns its `DEKI:PROFILE`
+  report as JSON: the frame's stages, each kind of component, the drawing
+  paths, and each object (its share of finding what changed, of making and
+  drawing its pixels, and why it was drawn again). Plugins reach the same
+  through `DeviceProfile.h` (`QueryDeviceProfile`, `ParseDeviceProfile`) and
+  `SerialExchange` in `SerialPorts.h`, the serial request the screenshot,
+  stats and memory tools use.
+- A Getting started guide, from downloading the editor to code running on a
+  board. The documentation's front page and sidebar group the guides and
+  packages by what they are for.
+- **A checklist of breaking changes when an older project opens.** Each
+  breaking change since 0.22 that the editor cannot convert has an entry saying
+  what to do, and most scan the project and name what is affected, such as the
+  rotated objects in its scenes and the lines of its code that call
+  `SetRotation`. A project sees the changes newer than the version that last
+  saved it, oldest first, and one with nothing affected sees no checklist. Ticks are kept in
+  `deki.json` (`projectChecks`). MCP reads the same list: `run_project_checks`,
+  `set_project_check`, and `get_dialog` / `answer_dialog` "close".
 - **Update from the project launcher.** A downloaded editor offers a newer
   release there: it downloads it, checks its SHA-256, unpacks it beside the
   install and swaps the folders when you restart.
+- A gizmo can take the mouse from the Scene View while the pointer is on one of
+  its handles (`SceneView::ClaimMouse`, `IsPointerOnCanvas`).
 - Tests that damage valid scene and settings files thousands of ways and load
   them, and a nightly CI job that runs them under AddressSanitizer.
+- The Play view reads gamepads, as the keys a desktop build reads them as.
+- MCP `get_console`: the Console's newest entries, with level, time, repeats
+  and source line, filtered by level and text.
 
 ### Fixed
+- A project opened in a rebuilt editor while its code had a build error now
+  gets its packages back once the error is fixed. The failed rebuild at open
+  removes the package libraries built for the previous editor, and later
+  builds only built the game's code, so sprites, maps and the rest stayed
+  missing until the editor was restarted. The next build now builds and loads
+  the packages too.
+- Files of a type a package brings are imported when the package loads, or
+  loads again after a failed rebuild, not only once they change. A project
+  opened before its packages had built (a fresh copy, say), or one whose code
+  failed to build for a while, left its maps, fonts and the like out of the
+  asset list, so the scene drew without them and a firmware build failed
+  with "Missing asset" for each.
+- The editor no longer crashes when a file in the project's assets is
+  removed while it is being imported, as a tool's temporary file often is.
+  Reading its time threw an exception nothing caught.
+- An image's **Open in Sprite Slicer** button, formerly **Open in Spritesheet
+  Editor**, opens the Sprite Slicer. It opened the 9-Slice Editor.
+- A click in the Play view reaches the game as an input event, as a touch does
+  on a device, and input sources and listeners a game registered are removed
+  when Play stops. A rebuild after Play could crash the next run.
+- MCP `get_dialog` reports the crash-recovery window (`recoveryDialog`) and
+  counts it as blocking: the game stands still behind it.
+- MCP `open_scene` says why it did not open: the unsaved-changes dialog is
+  asking first (and answering it opens the scene), there is no file, or the
+  file could not be read. It named all three each time.
 - When the OS drops file change events, as a large checkout can, the editor
   checks the assets against the disk and every package's sources, so nothing
   that changed is left stale.

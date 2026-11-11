@@ -4,6 +4,8 @@
 
 フォントはコンパイルのパイプラインを通ります。TTF ソースファイル -> ベイク済みの BitmapFont (.dfont) + テクスチャアトラス、という流れです。フォントサイズごとに、決定的な GUID を持つ**別々のファイルの組**が生成されます。
 
+![インスペクターのテキスト欄](../img/gs-inspector-text.png)
+
 ```
 assets/fonts/MyFont.ttf (source)
   -> cache/{variantGuid}  (compiled .dfont for 16px)

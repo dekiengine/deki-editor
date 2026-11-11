@@ -202,14 +202,14 @@ void AssetFileWatcher::Start(const std::string& watchPath, const std::string& pr
     if (impl.watchId < 0)
     {
         DEKI_LOG_ERROR("AssetFileWatcher: addWatch failed for %s (efsw error %d)", watchPath.c_str(),
-                       (int)impl.watchId);
+                       static_cast<int>(impl.watchId));
         impl.watcher.reset();
         return;
     }
 
     impl.watcher->watch();
     impl.watching = true;
-    DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)", watchPath.c_str(), (int)impl.watchId);
+    DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)", watchPath.c_str(), static_cast<int>(impl.watchId));
 }
 
 void AssetFileWatcher::Stop()

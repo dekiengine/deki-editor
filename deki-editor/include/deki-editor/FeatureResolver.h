@@ -42,6 +42,7 @@ enum class FeatureState
 
 DEKI_EDITOR_API const char* FeatureStateName(FeatureState state);
 
+/// Whether one package feature stays in a build, and why.
 struct DEKI_EDITOR_API FeatureDecision
 {
     std::string packageId;
@@ -58,6 +59,7 @@ struct DEKI_EDITOR_API FeatureDecision
     bool offered = true;
 };
 
+/// Whether one package stays in a build, and why.
 struct DEKI_EDITOR_API PackageDecision
 {
     std::string packageId;
@@ -66,6 +68,7 @@ struct DEKI_EDITOR_API PackageDecision
     std::string reason;
 };
 
+/// What a device build keeps and strips: features, packages, defines and source files.
 struct DEKI_EDITOR_API StripPlan
 {
     std::vector<FeatureDecision> features;
@@ -104,9 +107,9 @@ DEKI_EDITOR_API StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEn
                                            const ComponentUsage& usage, const BuildStripSettings& settings,
                                            const std::string& packagesDir);
 
-// A component this target's own content uses, from a package this target
-// cannot have. Unlike a normal exclusion this is a real mistake, worth
-// refusing a build over.
+/// A component this target's own content uses, from a package this target
+/// cannot have. Unlike a normal exclusion this is a real mistake, worth
+/// refusing a build over.
 struct DEKI_EDITOR_API TargetContentConflict
 {
     std::string componentType;         // e.g. "SDL3DisplaySetup"

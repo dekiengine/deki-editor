@@ -69,6 +69,8 @@ float m_GyroScale = (245.0f / 32768.0f) * Deki::Math::kDegToRad;  // LSB -> rad/
 
 すべて `deki-editor/src/core/Units.h` にあります。1 つのファイルなので、単位の追加は 1 か所の編集で済みます。
 
+![インスペクターでピクセル表示された位置](../img/units-inspector.png)
+
 - `GetUnitDisplay(unit)` - 乗数、オフセット、printf の書式、ドラッグの速度。
 - `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` - 逆変換の組で、まとめて置かれています。どの変換も単純な掛け算だった間は、呼び出し側がその場で逆変換できました。華氏のオフセットがあると、その場で書いた `shown / multiplier` は 32 度ずれ、それでももっともらしく見えます。
 - `CanonicalUnitSymbol(unit)` - 値が*保存されている* SI の記号で、機械で読む出力に使います。表示の設定には影響されません。メタデータのダンプに "px" と書くと、ダンプが嘘になってしまいます。

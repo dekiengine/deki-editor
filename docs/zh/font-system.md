@@ -4,6 +4,8 @@
 
 字体要经过一条编译管线：TTF 源文件 -> 已烘焙的 BitmapFont（.dfont）+ 纹理图集。每个字号都会生成**一对单独的文件**，并使用确定性 GUID。
 
+![检视器中的文本字段](../img/gs-inspector-text.png)
+
 ```
 assets/fonts/MyFont.ttf (source)
   -> cache/{variantGuid}  (compiled .dfont for 16px)

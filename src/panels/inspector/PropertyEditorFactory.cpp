@@ -967,7 +967,7 @@ void PropertyEditorFactory::DrawObjectRefProperty(Deki::Component* comp, const D
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("HIERARCHY_OBJECT"))
         {
-            Deki::Object* droppedObj = *(Deki::Object**)payload->Data;
+            Deki::Object* droppedObj = *static_cast<Deki::Object**>(payload->Data);
             if (droppedObj)
             {
                 Deki::Component* matchedComp = nullptr;

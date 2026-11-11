@@ -18,6 +18,7 @@
 namespace DekiEditor
 {
 
+/// Which component types a project uses, and where each one was seen.
 struct DEKI_EDITOR_API ComponentUsage
 {
     // Short component type name (namespace stripped) -> where it was seen,

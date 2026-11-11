@@ -307,3 +307,54 @@ TEST(MemoryReport, BytesReadAsAPersonWouldWriteThem)
     EXPECT_EQ(FormatMemoryBytes(153600), "150.0 KB");
     EXPECT_EQ(FormatMemoryBytes(8u * 1024 * 1024), "8.00 MB");
 }
+
+// ============================================================================
+// A board's profile report (DeviceProfile.h)
+// ============================================================================
+
+#include <deki-editor/DeviceProfile.h>
+
+TEST(DeviceProfile, ReadsKindsPathsAndObjectsBetweenLogLines)
+{
+    const std::string received =
+        "I (1234) boot: noise\n"
+        "DEKI:PROFILE frames=210\n"
+        "DEKI:PROFILE:ITEM Changes draws=1.0 contentUs=4695 blitUs=0 pixels=0\n"
+        "DEKI:PROFILE:ITEM Render passes draws=5.3 contentUs=2331 blitUs=0 pixels=0\n"
+        "DEKI:PROFILE:PATH TintRows blits=22.3 pixels=18094 us=2210 nsPerPixel=122.1\n"
+        "DEKI:PROFILE:OBJECT \"Root/Camera/Counter Side\" type=ShapeComponent order=1989 measureUs=57.1 "
+        "contentUs=0.0 blitUs=156.7 pixels=2672 draws=1.30 new=0.00 changed=0.00 still=0.92 overPin=0.00\r\n"
+        "DEKI:PROFILE:OBJECT \"Root/Map\" type=Tilemap order=0 measureUs=0.0 contentUs=2330.6 blitUs=0.0 pixels=0 "
+        "draws=5.34 new=0.00 changed=0.00 still=0.00 overPin=0.00\n"
+        "DEKI:PROFILE:OBJECTS shown=2 of=118\n"
+        "DEKI:PROFILE:END\n"
+        "more log\n";
+    DeviceProfile p;
+    std::string error;
+    ASSERT_TRUE(ParseDeviceProfile(received, p, error)) << error;
+    EXPECT_EQ(p.frames, 210);
+    ASSERT_EQ(p.kinds.size(), 2u);
+    EXPECT_EQ(p.kinds[1].name, "Render passes");
+    EXPECT_DOUBLE_EQ(p.kinds[1].values["contentUs"], 2331);
+    ASSERT_EQ(p.paths.size(), 1u);
+    EXPECT_EQ(p.paths[0].name, "TintRows");
+    ASSERT_EQ(p.objects.size(), 2u);
+    EXPECT_EQ(p.objects[0].name, "Root/Camera/Counter Side");
+    EXPECT_EQ(p.objects[0].type, "ShapeComponent");
+    EXPECT_DOUBLE_EQ(p.objects[0].values["order"], 1989);
+    EXPECT_DOUBLE_EQ(p.objects[0].values["still"], 0.92);
+    EXPECT_DOUBLE_EQ(p.objects[0].values["overPin"], 0.0);
+    EXPECT_EQ(p.objects[1].type, "Tilemap");
+    EXPECT_EQ(p.objectsTotal, 118);
+}
+
+TEST(DeviceProfile, AReportCutShortOrMissingSaysSo)
+{
+    DeviceProfile p;
+    std::string error;
+    EXPECT_FALSE(ParseDeviceProfile("DEKI:PROFILE:ON\n", p, error));
+    EXPECT_FALSE(error.empty());
+    error.clear();
+    EXPECT_FALSE(ParseDeviceProfile("DEKI:PROFILE frames=3\nDEKI:PROFILE:ITEM Changes draws=1\n", p, error));
+    EXPECT_NE(error.find("cut short"), std::string::npos);
+}

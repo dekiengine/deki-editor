@@ -648,6 +648,42 @@ TEST(DekiMemorySites, PeaksFollowTheRegionTotals)
 }
 #endif
 
+// A site's names are literals in the code that allocated. An editor that
+// unloads a package keeps them first, and its next report must not read the
+// unloaded code; a site still loaded keeps its own row.
+TEST(DekiMemorySites, KeptNamesOutliveTheCodeTheyCameFrom)
+{
+    // Names in memory that goes away, as an unloaded library's literals do.
+    auto* function = new std::string("void Unloaded::Make()");
+    auto* file = new std::string("Unloaded.cpp");
+    Deki::AllocContext ctx;
+    ctx.function = function->c_str();
+    ctx.file = file->c_str();
+    ctx.line = 4242;
+    void* first = Deki::Memory::Allocate(64, Deki::Memory::Internal, ctx);
+    ASSERT_NE(first, nullptr);
+
+    Deki::Memory::KeepSiteNames();
+    std::fill(function->begin(), function->end(), 'X');
+    delete function;
+    delete file;
+
+    Deki::MemorySite site{};
+    ASSERT_TRUE(FindSite("Unloaded::Make", 4242, site));
+    EXPECT_STREQ(site.file, "Unloaded.cpp");
+    const uint32_t rows = Deki::Memory::GetSiteCount();
+
+    // The same call site again (the pointer is only compared, never read).
+    void* second = Deki::Memory::Allocate(32, Deki::Memory::Internal, ctx);
+    ASSERT_NE(second, nullptr);
+    EXPECT_EQ(Deki::Memory::GetSiteCount(), rows) << "it found its own row, not a new one";
+    ASSERT_TRUE(FindSite("Unloaded::Make", 4242, site));
+    EXPECT_EQ(site.internalBytes, 96u);
+
+    Deki::Memory::Free(first);
+    Deki::Memory::Free(second);
+}
+
 TEST(DekiMemorySites, AnIndexPastTheEndIsRefused)
 {
     Deki::MemorySite site{};

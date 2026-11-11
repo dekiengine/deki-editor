@@ -56,9 +56,11 @@ constexpr const char* TrMark(const char* english)
     return english;
 }
 
+/// The languages the editor offers and which one is in use.
 namespace Localization
 {
 
+/// A language the editor offers: its code and its name in that language.
 struct Language
 {
     std::string code;  // "en", "ja", "zh" (Simplified Chinese), "ko"

@@ -13,17 +13,17 @@ reasons it has to hold:
 
 1. **`new[]` cannot fail gracefully.** ESP-IDF builds with exceptions off
    (`CONFIG_COMPILER_CXX_EXCEPTIONS` is not set), so a failed allocation
-   reaches `__cxa_allocate_exception` and calls `abort()` - the board reboots.
+   reaches `__cxa_allocate_exception` and calls `abort()` - the device reboots.
    There is no catch site to add. `std::nothrow` does *not* help: libstdc++
    implements the nothrow form by calling the throwing form inside a
    `try`/`catch` that `-fno-exceptions` has removed, so it aborts identically.
    This was diagnosed from a backtrace showing
    `operator new[](unsigned int, std::nothrow_t const&)` calling straight into
    the throwing form.
-2. **Only the engine knows where memory should live.** Whether this board has
+2. **Only the engine knows where memory should live.** Whether this device has
    external RAM, how much slower it is, and whether a peripheral can reach a
    given region are properties of the platform, not of the caller. A caller
-   that picks a region is wrong on the next board.
+   that picks a region is wrong on the next device.
 3. **`Deki::Memory` is also the accounting and the leak check.** Statistics,
    the double-free guard and (in debug builds) the leak table all live behind
    it. An allocation that skips it is invisible.
@@ -89,11 +89,11 @@ Every allocating call names a region, and omitting it does not compile.
 | Region | Where it goes |
 | --- | --- |
 | `Deki::Memory::Internal` | Internal RAM. Fast, and the scarce one |
-| `Deki::Memory::External` | PSRAM where the board has it. Megabytes, and markedly slower - it is reached over SPI |
+| `Deki::Memory::External` | PSRAM where the device has it. Megabytes, and markedly slower - it is reached over SPI |
 
 `Deki::Memory::AllocateDma(bytes, region)` adds the constraint that a DMA
 engine must be able to read the block. That is orthogonal to placement: a
-framebuffer must be reachable whether the board keeps it internally or in
+framebuffer must be reachable whether the device keeps it internally or in
 PSRAM, which is why it is a separate entry point rather than a third region.
 
 ### A region is a name, so packages can add their own
@@ -127,9 +127,9 @@ meaning *different* things by one word, so qualify names you did not invent:
 `particles.scratch`, `esp32.rtc`. A debug build reports two different names
 that hash alike, because the allocation header stores only the id.
 
-### Serving one is the board's job
+### Serving one is the device's job
 
-A package can *name* a region; only the board's `IMemoryProvider` can serve it.
+A package can *name* a region; only the device's `IMemoryProvider` can serve it.
 A provider that has not heard of `esp32.rtc` returns nullptr and the failure
 names the region:
 
@@ -151,7 +151,7 @@ A target advertises the regions it has as capabilities, prefixed `memory:`:
 | --- | --- |
 | `memory:internal` | every platform - derived |
 | `memory:external` | the platform's `psramSize` - derived |
-| `memory:esp32.rtc` | the board's `provides`, because only it knows |
+| `memory:esp32.rtc` | the device's `provides`, because only it knows |
 
 So a package that needs one declares it and the build refuses a target that
 lacks it, by name, before anything runs:
@@ -179,7 +179,7 @@ not retried in the other region. This is deliberate:
 A failure logs what it was, how big, which region, and that no fallback was
 attempted. Every caller already has to handle null.
 
-A board with no external RAM resolves everything to internal. That is not a
+A device with no external RAM resolves everything to internal. That is not a
 fallback; it is the only region there is.
 
 ## The rest of the API
@@ -202,7 +202,7 @@ void  Free(void* ptr, const char* context = nullptr);
   into a logged error instead of heap corruption.
 - **Naming the allocation is optional.** See `AllocContext` below.
 - A failure reports how much was free in the region it tried, which separates
-  "this asset is too big for this board" from "something is holding memory it
+  "this asset is too big for this device" from "something is holding memory it
   should have released".
 - `Memory::Initialize` logs the free internal and external RAM once at startup,
   so a project can be sized against real numbers rather than against the first
@@ -239,8 +239,8 @@ now in internal and in external RAM, its peak and how many blocks.
 
 - The table has 64 rows: 63 call sites, in the order they first allocate, and
   an overflow row the rest share. About 1.8 KB of internal RAM on a 32-bit
-  board, from plain `malloc` like the debug leak table: it is the engine's own
-  bookkeeping, so the board's provider never sees it among the allocations it
+  device, from plain `malloc` like the debug leak table: it is the engine's own
+  bookkeeping, so the device's provider never sees it among the allocations it
   serves.
 - The row goes in the allocation header, in bits the header was not using, so
   a free finds its row without a search and the header stays 16 bytes.
@@ -250,12 +250,12 @@ now in internal and in external RAM, its peak and how many blocks.
 - `std::vector`, `std::string` and scalar `new` have no call site. They are in
   the heap's free figures, not in the table.
 
-A board answers the serial line `DEKI:MEMORY` with all of it
+A device answers the serial line `DEKI:MEMORY` with all of it
 (deki-esp32-integration, `ESP32ScreenCapture.cpp`): each region's use, peak,
 free space, lowest free space since boot and size, from `heap_caps`, then a
 `DEKI:MEMORY:SITE` line per call site and `DEKI:MEMORY:END`.
 
-The editor's **Memory panel** (Window > PERFORMANCE > Memory) shows two
+The editor's **Memory panel** (**View → Memory**) shows two
 views:
 
 - **Scene** works out what the open scene takes on a target without running
@@ -265,13 +265,15 @@ views:
   every object with its components. It sets this against the target's RAM and
   lists the biggest first. These figures are all estimates, and the panel says
   so. A target's description gives its external RAM but not its internal RAM,
-  so the internal budget comes from a board read in Live.
+  so the internal budget comes from a device read in Live.
 - **Live** measures a running game: Play mode in the editor (optionally only
-  what the game added since Play started), or a board over its serial port. It
+  what the game added since Play started), or a device over its serial port. It
   groups the call sites into categories by the file each one is in (the frame
   buffer, the display driver, images, fonts, tilemaps and so on), with peaks.
 
 The MCP tools `memory_report` and `device_memory` return the same figures.
+
+![The Memory panel, estimating a scene on a device](img/memory-panel.png)
 
 ### Changing scenes
 
@@ -354,7 +356,7 @@ engine and the packages calling it have to agree - the same constraint
 `<deki/providers/Vector.h>`. `Buffer<T>` covers a count you know when you
 allocate. When it changes and has no fixed bound, `std::vector` is the wrong
 answer on a device: `push_back` calls `operator new`, which cannot report
-exhaustion with exceptions off, so it aborts and the board reboots.
+exhaustion with exceptions off, so it aborts and the device reboots.
 
 `Deki::Vector` is that shape with the one thing changed that matters here
 everything that can allocate returns `bool`:
@@ -409,7 +411,7 @@ which changes two things:
   form by calling the throwing one inside a removed `try`/`catch`.
 
 These **do** go through the engine: `operator new` calls
-`IMemoryProvider::AllocateRaw`, so a board sees every allocation on the device
+`IMemoryProvider::AllocateRaw`, so a device sees every allocation on the device
 and can substitute its heap for all of them.
 
 What it is *not* is `Memory::Allocate`. That would put a 16-byte header before
@@ -481,14 +483,14 @@ any part where those differ - silent corruption, with nothing in the build to
 say so.
 
 `GetAvailableInternalRAM` is required for the same reason: a provider that
-answers 0 without meaning it makes the startup line report an exhausted board.
+answers 0 without meaning it makes the startup line report an exhausted device.
 
 Pure virtuals occupy the same vtable slots as implemented ones, so this costs
 no ABI version. It stops a provider compiling until it decides.
 
 `AllocateRaw` / `FreeRaw` / `GetRawBlockSize` are the fourth pair plus a query:
 the plain natural-alignment allocator the global `operator new` routes through,
-so a board's heap serves `std::vector` and scalar `new` as well as everything
+so a device's heap serves `std::vector` and scalar `new` as well as everything
 the engine places. They default to `malloc`/`free`, and `GetRawBlockSize`
 returns 0 where the platform cannot answer - which only costs accuracy in
 `LogStats`. Override both of the pair or neither.
@@ -516,7 +518,7 @@ python tools/ci/check_allocations.py --verbose  # also list files and waivers
 
 Fails on `new[]`, `delete[]`, `malloc`/`calloc`/`realloc` and `heap_caps_*` in
 runtime code - **the engine's own as well as every package's**. An allocation
-in the engine reaches every project on every board, where a package's reaches
+in the engine reaches every project on every device, where a package's reaches
 only the projects that installed it, so if anything the engine is the more
 important half; leaving it out of the first version of this lint immediately
 proved the point, since `ProjectSettings` was keeping its on-device settings

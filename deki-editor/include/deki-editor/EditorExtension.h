@@ -38,6 +38,7 @@ enum class EditorType
 // Base Class for All Editor Extensions
 // ============================================================================
 
+/// Base class of what packages add to the editor: custom editors, asset types, tools.
 class DEKI_EDITOR_API EditorExtension
 {
 public:
@@ -51,6 +52,7 @@ public:
 // Asset Type Editor
 // ============================================================================
 
+/// An asset type a package adds: its file extensions, compile step and inspector UI.
 class DEKI_EDITOR_API AssetTypeEditor : public EditorExtension
 {
 public:
@@ -104,6 +106,7 @@ public:
 // File Inspector (for native file types like .ttf, .otf, .png)
 // ============================================================================
 
+/// Inspector for a native file type such as .ttf or .png.
 class DEKI_EDITOR_API FileInspector : public EditorExtension
 {
 public:
@@ -134,6 +137,7 @@ public:
 
 class CustomEditor;
 
+/// Creates and caches the CustomEditor for each component.
 class DEKI_EDITOR_API CustomEditorRegistry
 {
 public:
@@ -188,6 +192,7 @@ private:
 // Asset Type Editor Registry (editor-side)
 // ============================================================================
 
+/// The registered AssetTypeEditors, looked up by type name.
 class DEKI_EDITOR_API AssetTypeEditorRegistry
 {
 public:
@@ -208,6 +213,7 @@ private:
 // File Inspector Registry (editor-side)
 // ============================================================================
 
+/// The registered FileInspectors, looked up by file extension.
 class DEKI_EDITOR_API FileInspectorRegistry
 {
 public:
@@ -236,6 +242,7 @@ struct CreateMenuEntry
     std::string componentName;  // component class to add, e.g. "SpriteComponent"
 };
 
+/// The items packages add to the hierarchy's "Create Object" menu.
 class DEKI_EDITOR_API CreateMenuRegistry
 {
 public:

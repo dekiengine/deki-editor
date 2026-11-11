@@ -8,6 +8,7 @@
 namespace DekiEditor
 {
 
+/// Outcome of an asset import: success or error, and the cache file written.
 struct DEKI_EDITOR_API ImportResult
 {
     bool success = false;

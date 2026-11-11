@@ -22,6 +22,7 @@
 #include "../panels/MemoryPanel.h"
 #include "McpCompletion.h"
 #include <deki-editor/SerialPorts.h>
+#include <deki-editor/DeviceProfile.h>
 #include "stb_image_write.h"
 #include <deki-editor/build/PlatformConfig.h>
 #include <deki-editor/build/BuilderRegistry.h>
@@ -1099,7 +1100,7 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                   in >> scene;
               }
 
-              const int64_t wantedId = args.value("object_id", (int64_t)-1);
+              const int64_t wantedId = args.value("object_id", static_cast<int64_t>(-1));
               std::vector<std::string> needs;
               if (args.contains("requires") && args["requires"].is_array())
               {
@@ -1492,6 +1493,90 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
                       return out;
                   });
               return { { "status", "asking" }, { "port", port } };
+          } });
+
+    registry.Register(
+        { "device_profile",
+          "What a connected board's frames cost, part by part, measured over `seconds` (default 3): per frame, the "
+          "frame's stages (Changes: finding what changed; Scroll; Clear; Render passes) and each kind of component "
+          "(draws, contentUs making pixels, blitUs drawing them, pixels), the blitter's paths (us and nsPerPixel), "
+          "and each object in the scene, most expensive first: its path, type, sorting order, measureUs (its share "
+          "of finding what changed), contentUs, blitUs, pixels, draws, and why its area was drawn again (new, "
+          "changed, still: the same on screen while the world scrolled under it, overPin: drawn where something "
+          "kept on screen sits). The board sends its 64 most expensive objects; objectsTotal says how many there "
+          "were. The firmware must answer DEKI:PROFILE (the ESP32 HAL does). Close the Serial Monitor first if it "
+          "has the port open.",
+          { { "type", "object" },
+            { "properties",
+              { { "port",
+                  { { "type", "string" },
+                    { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } },
+                { "seconds", { { "type", "integer" }, { "description", "How long to measure (1 to 30, default 3)" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string port = BoardPort(args);
+              const int seconds = std::clamp(args.value("seconds", 3), 1, 30);
+              struct Job
+              {
+                  std::mutex mutex;
+                  bool done = false;
+                  bool ok = false;
+                  std::string error;
+                  DeviceProfile profile;
+              };
+              auto job = std::make_shared<Job>();
+              std::thread(
+                  [job, port, seconds]()
+                  {
+                      DeviceProfile profile;
+                      std::string error;
+                      const bool ok = QueryDeviceProfile(port, seconds, profile, error);
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      job->ok = ok;
+                      job->error = error;
+                      job->profile = std::move(profile);
+                      job->done = true;
+                  })
+                  .detach();
+              McpCompletion::Defer(
+                  [job, port]() -> std::optional<nlohmann::json>
+                  {
+                      std::lock_guard<std::mutex> lock(job->mutex);
+                      if (!job->done)
+                      {
+                          return std::nullopt;
+                      }
+                      if (!job->ok)
+                      {
+                          throw std::runtime_error(job->error);
+                      }
+                      auto rows = [](const std::vector<DeviceProfileRow>& list, const char* nameKey)
+                      {
+                          nlohmann::json out = nlohmann::json::array();
+                          for (const DeviceProfileRow& r : list)
+                          {
+                              nlohmann::json row{ { nameKey, r.name } };
+                              if (!r.type.empty())
+                              {
+                                  row["type"] = r.type;
+                              }
+                              for (const auto& [key, value] : r.values)
+                              {
+                                  row[key] = value;
+                              }
+                              out.push_back(std::move(row));
+                          }
+                          return out;
+                      };
+                      const DeviceProfile& p = job->profile;
+                      return nlohmann::json{ { "port", port },
+                                             { "frames", p.frames },
+                                             { "kinds", rows(p.kinds, "name") },
+                                             { "paths", rows(p.paths, "name") },
+                                             { "objects", rows(p.objects, "path") },
+                                             { "objectsTotal", p.objectsTotal } };
+                  });
+              return { { "status", "measuring" }, { "port", port }, { "seconds", seconds } };
           } });
 
     registry.Register(

@@ -164,7 +164,7 @@ static double GetEventSelfMs(const ProfileEvent* event)
 static float GetEventPercent(const ProfileEvent* event, double frameActiveMs)
 {
     double eventMs = event->durationUs / 1000.0;
-    return frameActiveMs > 0 ? (float)(eventMs / frameActiveMs * 100.0) : 0.0f;
+    return frameActiveMs > 0 ? static_cast<float>(eventMs / frameActiveMs * 100.0) : 0.0f;
 }
 
 // The hierarchy view's sort column and direction
@@ -232,7 +232,7 @@ static bool DrawEventTree(const ProfileEvent* event, double frameActiveMs, const
     }
 
     double eventMs = event->durationUs / 1000.0;
-    float percent = frameActiveMs > 0 ? (float)(eventMs / frameActiveMs * 100.0) : 0.0f;
+    float percent = frameActiveMs > 0 ? static_cast<float>(eventMs / frameActiveMs * 100.0) : 0.0f;
     bool hasChildren = !event->children.empty();
 
     // Self time: total minus children
@@ -395,9 +395,9 @@ void ProfilerPanel::Draw()
             DrawFrameTimeline(frameBudgetMs);
 
             // The frame shown below: the selected one, or the newest.
-            const int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < (int)m_DisplayBuffer.size()
+            const int frameIdx = m_SelectedFrame >= 0 && m_SelectedFrame < static_cast<int>(m_DisplayBuffer.size())
                                      ? m_SelectedFrame
-                                     : (int)m_DisplayBuffer.size() - 1;
+                                     : static_cast<int>(m_DisplayBuffer.size()) - 1;
             const uint64_t targetFrameNumber =
                 (m_SelectedFrame < 0) ? m_CurrentFrameNumber : m_DisplayBuffer[frameIdx].frameNumber;
             const FrameData* displayFrame = nullptr;
@@ -414,7 +414,7 @@ void ProfilerPanel::Draw()
             {
                 const auto& frame = *displayFrame;
                 const double activeTimeMs = frame.totalTimeMs - frame.idleTimeMs;
-                const float fps = activeTimeMs > 0 ? (float)(1000.0 / activeTimeMs) : 0.0f;
+                const float fps = activeTimeMs > 0 ? static_cast<float>(1000.0 / activeTimeMs) : 0.0f;
 
                 // One summary line: which frame, and its time against the budget.
                 const float pad = m_App->Dpi(12.0f);
@@ -425,7 +425,7 @@ void ProfilerPanel::Draw()
                 ImGui::TextColored(DekiEditor::Palette::Dim, "%s",
                                    m_SelectedFrame < 0 ? Tr("Latest frame") : Tr("Frame"));
                 ImGui::SameLine(0.0f, m_App->Dpi(8.0f));
-                ImGui::Text("#%llu", (unsigned long long)frame.frameNumber);
+                ImGui::Text("#%llu", static_cast<unsigned long long>(frame.frameNumber));
                 ImGui::SameLine(0.0f, m_App->Dpi(20.0f));
                 const ImVec4 timeCol = activeTimeMs <= frameBudgetMs          ? DekiEditor::Palette::Green
                                        : activeTimeMs <= frameBudgetMs * 2.0f ? DekiEditor::Palette::Amber
@@ -583,7 +583,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     const float chartW = chartMax.x - chartMin.x;
     const float slotW = chartW / kSlots;
     const float maxMs = frameBudgetMs * 2.0f;
-    const int count = (int)m_DisplayBuffer.size();
+    const int count = static_cast<int>(m_DisplayBuffer.size());
     const int firstSlot = kSlots - std::min(count, kSlots);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -592,7 +592,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     dl->AddRectFilled(chartMin, chartMax, IM_COL32(255, 255, 255, 6), m_App->Dpi(3.0f));
 
     // Gridlines at the budget and at twice it, labelled in ms.
-    auto yFor = [&](double ms) { return chartMax.y - (float)std::min(ms / maxMs, 1.0) * chartH; };
+    auto yFor = [&](double ms) { return chartMax.y - static_cast<float>(std::min(ms / maxMs, 1.0)) * chartH; };
     const float halfLine = ImGui::GetTextLineHeight() * 0.5f;
     for (float ms : { frameBudgetMs, maxMs })
     {
@@ -610,7 +610,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     if (ImGui::IsWindowHovered() && mouse.x >= chartMin.x && mouse.x < chartMax.x && mouse.y >= chartMin.y &&
         mouse.y < chartMax.y)
     {
-        const int slot = (int)((mouse.x - chartMin.x) / slotW);
+        const int slot = static_cast<int>((mouse.x - chartMin.x) / slotW);
         if (slot >= firstSlot)
         {
             hovered = slot - firstSlot;
@@ -646,7 +646,7 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
                 {
                     continue;
                 }
-                const float h = std::min((float)(timeMs / maxMs) * chartH, yOffset - chartMin.y);
+                const float h = std::min(static_cast<float>(timeMs / maxMs) * chartH, yOffset - chartMin.y);
                 if (h > 0.5f)
                 {
                     dl->AddRectFilled(ImVec2(x0, yOffset - h), ImVec2(x1, yOffset), GetCategoryColor(category));
@@ -673,8 +673,9 @@ void ProfilerPanel::DrawFrameTimeline(float frameBudgetMs)
     {
         const auto& f = m_DisplayBuffer[hovered];
         char tip[96];
-        std::snprintf(tip, sizeof(tip), Tr("Frame #%llu\n%.2f ms  (%.0f fps)"), (unsigned long long)f.frameNumber,
-                      f.activeTimeMs, f.activeTimeMs > 0 ? 1000.0 / f.activeTimeMs : 0.0);
+        std::snprintf(tip, sizeof(tip), Tr("Frame #%llu\n%.2f ms  (%.0f fps)"),
+                      static_cast<unsigned long long>(f.frameNumber), f.activeTimeMs,
+                      f.activeTimeMs > 0 ? 1000.0 / f.activeTimeMs : 0.0);
         DekiEditor::Tooltip("%s", tip);
     }
 

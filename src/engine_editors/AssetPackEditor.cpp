@@ -61,7 +61,7 @@ public:
 
         auto& assets = data["assets"];
 
-        ImGui::Text(DekiEditor::Tr("Assets in pack: %d"), (int)assets.size());
+        ImGui::Text(DekiEditor::Tr("Assets in pack: %d"), static_cast<int>(assets.size()));
 
         // Estimated total size.
         ImGui::SameLine();

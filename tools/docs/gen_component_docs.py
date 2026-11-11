@@ -27,6 +27,7 @@ See localize.py for where each kind of text comes from.
 """
 
 import argparse
+import html
 import json
 import os
 import re
@@ -546,51 +547,305 @@ def settings_page(data, infos):
     return out
 
 
-def index_page(data, infos, guides=(), api_url="annotated.html"):
-    version = data.get("engineVersion", "")
-    out = ["# Deki {#mainpage}", ""]
-    out.append(L.ui("A modular C++ 2D engine for embedded displays and desktop, with a visual editor."))
-    out.append("")
-    if version:
-        out.append(L.ui("The engine core and its C++ API are here. Packages document themselves, linked below. "
-                        "All of it is generated from the code (engine {version}).", version=version))
-    else:
-        out.append(L.ui("The engine core and its C++ API are here. Packages document themselves, linked below. "
-                        "All of it is generated from the code."))
-    out.append("")
-    out.append(L.ui("- [Engine core]({url}): components and settings the engine provides itself",
-                    url="engine-core.html"))
-    out.append(L.ui("- [Project settings]({url}): every settings section, by owner", url="settings.html"))
-    if L.english:
-        out.append(L.ui("- [API reference]({url}): the C++ classes of the engine and the editor DLL", url=api_url))
-    else:
-        out.append(L.ui("- [API reference]({url}): the C++ classes of the engine and the editor DLL, in English",
-                        url=api_url))
-    out.append(L.ui("- [Editor repository]({url}): setup, contributing, compatibility policy",
-                    url="https://github.com/dekiengine/deki-editor"))
-    out.append("")
-    if guides:
-        out.append(f"## {L.ui('Guides')} {{#guides}}")
-        out.append("")
-        for name, title in guides:
-            out.append(f"- [{title}](guide-{name}.html)")
-        out.append("")
-    out.append(f"## {L.ui('Packages')} {{#packages}}")
-    out.append("")
-    out.append(L.ui("Each is its own repository under {link}. Install with {command}, or from the Package Manager.",
-                    link="[github.com/dekiengine](https://github.com/dekiengine)",
-                    command="`DekiEditor --packages-add <id> <project>`"))
-    out.append("")
-    out.append(f"| {L.ui('Package')} | {L.ui('Components')} | {L.ui('Summary')} |")
-    out.append("| --- | --- | --- |")
-    for pkg in data.get("packages", []):
-        pkg_id = pkg["id"]
-        info = infos.get(pkg_id, {})
-        n = len(pkg.get("components", []))
-        summary = L.package_summary(pkg_id) or info.get("summary", "")
-        out.append(f"| [{pkg_id}]({info.get('docs', '')}) | {n} | {esc(summary)} |")
-    out.append("")
+# The guides in the order a reader needs them, and the packages by what they
+# are for. tests/test_gen.py fails when one in the repository is in neither.
+GUIDE_GROUPS = [
+    ("Start here", ["getting-started", "first-game", "first-app", "project-layout", "coming-from-lvgl"]),
+    ("Making a game", ["components", "sprites", "animation", "text", "input", "physics", "ui-widgets", "assets",
+                       "screens", "units", "localization"]),
+    ("Devices", ["your-own-device", "platforms"]),
+    ("Speed", ["performance"]),
+    ("Working on Deki", ["memory", "asset-system", "sprite-system", "font-system", "hardware-checklist", "releasing"]),
+]
+# One line for each, shown where the guides are listed. The first paragraph of
+# a guide will not do: half of them open on a heading or on internals.
+GUIDE_SUMMARIES = {
+    "getting-started": "Install the editor, make a project and run your code on a device.",
+    "first-game": "Build a tiny farm: walk, plant and pick, step by step.",
+    "first-app": "Build a countdown timer with a dial and a slider, step by step.",
+    "project-layout": "What is in a project folder, and how to recover when something goes wrong.",
+    "coming-from-lvgl": "How what you know from LVGL maps onto Deki.",
+    "screens": "Make one project fit every screen size.",
+    "units": "Meters, seconds and the other units the engine uses.",
+    "components": "Write your own code and connect it to the scene.",
+    "sprites": "Put images on the screen and cut sheets into frames.",
+    "animation": "Play frames, and move things smoothly.",
+    "text": "Show text and use your own fonts.",
+    "input": "Keys, buttons, touch and the mouse.",
+    "physics": "Things that fall, bounce and collide.",
+    "assets": "Add files to your game and use them.",
+    "sprite-system": "How images and sprite sheets are imported and stored, inside the engine.",
+    "font-system": "How fonts are baked and shipped, inside the engine.",
+    "ui-widgets": "Buttons, sliders, lists and the rest, and how to use them.",
+    "asset-system": "How assets are referenced, found and loaded, inside the engine.",
+    "localization": "Translate your game and the editor.",
+    "your-own-device": "Run your game on a device that is not on the list.",
+    "platforms": "What a build target is, and how to share a device in a package.",
+    "performance": "The tools that show where a frame's time and a device's memory go.",
+    "memory": "How memory works on a device, and how to see where it went.",
+    "hardware-checklist": "What to test on a real device before a release.",
+    "releasing": "How a Deki release goes out.",
+}
+# A group that is one page: the sidebar goes straight to it, and its card on the
+# home page links into its sections.
+SINGLE_PAGE_GROUPS = {"Speed": [("Profiler", "profiler"), ("On a device", "on-a-device"),
+                                ("Memory panel", "memory-panel")]}
+SECTION_LEDES = {
+    "Start here": "New to Deki? Begin with these.",
+    "Making a game": "How screens, art, text and interfaces work.",
+    "Devices": "Every supported device, and how to add your own.",
+    "Working on Deki": "For people changing the engine itself.",
+    "Reference": "Every component and setting, generated from the code.",
+}
+PACKAGE_GROUPS = [
+    ("Graphics and sound", ["deki-2d", "deki-3d", "deki-rendering", "deki-particles", "deki-tween",
+                            "deki-tiledmapeditor-integration", "deki-audio"]),
+    ("Game logic", ["deki-physics-2d", "deki-fsm", "deki-input", "deki-nodegraph", "deki-json"]),
+    ("Devices and platforms", ["deki-lilygo-boards", "deki-miyoo-boards", "deki-esp32-integration",
+                              "deki-desktop-integration", "deki-sdl3-integration", "deki-tactility-integration",
+                              "deki-display", "deki-lovyangfx-integration"]),
+    ("Pins and buses", ["deki-gpio", "deki-i2c", "deki-i2s", "deki-spi", "deki-uart"]),
+    ("Sensors and storage", ["deki-gps", "deki-imu", "deki-rtc", "deki-sdcard"]),
+    ("Networks and radio", ["deki-wifi", "deki-ble", "deki-http", "deki-lora"]),
+]
+
+
+def grouped(groups, names):
+    """[(heading, members)] in the groups' order, keeping only `names`. A name
+    no group lists goes under "Other", so it still shows."""
+    names = list(names)
+    listed = {n for _, members in groups for n in members}
+    out = [(heading, [n for n in members if n in names]) for heading, members in groups]
+    out.append(("Other", [n for n in names if n not in listed]))
+    return [(heading, members) for heading, members in out if members]
+
+
+def guide_groups(titles):
+    """GUIDE_GROUPS with the board pages, which come from the packages."""
+    boards = sorted((name for name in titles if name.startswith("device-")), key=lambda name: titles[name])
+    return [(heading, boards + members if heading == "Devices" else members)
+            for heading, members in GUIDE_GROUPS]
+
+
+def section_label(heading):
+    return "section-" + heading.lower().replace(" ", "-")
+
+
+def package_summary(pkg_id, infos):
+    return L.package_summary(pkg_id) or infos.get(pkg_id, {}).get("summary", "")
+
+
+def section_page(heading, rows, subpages):
+    """A group's page: its name, a line about it, and a row for each page in
+    it. `rows` are (href, title, text); `subpages` puts them under it in the sidebar."""
+    lines = [f"# {L.ui(heading)} {{#{section_label(heading)}}}", "", "\\htmlonly"]
+    if heading in SECTION_LEDES:
+        lines.append(f'<p class="deki-section-lede">{html.escape(L.ui(SECTION_LEDES[heading]))}</p>')
+    lines.append('<div class="deki-rows">')
+    for href, title, text in rows:
+        lines.append(f'<a class="deki-row" href="{href}"><span class="deki-row-title">{html.escape(title)}</span>'
+                     f'<span class="deki-row-text">{html.escape(text)}</span></a>')
+    lines += ["</div>", "\\endhtmlonly", "", '<div style="display:none">', ""]
+    lines += [f"@subpage {page}" for page in subpages]
+    lines += ["", "</div>", ""]
+    return lines
+
+
+def section_pages(guides, data, infos, out_dir):
+    """One page per group of guides, one for the packages and one for the
+    reference pages, so the sidebar shows the groups with their pages inside."""
+    written = []
+    titles = dict(guides)
+    for heading, members in grouped(guide_groups(titles), titles):
+        if heading in SINGLE_PAGE_GROUPS:
+            continue
+        rows = [(f"guide-{name}.html", titles[name], L.ui(GUIDE_SUMMARIES[name]) if name in GUIDE_SUMMARIES else BOARD_SUMMARIES.get(name, ""))
+                for name in members]
+        lines = section_page(heading, rows, [f"guide-{name}" for name in members])
+        written.append(write(os.path.join(out_dir, section_label(heading) + ".md"), lines))
+
+    lines = [f"# {L.ui('Packages')} {{#{section_label('Packages')}}}", "",
+             L.ui("Each is its own repository under {link}. Install with {command}, or from the Package Manager.",
+                  link="[github.com/dekiengine](https://github.com/dekiengine)",
+                  command="`DekiEditor --packages-add <id> <project>`"), ""]
+    packages = {pkg["id"]: pkg for pkg in data.get("packages", [])}
+    for heading, members in grouped(PACKAGE_GROUPS, packages):
+        lines += [f"## {L.ui(heading)}", "", f"| {L.ui('Package')} | {L.ui('Summary')} |", "| --- | --- |"]
+        for pkg_id in members:
+            docs = infos.get(pkg_id, {}).get("docs", "")
+            lines.append(f"| [{pkg_id}]({docs}) | {esc(package_summary(pkg_id, infos))} |")
+        lines.append("")
+    written.append(write(os.path.join(out_dir, section_label("Packages") + ".md"), lines))
+
+    rows = [("engine-core.html", L.ui("Engine core"), L.ui("Components and settings the engine provides itself.")),
+            ("settings.html", L.ui("Project settings"), L.ui("Every settings section, by owner."))]
+    lines = section_page("Reference", rows, ["engine-core", "settings"])
+    written.append(write(os.path.join(out_dir, section_label("Reference") + ".md"), lines))
+    return written
+
+
+def sidebar_sections(titles):
+    """The groups in the sidebar's order: working on Deki itself comes last."""
+    groups = [heading for heading, _ in grouped(guide_groups(titles), titles)]
+    last = [h for h in groups if h == "Working on Deki"]
+    return [h for h in groups if h != "Working on Deki"] + ["Packages", "Reference"] + last
+
+
+def home_html(data, infos, titles, api_url):
+    """The front page. HTML rather than Markdown because it is a layout: a
+    heading and a picture, then cards. deki.css draws it."""
+    def link(href, text, title=""):
+        tip = f' title="{html.escape(title)}"' if title else ""
+        return f'<a href="{href}"{tip}>{html.escape(text)}</a>'
+
+    def card(heading, links, cls="deki-card"):
+        return [f'<section class="{cls}"><h2>{html.escape(L.ui(heading))}</h2><ul>']\
+            + [f"<li>{item}</li>" for item in links] + ["</ul></section>"]
+
+    guide = lambda name: link(f"guide-{name}.html", titles[name])
+    out = ['<div class="deki-home">', '<div class="deki-hero">', "<div>",
+           f'<h1 class="deki-home-title">{html.escape(L.ui("Deki documentation"))}</h1>',
+           f'<p class="deki-home-lede">'
+           f'{html.escape(L.ui("A modular C++ 2D engine for embedded displays and desktop, with a visual editor."))}</p>',
+           '<p class="deki-actions">']
+    if "getting-started" in titles:
+        out.append(f'<a class="deki-action-solid" href="guide-getting-started.html">'
+                   f'{html.escape(titles["getting-started"])}</a>')
+    out += [link(section_label("Packages") + ".html", L.ui("Packages")),
+            link(api_url, L.ui("API reference")), "</p>",
+            "</div>", f'<img src="editor.png" alt="{html.escape(L.ui("The editor with the demo project open"))}"/>',
+            "</div>", '<div class="deki-cards">']
+    groups = grouped(guide_groups(titles), titles)
+    for heading, members in groups:
+        if heading in SINGLE_PAGE_GROUPS:
+            out += card(heading, [link(f"guide-{members[0]}.html#guide-{members[0]}-{anchor}", L.ui(label))
+                                  for label, anchor in SINGLE_PAGE_GROUPS[heading]])
+        elif heading != "Working on Deki":
+            out += card(heading, [guide(name) for name in members])
+    reference = [link("engine-core.html", L.ui("Engine core")), link("settings.html", L.ui("Project settings")),
+                 link("https://github.com/dekiengine/deki-editor", L.ui("Editor repository"))]
+    reference += [guide(name) for heading, members in groups if heading == "Working on Deki" for name in members]
+    out += card("Reference", reference)
+    out.append("</div>")
+
+    out.append("</div>")
     return out
+
+
+def index_page(data, infos, guides=(), api_url="annotated.html"):
+    titles = dict(guides)
+    out = ["# Deki {#mainpage}", "", "\\htmlonly"]
+    out += home_html(data, infos, titles, api_url)
+    out += ["\\endhtmlonly", ""]
+    # Not for reading: this puts the groups in the sidebar, in this order, and
+    # has Doxygen copy the picture the HTML above uses.
+    out += ['<div style="display:none">', ""]
+    single = {heading: members[0] for heading, members in grouped(guide_groups(titles), titles)
+              if heading in SINGLE_PAGE_GROUPS}
+    out += [f"@subpage guide-{single[heading]}" if heading in single else f"@subpage {section_label(heading)}"
+            for heading in sidebar_sections(titles)]
+    out += ["", "![](editor.png)", "", "</div>", ""]
+    return out
+
+
+# Platforms that are not a board you can hold. Anything else a package offers
+# gets a page by itself, so a new board cannot be left out.
+NOT_BOARDS = {"native", "web", "tactility"}
+BOARD_SUMMARIES = {}
+BUILD_BUTTONS = {"miyoo": "Build & Install"}
+
+
+def find_boards(packages_dir):
+    """[(package id, platform)] for every board any package offers, by name."""
+    found = []
+    for package in sorted(os.listdir(packages_dir)):
+        platforms = os.path.join(packages_dir, package, "platforms")
+        if not os.path.isdir(platforms):
+            continue
+        for board in sorted(os.listdir(platforms)):
+            path = os.path.join(platforms, board, board + ".json")
+            if os.path.isfile(path):
+                with open(path, encoding="utf-8") as f:
+                    platform = json.load(f)
+                if platform.get("framework") not in NOT_BOARDS:
+                    found.append((package, platform))
+    return sorted(found, key=lambda item: item[1].get("displayName", ""))
+
+
+def board_processor(platform):
+    options = platform.get("frameworkOptions", {})
+    if options.get("mcuChip"):
+        return {"esp32s3": "ESP32-S3", "esp32p4": "ESP32-P4"}.get(options["mcuChip"], options["mcuChip"].upper())
+    flag = re.search(r"-mcpu=([\w-]+)", options.get("cpuFlags", ""))
+    return flag.group(1).title() if flag else ""
+
+
+def board_specs(platform):
+    """[(label, value)] for what the platform's file states."""
+    def megabytes(n):
+        return f"{n // (1024 * 1024)} MB"
+
+    options = platform.get("frameworkOptions", {})
+    rows = [("Processor", board_processor(platform))]
+    if options.get("cpuFreqHz"):
+        rows.append(("CPU speed", f"{options['cpuFreqHz'] // 1000000} MHz"))
+    if options.get("flashSize"):
+        rows.append(("Flash", megabytes(options["flashSize"])))
+    if platform.get("externalMemorySize"):
+        rows.append(("RAM", megabytes(platform["externalMemorySize"])))
+    screen = f"{platform.get('screenWidth')} x {platform.get('screenHeight')}"
+    if platform.get("screenDiagonalInches"):
+        screen += f", {platform['screenDiagonalInches']} in"
+    rows.append(("Screen", screen))
+    if platform.get("colorFormat"):
+        rows.append(("Colour format", platform["colorFormat"]))
+    provides = platform.get("provides", [])
+    extras = [label for key, label in (("wifi", "Wi-Fi"), ("bluetooth", "Bluetooth"), ("external-storage", "SD card"))
+              if key in provides]
+    if extras:
+        rows.append(("Also has", ", ".join(extras)))
+    return [(label, value) for label, value in rows if value]
+
+
+def board_pages(packages_dir, guides_dir, out_dir):
+    """One guide per device: what its platform file states, how to use it, and
+    docs/devices/<id>.md for what is particular to it. Returns [(name, title)]."""
+    found = []
+    for package, platform in find_boards(packages_dir):
+        board = platform["id"]
+        name = "device-" + board.replace("_", "-")
+        title = platform.get("displayName", board)
+        BOARD_SUMMARIES[name] = f"{board_processor(platform)}, {platform.get('screenWidth')} x {platform.get('screenHeight')}"
+
+        notes = ""
+        translated = os.path.join(guides_dir, L.code, "devices", board + ".md")
+        english = os.path.join(guides_dir, "devices", board + ".md")
+        is_translated = not L.english and os.path.isfile(translated)
+        source = translated if is_translated else english
+        if os.path.isfile(source):
+            with open(source, encoding="utf-8") as f:
+                notes = f.read().strip()
+        lede, _, rest = notes.partition("\n\n")
+
+        lines = [f"# {title}", ""]
+        if notes and not L.english and not is_translated:
+            lines += [L.ui("This guide is not translated yet."), ""]
+        lines += [lede or BOARD_SUMMARIES[name], ""]
+        if os.path.isfile(os.path.join(guides_dir, "img", f"device-{board}.png")):
+            lines += [f"![{title}](img/device-{board}.png)", ""]
+        lines += [f"## {L.ui('Specifications')}", "", f"| {L.ui('Part')} | {L.ui('Detail')} |", "| --- | --- |"]
+        lines += [f"| {L.ui(label)} | {value} |" for label, value in board_specs(platform)]
+        button = BUILD_BUTTONS.get(platform.get("framework"), "Build & Flash")
+        lines += ["", f"## {L.ui('Use this device')}", "",
+                  "1. " + L.ui("In the {panel}, install {package}.", panel=f"**{L.tr('Package Manager')}**", package=f"`{package}`"),
+                  "2. " + L.ui("In the {panel}, choose {board}.", panel=f"**{L.tr('Build Panel')}**", board=f"**{title}**"),
+                  "3. " + L.ui("Press {button}.", button=f"**{L.tr(button)}**"), ""]
+        if rest:
+            lines += [rest, ""]
+        page = localize.guide_page("\n".join(lines), name, [], None, 0)
+        write(os.path.join(out_dir, f"guide-{name}.md"), page.splitlines())
+        found.append((name, title))
+    return found
 
 
 def guide_pages(guides_dir, out_dir):
@@ -648,7 +903,10 @@ def generate(metadata_path, out_dir, modules_dir=None, registry_path=None, packa
     written = []
     os.makedirs(out_dir, exist_ok=True)
     guides = guide_pages(guides_dir, out_dir) if guides_dir else []
+    if guides_dir and modules_dir:
+        guides += board_pages(modules_dir, guides_dir, out_dir)
     written.extend(os.path.join(out_dir, f"guide-{name}.md") for name, _ in guides)
+    written.extend(section_pages(guides, data, infos, out_dir))
     written.append(write(os.path.join(out_dir, "index.md"), index_page(data, infos, guides, api_url)))
     written.append(write(os.path.join(out_dir, "engine.md"), engine_page(data.get("engine", {}), base_links, skip)))
     written.append(write(os.path.join(out_dir, "settings.md"), settings_page(data, infos)))

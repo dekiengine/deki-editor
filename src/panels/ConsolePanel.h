@@ -61,6 +61,14 @@ public:
     // The errors a build pinned (LogBuildError), a subset of GetErrorCount.
     int GetBuildErrorCount();
 
+    // For tools: the newest entries, oldest first. At most `limit`, of
+    // `levels` only, and containing `contains` (any case) when it is not empty.
+    std::vector<LogEntry> RecentEntries(size_t limit, const std::set<::Deki::LogLevel>& levels,
+                                        const std::string& contains);
+
+    // "Info", "Warning", "Error", "Debug" or "Editor".
+    static const char* LevelName(::Deki::LogLevel level);
+
     // Logging from anywhere; does nothing before the panel exists.
     static ConsolePanel* GetInstance() { return s_Instance; }
     static void LogStatic(const std::string& message);

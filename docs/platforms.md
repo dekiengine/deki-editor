@@ -1,8 +1,8 @@
 # Platforms
 
-A **platform** is one thing a project builds for: a board, the desktop, a console.
+A **platform** is one thing a project builds for: a device, the desktop, a console.
 This page says what a platform is made of, where platforms come from, how a package ships
-boards, and what happens to a board once a project is using it.
+devices, and what happens to a device once a project is using it.
 
 ## What a platform is
 
@@ -23,9 +23,9 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `frameworkOptions` | That backend's own settings: chip, flash size, sdkconfig lines, pins. The editor carries them and does not read them; the backend validates them when it builds. |
 | `family` | Descriptive only. Becomes the capability `family:<x>`. |
 | `screenWidth`, `screenHeight`, `colorFormat` | The screen this target has. The editor previews it, the desktop build opens a window of it, and images set to Automatic are stored in `colorFormat` for it. A device renders at its display's own size and format; see [screens.md](screens.md). |
-| `screenDiagonalInches` | The screen's diagonal in inches, as the board's maker gives it (`2.8`, `1.91`). Optional; absent means unknown. A panel cannot report its own size, so the board says, and the build carries it to the device for layouts that fit a physically small screen; see [screens.md](screens.md#size-on-the-glass). |
+| `screenDiagonalInches` | The screen's diagonal in inches, as the device's maker gives it (`2.8`, `1.91`). Optional; absent means unknown. A panel cannot report its own size, so the device says, and the build carries it to the device for layouts that fit a physically small screen; see [screens.md](screens.md#size-on-the-glass). |
 | `externalMemorySize` | Bytes of memory beyond the internal heap (PSRAM on a microcontroller). Grants packages `memory:external`. |
-| `provides` | What the target can offer a package: `wifi`, `spi`, `hosted`, ... `hosted`: an operating system starts the game as a program and gets control back when it quits (a desktop, the Miyoo Mini). A board whose firmware is the game, RTOS included, is not hosted. Its old name, `desktop-os`, is read for one release. |
+| `provides` | What the target can offer a package: `wifi`, `spi`, `hosted`, ... `hosted`: an operating system starts the game as a program and gets control back when it quits (a desktop, the Miyoo Mini). A device whose firmware is the game, RTOS included, is not hosted. Its old name, `desktop-os`, is read for one release. |
 | `requiresPackages` | Packages the target always needs, whatever the scenes use. Its hardware abstraction layer, typically. |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | Compiler settings for the game's own code. |
 | `bootScene` | Path of the boot scene, relative to the project. |
@@ -46,8 +46,8 @@ A build keeps the game's assets in one of two places:
 
 - **Internal storage**, the default: part of the device. The build carries them, in `assets/`
   next to the boot scene (`F:/assets/` at runtime). On an ESP32 that is the flash: the game's
-  data is packed into one image that the board reads in place, so finding a file takes
-  microseconds. It gets the rest of the chip but the user data (about 12 MB on a 16 MB board),
+  data is packed into one image that the device reads in place, so finding a file takes
+  microseconds. It gets the rest of the chip but the user data (about 12 MB on a 16 MB device),
   and the build fails if the game does not fit. The desktop build and Tactility apps keep
   the assets in the same place.
 - **External storage**: removable, an SD card. The build carries only the boot scene and
@@ -64,15 +64,15 @@ LilyGO T-Deck Plus can choose; it keeps its assets in its flash unless told othe
 ### Files the game writes
 
 A game writes its own files, such as saves, under `F:/` too (`F:/save.bin`). On an ESP32 they
-go to the user data partition at the end of the flash (1 MB on a 16 MB board, 512 KB on 8 MB,
+go to the user data partition at the end of the flash (1 MB on a 16 MB device, 512 KB on 8 MB,
 128 KB on 4 MB). Flashing a new build never touches it, so saves survive updates. The game's
 own data is never written: opening one of its files to write fails, and the log says why.
 In the desktop build they go to `userdata/` beside it, and in a Tactility app to `internal/`
 in the app's user data, with the same rule.
 
-## Simulating a board
+## Simulating a device
 
-A board whose backend has a simulator (QEMU for an ESP32 or ESP32-S3) can be built to run
+A device whose backend has a simulator (QEMU for an ESP32 or ESP32-S3) can be built to run
 there: tick **Simulate in QEMU** in the Build panel, then Build and **Run**. From the command
 line:
 
@@ -80,14 +80,14 @@ line:
 DekiEditor --build-firmware --deploy --simulate --platform lilygo_t_deck_plus <project>
 ```
 
-The simulated build keeps every step of the board's boot scene and adds the simulator's own
+The simulated build keeps every step of the device's boot scene and adds the simulator's own
 after them (the QEMU screen), in a copy under its build directory
 (`generated/build/<platform>_qemu/simulation/boot.scene`). Where the simulator has to run a
 step another way, the copy says so: an SD card wired for SPI goes on QEMU's SD host. The build
 log lists each change. The platform's `boot.scene`, its normal build and the firmware flashed
-to the board are not changed, and nothing the simulator needs is compiled into them.
+to the device are not changed, and nothing the simulator needs is compiled into them.
 
-The simulated board has an SD card, made fresh for each build in `simulation/sd_card`: the
+The simulated device has an SD card, made fresh for each build in `simulation/sd_card`: the
 assets, as the SD Card Deploy panel would copy them, for a target that keeps them on the card;
 empty for one that keeps them inside.
 
@@ -100,15 +100,19 @@ its own build directory, the card, and what deploy does.
 
 The Build panel's target list is three sources, later ones overriding earlier:
 
+![The Build panel with a device chosen](img/gs-build-panel.png)
+
+![The platforms a project can build for](img/platform-manager.png)
+
 1. **Board packs** under `~/.deki-editor/board-packs/`.
 2. **Packages** installed in the project: every `<package>/platforms/<id>/`.
 3. **The project's own** `platforms/`.
 
 Installing or removing a package updates the list at once.
 
-## Shipping boards in a package
+## Shipping devices in a package
 
-Put one directory per board in the package:
+Put one directory per device in the package:
 
 ```
 deki-lilygo-boards/
@@ -123,8 +127,8 @@ deki-lilygo-boards/
 ```
 
 That is the whole mechanism. The package needs no code: no `package.cmake`, no entry point.
-Its `package.json` should list under `requires` the packages its boards' boot scenes use, so
-installing the boards installs them too, and each platform should repeat its hardware
+Its `package.json` should list under `requires` the packages its devices' boot scenes use, so
+installing the devices installs them too, and each platform should repeat its hardware
 abstraction layer in `requiresPackages`.
 
 Rules that are checked:
@@ -134,7 +138,7 @@ Rules that are checked:
 - **An id offered by two installed packages is an error**, reported when someone chooses it.
   Prefix ids with the vendor (`lilygo_...`).
 - **`defines` may not name `DEKI_PACKAGE_*` or `DEKI_FEATURE_*`.** Which packages a build has
-  is the resolver's answer. A board that always needs a package says so in `requiresPackages`.
+  is the resolver's answer. A device that always needs a package says so in `requiresPackages`.
 - **`bootScene` is relative to the project**, not the package: `platforms/<id>/boot.scene`.
   It is the adopted copy that gets built.
 
@@ -148,7 +152,7 @@ A package feature can name packages it needs on its own, in the feature's
   "requires": ["deki-gpio"] }
 ```
 
-Those are not installed with the package. The board, or the project, that
+Those are not installed with the package. The device, or the project, that
 uses the feature brings them: `deki-lilygo-boards` requires `deki-i2c` and
 `deki-gpio` because the T-Deck has an I2C bus and pins, and that is what lets
 `deki-input`'s keyboard and trackball build. A desktop project that installs

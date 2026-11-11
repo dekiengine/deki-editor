@@ -31,6 +31,7 @@ struct SDL_Window;
 #include "panels/ProjectManagerScreen.h"
 #include "panels/PackageManagerPanel.h"
 #include "services/ProjectUpgrade.h"
+#include "services/ProjectChecks.h"
 #include "panels/PlatformManagerPanel.h"
 #include "panels/ProfilerPanel.h"
 #include "panels/FrameCapturePanel.h"
@@ -514,6 +515,13 @@ public:
     // Takes effect on the next frame.
     void AnswerUpgradeDialog(bool upgrade) { m_UpgradeAnswer = upgrade ? 1 : 2; }
 
+    // The checklist of breaking changes this project has to migrate by hand
+    // (ProjectChecks), shown when it opens. Ticking one here keeps an open
+    // checklist in step.
+    bool IsProjectChecksDialogOpen() const { return m_ProjectChecksDialog; }
+    void CloseProjectChecksDialog() { m_ProjectChecksClose = true; }  // on the next frame
+    bool SetProjectCheck(const std::string& id, bool done, std::string& why);
+
     // A package from an older release, as the project pins it, found once the
     // project is open; an approved upgrade then moves it to this release.
     struct OutdatedPackage
@@ -543,6 +551,11 @@ private:
     ProjectUpgrade m_PendingUpgrade;
     int m_UpgradeAnswer = 0;  // 1 upgrade, 2 cancel, from AnswerUpgradeDialog
     void DrawUpgradeDialog();
+
+    std::vector<ProjectCheck> m_ProjectChecks;  // what the open checklist shows
+    bool m_ProjectChecksDialog = false;
+    bool m_ProjectChecksClose = false;  // from CloseProjectChecksDialog
+    void DrawProjectChecksDialog();
 
     void DrawRecoveryDialog();
     void DrawRecoveryDiscardConfirm();

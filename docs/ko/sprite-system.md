@@ -4,6 +4,8 @@
 
 스프라이트 시트는 임포트 파이프라인을 거칩니다. PNG 소스 파일 -> 프레임 메타데이터가 포함된 컴파일된 .tex 파일. 모든 프레임은 **부모 .tex 파일 안에** 영역으로 존재하며, 프레임마다 별도의 파일이 생성되지는 않습니다.
 
+![스프라이트 시트 프레임을 쓰는 애니메이션 에디터](../img/animation-editor.png)
+
 ```
 assets/sprites/player.png (source)
   -> cache/{parentGuid}  (compiled .tex with FrameList chunk)

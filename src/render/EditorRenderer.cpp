@@ -219,7 +219,7 @@ void DestroyTexture(uint32_t texture)
 ImTextureID TextureToImGui(uint32_t texture)
 {
     const Slot* slot = FindSlot(texture);
-    return slot ? (ImTextureID)(intptr_t)slot->texture : ImTextureID_Invalid;
+    return slot ? static_cast<ImTextureID>(reinterpret_cast<intptr_t>(slot->texture)) : ImTextureID_Invalid;
 }
 
 const EditorTexture::Backend kTextures = { CreateTexture, UpdateTexture, DestroyTexture, TextureToImGui };
@@ -280,8 +280,8 @@ bool IsMinimized(SDL_Window* window)
         return true;
     }
 #ifdef _WIN32
-    HWND hwnd =
-        (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+    HWND hwnd = static_cast<HWND>(
+        SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
     return hwnd && IsIconic(hwnd);
 #else
     return false;

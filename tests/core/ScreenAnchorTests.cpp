@@ -227,3 +227,31 @@ TEST(ScreenAnchor, OnceFollowsTheScreenInTheEditor)
     Deki::ScreenAnchor::PlaceAll(&scene, camera, 536, 240);
     EXPECT_FLOAT_EQ(obj->GetWorldX(), 536.0f / 40.0f - 1.0f);
 }
+
+namespace
+{
+int s_PlacerCalls = 0;
+int s_PlacerWidth = 0;
+void CountingPlacer(const Deki::Scene*, const Deki::ICamera&, int width, int)
+{
+    ++s_PlacerCalls;
+    s_PlacerWidth = width;
+}
+}  // namespace
+
+// A placer runs with every PlaceAll until it is removed, and only once
+// however often it is added.
+TEST(ScreenAnchor, PlacersRunWithPlaceAllUntilRemoved)
+{
+    Deki::Scene scene;
+    TestCamera camera;
+    s_PlacerCalls = 0;
+    ASSERT_TRUE(Deki::ScreenAnchor::AddPlacer(&CountingPlacer));
+    ASSERT_TRUE(Deki::ScreenAnchor::AddPlacer(&CountingPlacer));
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 320, 240);
+    EXPECT_EQ(s_PlacerCalls, 1);
+    EXPECT_EQ(s_PlacerWidth, 320);
+    Deki::ScreenAnchor::RemovePlacer(&CountingPlacer);
+    Deki::ScreenAnchor::PlaceAll(&scene, camera, 320, 240);
+    EXPECT_EQ(s_PlacerCalls, 1);
+}

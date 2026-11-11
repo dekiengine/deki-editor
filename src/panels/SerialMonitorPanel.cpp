@@ -216,7 +216,7 @@ void SerialMonitorPanel::DrawOutput()
 #endif
             char timeBuf[24];
             snprintf(timeBuf, sizeof(timeBuf), "[%02d:%02d:%02d.%03d] ", tmVal.tm_hour, tmVal.tm_min, tmVal.tm_sec,
-                     (int)ms.count());
+                     static_cast<int>(ms.count()));
             displayText = timeBuf;
         }
         displayText += line.text;
@@ -515,7 +515,7 @@ void SerialMonitorPanel::SendCommand(const std::string& cmd)
 
 #ifdef _WIN32
     DWORD bytesWritten = 0;
-    if (!WriteFile(m_SerialHandle, data.c_str(), (DWORD)data.size(), &bytesWritten, nullptr))
+    if (!WriteFile(m_SerialHandle, data.c_str(), static_cast<DWORD>(data.size()), &bytesWritten, nullptr))
     {
         AddOutputLine("Failed to send data", true);
     }

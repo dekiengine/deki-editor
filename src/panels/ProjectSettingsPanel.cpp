@@ -66,7 +66,7 @@ bool IsVisible(const Deki::Component* comp, const Deki::PropertyInfo* props, int
             case Deki::PropertyType::UInt8: controllingValue = Deki::GetPropertyValue<uint8_t>(comp, other); break;
             case Deki::PropertyType::UInt16: controllingValue = Deki::GetPropertyValue<uint16_t>(comp, other); break;
             case Deki::PropertyType::UInt32:
-                controllingValue = (int32_t)Deki::GetPropertyValue<uint32_t>(comp, other);
+                controllingValue = static_cast<int32_t>(Deki::GetPropertyValue<uint32_t>(comp, other));
                 break;
             case Deki::PropertyType::Enum:
                 switch (other.enumSize)
@@ -144,11 +144,12 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, 
             BeginPropertyRow(label);
             if (prop.useSlider && prop.hasRange)
             {
-                ImGui::SliderInt("##value", &v, (int)prop.minValue, (int)prop.maxValue);
+                ImGui::SliderInt("##value", &v, static_cast<int>(prop.minValue), static_cast<int>(prop.maxValue));
             }
             else if (prop.hasRange)
             {
-                DekiEditor::SchematicDragInt("##value", &v, 1.0f, (int)prop.minValue, (int)prop.maxValue);
+                DekiEditor::SchematicDragInt("##value", &v, 1.0f, static_cast<int>(prop.minValue),
+                                             static_cast<int>(prop.maxValue));
             }
             else
             {
@@ -156,7 +157,7 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, 
             }
             if (prop.hasRange)
             {
-                v = std::clamp(v, (int)prop.minValue, (int)prop.maxValue);
+                v = std::clamp(v, static_cast<int>(prop.minValue), static_cast<int>(prop.maxValue));
             }
             if (ImGui::IsItemActivated())
             {
@@ -247,8 +248,8 @@ bool DrawSettingProperty(Deki::Component* comp, const Deki::PropertyInfo& prop, 
             {
                 switch (prop.enumSize)
                 {
-                    case 1: Deki::SetPropertyValue<uint8_t>(comp, prop, (uint8_t)value); break;
-                    case 2: Deki::SetPropertyValue<uint16_t>(comp, prop, (uint16_t)value); break;
+                    case 1: Deki::SetPropertyValue<uint8_t>(comp, prop, static_cast<uint8_t>(value)); break;
+                    case 2: Deki::SetPropertyValue<uint16_t>(comp, prop, static_cast<uint16_t>(value)); break;
                     default: Deki::SetPropertyValue<int32_t>(comp, prop, value); break;
                 }
             };
@@ -431,7 +432,7 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
     {
         if (sceneFiles[i] == currentScene)
         {
-            currentIndex = (int)i;
+            currentIndex = static_cast<int>(i);
             break;
         }
     }
@@ -444,7 +445,7 @@ void ProjectSettingsPanel::DrawStartupSceneSection(Project* project)
 
     InspectorUtils::SetNextRowTooltip("The scene the game opens with.");
     BeginPropertyRow("Startup Scene");
-    if (DekiEditor::SchematicCombo("##startup_scene", &currentIndex, names.data(), (int)names.size()))
+    if (DekiEditor::SchematicCombo("##startup_scene", &currentIndex, names.data(), static_cast<int>(names.size())))
     {
         if (currentIndex == 0)
         {
@@ -508,7 +509,7 @@ void ProjectSettingsPanel::DrawRenderPipelineSection(Project* project)
 
     InspectorUtils::SetNextRowTooltip("The renderer and passes device builds draw with.");
     BeginPropertyRow("Pipeline");
-    if (DekiEditor::SchematicCombo("##pipeline", &currentPipelineIndex, names.data(), (int)names.size()))
+    if (DekiEditor::SchematicCombo("##pipeline", &currentPipelineIndex, names.data(), static_cast<int>(names.size())))
     {
         project->SetRenderPipelineGuid(guids[currentPipelineIndex]);
         project->Save();

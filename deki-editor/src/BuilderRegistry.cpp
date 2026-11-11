@@ -103,7 +103,7 @@ void BuilderRegistry::Shutdown()
             continue;
         }
 #ifdef _WIN32
-        FreeLibrary((HMODULE)*it);
+        FreeLibrary(static_cast<HMODULE>(*it));
 #else
         dlclose(*it);
 #endif
@@ -328,7 +328,7 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
     }
 
 #ifdef _WIN32
-#define DEKI_BUILDER_SYM(t, n) (t) GetProcAddress(module, n)
+#define DEKI_BUILDER_SYM(t, n) reinterpret_cast<t>(GetProcAddress(module, n))
 #else
 #define DEKI_BUILDER_SYM(t, n) (t) dlsym(module, n)
 #endif
@@ -398,7 +398,7 @@ bool BuilderRegistry::LoadOneBuilderPlugin(const std::string& path)
         return refuse("declares no builders");
     }
 
-    m_PluginHandles.push_back((void*)module);
+    m_PluginHandles.push_back(static_cast<void*>(module));
     const size_t moduleIndex = m_PluginHandles.size() - 1;
 
     int taken = 0;

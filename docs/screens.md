@@ -11,6 +11,8 @@ resolution, and the camera decides how much world that shows.
 | **Pixel Perfect** | Scales by whole numbers only and snaps the camera and everything drawn to the art-pixel grid. For pixel art. |
 | **Projection** | Orthographic (flat, for 2D) or Perspective (a vertical **Field of View**, for 3D meshes). |
 
+![The camera's frame and the screen's edges in the Scene View](img/screens-scene.png)
+
 A bigger screen of the same shape shows the same world, drawn bigger. A wider
 screen shows more at the sides; a narrower one shows less. To get closer, make
 the ortho height smaller.
@@ -118,7 +120,7 @@ colour on a desktop. Two things follow it.
   is for wants it.
 - **Max Size**, next to the Format, works like Unity's: an image whose
   larger side is over it is stored scaled so that side is exactly Max Size,
-  e.g. a big background kept small on one board. **None** (the default) never
+  e.g. a big background kept small on one device. **None** (the default) never
   shrinks. A shrunk sprite keeps its size in the world and its frames: they
   stay in the image's pixels, and each is resampled on its own so neighbours
   do not bleed. Chroma-keyed images are shrunk by picking pixels rather than
@@ -135,7 +137,7 @@ as they are drawn, so any format draws on any screen.
 3D models take the same Format and Max Size settings in their `.data` file, and
 draw into every framebuffer format. A model's texture is stored at powers of
 two, so Max Size caps them; with None it is capped at 256, the size a small
-board can hold resident.
+device can hold resident.
 
 ## Size on the glass
 
@@ -145,7 +147,7 @@ pixels tall, so a camera draws them at the same pixel size, but the AMOLED
 packs 307 pixels into an inch against the T-Deck's 143: the same 12 px label
 is 2.1 mm tall on one and 1 mm on the other.
 
-A panel cannot report its own size, so the board says: a platform's
+A panel cannot report its own size, so the device says: a platform's
 `screenDiagonalInches` ([platforms.md](platforms.md)). The build carries it to
 the device, and a script reads it from the engine:
 

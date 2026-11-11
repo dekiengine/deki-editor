@@ -5,6 +5,7 @@
 // Deki::Component lifecycle (LoadAssets, UnloadAssets, RuntimeUpdate) and
 // the input system, never GetComponent<SpriteComponent> and the like.
 
+#include <cmath>
 #include <deki-editor/SceneView.h>
 #include "EditorApp.h"
 #include <deki-editor/build/ProjectPaths.h>
@@ -635,7 +636,7 @@ void EditorApp::UpdatePlayMode()
     // built on the heap every game tick and called indirectly per object.
     auto updateComponentsRecursive = [&](auto&& self, Deki::Object* obj, float deltaSeconds) -> void
     {
-        if (!obj)
+        if (!obj || obj->IsPendingDestroy())
         {
             return;
         }
@@ -646,7 +647,7 @@ void EditorApp::UpdatePlayMode()
 
         for (Deki::Component* comp : obj->GetComponents())
         {
-            if (comp->NeedsRuntimeUpdate())
+            if (comp->NeedsRuntimeUpdate() && !comp->IsRemoved())
             {
                 if (profiling)
                 {
@@ -808,6 +809,7 @@ void EditorApp::UpdatePlayMode()
             if (!GuardedInvoke("ComponentUpdates", sceneName, m_Play.crashedThisFrame,
                                [&]
                                {
+                                   Deki::LifecycleManager::DeferredDestroys deferred(*m_Play.lifecycleManager);
                                    for (Deki::Object* obj : activeScene->GetObjects())
                                    {
                                        updateComponentsRecursive(updateComponentsRecursive, obj, deltaSeconds);
@@ -1016,18 +1018,28 @@ void EditorApp::HandlePlayModeInput(float gameX, float gameY, bool isDown, bool 
         return;
     }
 
-    if (!m_Play.camera)
+    auto* inputSystem = Deki::Engine::GetInstance().GetInputSystem();
+    if (!inputSystem)
     {
         return;
     }
 
+    // As a device's touch panel does: an input event that game code hears,
+    // which reaches the colliders too.
+    if (inputSystem->DispatchPointer(static_cast<int32_t>(std::floor(gameX)), static_cast<int32_t>(std::floor(gameY)),
+                                     isDown, isMove, isUp))
+    {
+        return;
+    }
+
+    // An input package from before DispatchPointer: straight to the colliders.
+    if (!m_Play.camera)
+    {
+        return;
+    }
     float worldX, worldY;
     m_Play.camera->ScreenToWorld(gameX, gameY, m_Play.width, m_Play.height, worldX, worldY);
-
-    if (auto* inputSystem = Deki::Engine::GetInstance().GetInputSystem())
-    {
-        inputSystem->DispatchInput(activeScene, worldX, worldY, isDown, isMove, isUp);
-    }
+    inputSystem->DispatchInput(activeScene, worldX, worldY, isDown, isMove, isUp);
 }
 
 void EditorApp::HandlePlayModeKey(uint32_t key, bool down)

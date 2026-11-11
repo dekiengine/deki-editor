@@ -51,7 +51,8 @@ const char* ExceptionCodeName(uint32_t code)
 void FormatMessage(CrashInfo& info, const char* name)
 {
     char buf[256];
-    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx", name, (unsigned long long)(uintptr_t)info.faultAddress);
+    std::snprintf(buf, sizeof(buf), "%s at 0x%016llx", name,
+                  static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(info.faultAddress)));
     info.message = buf;
 }
 
@@ -67,7 +68,7 @@ void FormatAccessDetails(CrashInfo& info, std::uintptr_t accessType, std::uintpt
     }
     const char* verb = accessType == 1 ? "WRITE" : accessType == 8 ? "EXECUTE" : "READ";
     char buf[160];
-    std::snprintf(buf, sizeof(buf), "Attempted to %s address 0x%016llx%s", verb, (unsigned long long)addr,
+    std::snprintf(buf, sizeof(buf), "Attempted to %s address 0x%016llx%s", verb, static_cast<unsigned long long>(addr),
                   addr < 0x10000 ? " [null pointer dereference]" : "");
     info.accessDetails = buf;
 }

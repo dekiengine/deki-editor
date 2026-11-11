@@ -1,3 +1,4 @@
+#include <deki/providers/Memory.h>
 #include "PluginLoader.h"
 #include "SafeDllCall.h"
 #include <deki/reflection/ComponentRegistry.h>
@@ -137,8 +138,10 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
             continue;
         }
 
-        auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
-        auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
+        auto getComponentCount =
+            reinterpret_cast<GetComponentCountFunc>(GetProcAddress(handle, "DekiPluginGetComponentCount"));
+        auto getComponentMeta =
+            reinterpret_cast<GetComponentMetaFunc>(GetProcAddress(handle, "DekiPluginGetComponentMeta"));
 #else
         void* handle = dlopen(c.path.c_str(), RTLD_NOW | RTLD_LOCAL);
         if (!handle)
@@ -155,8 +158,8 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
             int count = SafeCallGetInt(getComponentCount, 0, "PluginLoader::peek::getComponentCount");
             for (int i = 0; i < count; ++i)
             {
-                const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
-                    (void* (*)(int))getComponentMeta, i, "PluginLoader::peek::getComponentMeta");
+                const Deki::ComponentMeta* meta = static_cast<const Deki::ComponentMeta*>(SafeCallGetPtr(
+                    reinterpret_cast<void* (*)(int)>(getComponentMeta), i, "PluginLoader::peek::getComponentMeta"));
                 if (meta)
                 {
                     c.typeIds.push_back(meta->typeId);
@@ -165,8 +168,10 @@ std::vector<std::string> PluginLoader::ResolveDuplicateComponentDlls(const std::
         }
 
 #ifdef _WIN32
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         FreeLibrary(handle);
 #else
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         dlclose(handle);
 #endif
     }
@@ -302,19 +307,22 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     {
         DWORD error = GetLastError();
         char errMsg[256] = {};
-        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0, errMsg,
-                       sizeof(errMsg), NULL);
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, 0, errMsg,
+                       sizeof(errMsg), nullptr);
         DEKI_LOG_ERROR("PluginLoader: Failed to load DLL (error %lu: %s): %s", error, errMsg, path.c_str());
         return false;
     }
     info.handle = handle;
 
-    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
-    auto getVersion = (GetVersionFunc)GetProcAddress(handle, "DekiPluginGetVersion");
-    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
-    auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
-    auto getReflectionAbi = (DekiGetReflectionAbiFunc)GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
+    auto getName = reinterpret_cast<GetNameFunc>(GetProcAddress(handle, "DekiPluginGetName"));
+    auto getVersion = reinterpret_cast<GetVersionFunc>(GetProcAddress(handle, "DekiPluginGetVersion"));
+    auto getComponentCount =
+        reinterpret_cast<GetComponentCountFunc>(GetProcAddress(handle, "DekiPluginGetComponentCount"));
+    auto getComponentMeta =
+        reinterpret_cast<GetComponentMetaFunc>(GetProcAddress(handle, "DekiPluginGetComponentMeta"));
+    auto init = reinterpret_cast<InitFunc>(GetProcAddress(handle, "DekiPluginInit"));
+    auto getReflectionAbi =
+        reinterpret_cast<DekiGetReflectionAbiFunc>(GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME));
 #else
     void* handle = dlopen(path.c_str(), RTLD_NOW);
     if (!handle)
@@ -336,8 +344,10 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     {
         DEKI_LOG_ERROR("PluginLoader: Plugin missing required exports (GetName/GetVersion)");
 #ifdef _WIN32
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         FreeLibrary(handle);
 #else
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         dlclose(handle);
 #endif
         return false;
@@ -350,8 +360,10 @@ bool PluginLoader::LoadPlugin(const std::string& path)
     {
         DEKI_LOG_ERROR("PluginLoader: Plugin getName/getVersion crashed or returned null");
 #ifdef _WIN32
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         FreeLibrary(handle);
 #else
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         dlclose(handle);
 #endif
         return false;
@@ -419,8 +431,10 @@ bool PluginLoader::LoadPlugin(const std::string& path)
         {
             DEKI_LOG_ERROR("PluginLoader: Plugin init failed with code %d", result);
 #ifdef _WIN32
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
             FreeLibrary(handle);
 #else
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
             dlclose(handle);
 #endif
             return false;
@@ -435,8 +449,8 @@ bool PluginLoader::LoadPlugin(const std::string& path)
 
         for (int i = 0; i < count; ++i)
         {
-            const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
-                (void* (*)(int))getComponentMeta, i, "PluginLoader::getComponentMeta");
+            const Deki::ComponentMeta* meta = static_cast<const Deki::ComponentMeta*>(SafeCallGetPtr(
+                reinterpret_cast<void* (*)(int)>(getComponentMeta), i, "PluginLoader::getComponentMeta"));
 
             if (meta)
             {
@@ -500,17 +514,18 @@ void PluginLoader::UnloadAllPlugins()
         {
 #ifdef _WIN32
             // Unregister the plugin's components from ComponentFactory before unloading.
-            auto getComponentCount =
-                (GetComponentCountFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginGetComponentCount");
-            auto getComponentMeta =
-                (GetComponentMetaFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginGetComponentMeta");
+            auto getComponentCount = reinterpret_cast<GetComponentCountFunc>(
+                GetProcAddress(static_cast<HMODULE>(plugin.handle), "DekiPluginGetComponentCount"));
+            auto getComponentMeta = reinterpret_cast<GetComponentMetaFunc>(
+                GetProcAddress(static_cast<HMODULE>(plugin.handle), "DekiPluginGetComponentMeta"));
             if (getComponentCount && getComponentMeta)
             {
                 int count = SafeCallGetInt(getComponentCount, 0, "PluginLoader::unload::getComponentCount");
                 for (int i = 0; i < count; ++i)
                 {
-                    const Deki::ComponentMeta* meta = (const Deki::ComponentMeta*)SafeCallGetPtr(
-                        (void* (*)(int))getComponentMeta, i, "PluginLoader::unload::getComponentMeta");
+                    const Deki::ComponentMeta* meta = static_cast<const Deki::ComponentMeta*>(
+                        SafeCallGetPtr(reinterpret_cast<void* (*)(int)>(getComponentMeta), i,
+                                       "PluginLoader::unload::getComponentMeta"));
                     if (meta)
                     {
                         Deki::ComponentFactory::Instance().Unregister(meta->typeId);
@@ -519,12 +534,14 @@ void PluginLoader::UnloadAllPlugins()
             }
 
             // SEH-protected: a crash in shutdown is skipped.
-            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)plugin.handle, "DekiPluginShutdown");
+            auto shutdown = reinterpret_cast<ShutdownFunc>(
+                GetProcAddress(static_cast<HMODULE>(plugin.handle), "DekiPluginShutdown"));
             if (shutdown)
             {
                 SafeCallVoid(shutdown, "PluginLoader::shutdown");
             }
-            FreeLibrary((HMODULE)plugin.handle);
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
+            FreeLibrary(static_cast<HMODULE>(plugin.handle));
 #else
             auto getComponentCount = (GetComponentCountFunc)dlsym(plugin.handle, "DekiPluginGetComponentCount");
             auto getComponentMeta = (GetComponentMetaFunc)dlsym(plugin.handle, "DekiPluginGetComponentMeta");
@@ -547,6 +564,7 @@ void PluginLoader::UnloadAllPlugins()
             {
                 SafeCallVoid(shutdown, "PluginLoader::shutdown");
             }
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
             dlclose(plugin.handle);
 #endif
             plugin.handle = nullptr;

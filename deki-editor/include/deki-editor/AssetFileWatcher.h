@@ -43,6 +43,7 @@ public:
         Deleted,
     };
 
+    /// One file change under a watched folder.
     struct Event
     {
         EventKind kind;

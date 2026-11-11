@@ -156,13 +156,13 @@ class LanguageTests(unittest.TestCase):
         page = self.read(self.pkgs, "deki-2d", "index.md")
         self.assertIn("(https://dekiengine.github.io/docs/ja/)", page)
         index = self.read(self.out, "index.md")
-        self.assertIn("(https://dekiengine.github.io/deki-2d/ja/)", index)
-        self.assertIn("(https://dekiengine.github.io/docs/annotated.html)", index)
+        self.assertIn("(https://dekiengine.github.io/deki-2d/ja/)", self.read(self.out, "section-packages.md"))
+        self.assertIn('href="https://dekiengine.github.io/docs/annotated.html"', index)
 
     def test_guides_are_listed_and_untranslated_ones_say_so(self):
         index = self.read(self.out, "index.md")
-        self.assertIn("- [単位](guide-units.html)", index)
-        self.assertIn("- [Screens](guide-screens.html)", index)
+        self.assertIn('<a href="guide-units.html">単位</a>', index)
+        self.assertIn('<a href="guide-screens.html">Screens</a>', index)
         self.assertIn("このガイドはまだ翻訳されていません。", self.read(self.out, "guide-screens.md"))
         self.assertNotIn("まだ翻訳", self.read(self.out, "guide-units.md"))
 

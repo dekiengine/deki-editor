@@ -412,6 +412,10 @@ private:
     // A resync waits for the burst that overflowed the OS buffer to go quiet.
     static constexpr int kResyncDelayMs = 500;
     bool m_ResyncPending = false;
+    // AssetTypeRegistry::ExtensionRevision when the assets were last scanned:
+    // a package bringing types later (or back after a reload) makes their
+    // files assets again.
+    uint32_t m_SeenExtensionRevision = 0;
     std::chrono::steady_clock::time_point m_ResyncAt;
 
     // What each cache was compiled from (MakeCacheStamp), by GUID, kept in

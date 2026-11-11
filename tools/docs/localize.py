@@ -145,13 +145,13 @@ class Lang:
 
 # The site bar's words, as dekiengine.com's own menu has them.
 BAR = {
-    "ja": {"site": "サイト", "packages": "パッケージ", "blog": "ブログ", "docs": "ドキュメント", "donate": "寄付",
+    "ja": {"site": "サイト", "packages": "パッケージ", "blog": "ブログ", "docs": "ドキュメント", "manual": "マニュアル", "api reference": "API リファレンス", "download": "ダウンロード", "donate": "寄付",
            "brief": "組み込みディスプレイとデスクトップのためのモジュール式 C++ 2D エンジン",
            "package brief": "Deki パッケージリファレンス", "language": "言語"},
-    "zh": {"site": "网站", "packages": "包", "blog": "博客", "docs": "文档", "donate": "捐赠",
+    "zh": {"site": "网站", "packages": "包", "blog": "博客", "docs": "文档", "manual": "手册", "api reference": "API 参考", "download": "下载", "donate": "捐赠",
            "brief": "面向嵌入式显示屏和桌面的模块化 C++ 2D 引擎",
            "package brief": "Deki 包参考", "language": "语言"},
-    "ko": {"site": "사이트", "packages": "패키지", "blog": "블로그", "docs": "문서", "donate": "후원",
+    "ko": {"site": "사이트", "packages": "패키지", "blog": "블로그", "docs": "문서", "manual": "매뉴얼", "api reference": "API 참조", "download": "다운로드", "donate": "후원",
            "brief": "임베디드 디스플레이와 데스크톱을 위한 모듈식 C++ 2D 엔진",
            "package brief": "Deki 패키지 레퍼런스", "language": "언어"},
 }
@@ -165,20 +165,29 @@ def bar_word(code, key, english):
     return BAR.get(code, {}).get(key, english)
 
 
-def header(template, code):
+def header(template, code, package=False):
     """theme/header.html for one language: the site bar in that language and
-    pointing at that language's site, its Noto font, and the language menu."""
+    pointing at that language's site, its Noto font, and the language menu.
+    A package's site has no halves of its own: its tabs go to the main docs."""
     out = template
+    # The class list is built in English only.
+    if package or code != "en":
+        out = out.replace('href="$relpath^annotated.html"', 'href="https://dekiengine.github.io/docs/annotated.html"')
+    if package:
+        docs = "https://dekiengine.github.io/docs/" + ("" if code == "en" else code + "/")
+        out = out.replace('href="$relpath^index.html"><span class="deki-nav-label">manual', f'href="{docs}index.html"><span class="deki-nav-label">manual')
+        out = re.sub(r"<!--DEKI_TAB_SCRIPT-->.*?<!--/DEKI_TAB_SCRIPT-->\n", "", out, flags=re.S)
     if code != "en":
         site = f"https://dekiengine.com/{code}/"
-        for path in ("packages/", "blog/", "donate/"):
+        for path in ("packages/", "blog/", "donate/", "editor/"):
             out = out.replace(f'href="https://dekiengine.com/{path}"', f'href="{site}{path}"')
         out = out.replace('href="https://dekiengine.com/discord"', f'href="{site}discord/"')
         out = out.replace('href="https://dekiengine.com/"', f'href="{site}"')
-        for key in ("site", "packages", "blog"):
+        for key in ("site", "packages", "blog", "manual", "api reference"):
             out = out.replace(f'<span class="deki-nav-label">{key}</span>', f'<span class="deki-nav-label">{bar_word(code, key, key)}</span>')
         out = out.replace('<span class="deki-bar-tag">docs</span>', f'<span class="deki-bar-tag">{bar_word(code, "docs", "docs")}</span>')
         out = out.replace("<span>donate</span>", f"<span>{bar_word(code, 'donate', 'donate')}</span>")
+        out = out.replace("<span>download</span>", f"<span>{bar_word(code, 'download', 'download')}</span>")
         out = out.replace("<!--DEKI_FONTS-->", f'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={NOTO[code]}:wght@400;500;700&display=swap">')
     else:
         out = out.replace("<!--DEKI_FONTS-->\n", "")
@@ -209,6 +218,9 @@ def header(template, code):
 
 FENCE = re.compile(r"^\s*(```|~~~)")
 HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*(\{#[^}]*\})?\s*$")
+# The word Deki in prose: Doxygen would link each one to the namespace. Code
+# spans are matched first so they stay as written.
+NAME = re.compile(r"(`[^`]*`)|(?<![\w%:/.-])Deki(?![\w:-])")
 LINK = re.compile(r"(!?)\[([^\]]*)\]\(([^)\s]+)\)")
 
 
@@ -273,6 +285,7 @@ def guide_page(text, name, guides, english_text=None, depth=0):
                 line = f"{m.group(1)} {m.group(2)} {{#guide-{name}-{labels[index]}}}"
             index += 1
         line = LINK.sub(lambda lm: _link(lm, name, guides, depth), line)
+        line = NAME.sub(lambda nm: nm.group(1) or "%Deki", line)
         out.append(_emphasis(line) if depth else line)
     return "\n".join(out) + "\n"
 
@@ -301,8 +314,11 @@ def _emphasis(line):
 
 def _link(m, name, guides, depth):
     bang, label, target = m.groups()
-    if re.match(r"^[a-z][a-z0-9+.-]*:", target) or bang:
+    if re.match(r"^[a-z][a-z0-9+.-]*:", target):
         return m.group(0)
+    if bang:
+        # img/x.png on GitHub, x.png to Doxygen: IMAGE_PATH finds it by name.
+        return f"![{label}]({posixpath.basename(target)})"
     path, _, anchor = target.partition("#")
     if not path:
         return f"[{label}](#guide-{name}-{anchor})"

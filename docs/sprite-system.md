@@ -4,6 +4,8 @@
 
 Spritesheets go through an import pipeline: PNG source file -> compiled .tex file with embedded frame metadata. All frames live **inside the parent .tex file** as regions - no separate files are generated per frame.
 
+![The Animation Editor, with frames from a sprite sheet](img/animation-editor.png)
+
 ```
 assets/sprites/player.png (source)
   -> cache/{parentGuid}  (compiled .tex with FrameList chunk)

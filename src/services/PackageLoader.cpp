@@ -1,3 +1,4 @@
+#include <deki/providers/Memory.h>
 #include "PackageLoader.h"
 #include <deki-editor/CMakeCacheReader.h>
 #include <deki-editor/Paths.h>
@@ -609,7 +610,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // resolve inside the shadow directory, while non-package dependencies
     // (deki-engine-core.dll) use the default search.
     HMODULE handle =
-        LoadLibraryExA(path.c_str(), NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        LoadLibraryExA(path.c_str(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 
     SetErrorMode(oldErrorMode);
 
@@ -617,21 +618,26 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     {
         DWORD error = GetLastError();
         char errMsg[256] = {};
-        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0, errMsg,
-                       sizeof(errMsg), NULL);
+        FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, error, 0, errMsg,
+                       sizeof(errMsg), nullptr);
         DEKI_LOG_ERROR("PackageLoader: Failed to load DLL (error %lu: %s): %s", error, errMsg, path.c_str());
         return false;
     }
     info.handle = handle;
 
-    auto getName = (GetNameFunc)GetProcAddress(handle, "DekiPluginGetName");
-    auto init = (InitFunc)GetProcAddress(handle, "DekiPluginInit");
-    auto registerComponents = (RegisterComponentsFunc)GetProcAddress(handle, "DekiPluginRegisterComponents");
-    auto setImGuiContext = (SetImGuiContextFunc)GetProcAddress(handle, "DekiPluginSetImGuiContext");
-    auto getImGuiContextSize = (GetImGuiContextSizeFunc)GetProcAddress(handle, "DekiPluginGetImGuiContextSize");
-    auto getReflectionAbi = (DekiGetReflectionAbiFunc)GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME);
-    auto getComponentCount = (GetComponentCountFunc)GetProcAddress(handle, "DekiPluginGetComponentCount");
-    auto getComponentMeta = (GetComponentMetaFunc)GetProcAddress(handle, "DekiPluginGetComponentMeta");
+    auto getName = reinterpret_cast<GetNameFunc>(GetProcAddress(handle, "DekiPluginGetName"));
+    auto init = reinterpret_cast<InitFunc>(GetProcAddress(handle, "DekiPluginInit"));
+    auto registerComponents =
+        reinterpret_cast<RegisterComponentsFunc>(GetProcAddress(handle, "DekiPluginRegisterComponents"));
+    auto setImGuiContext = reinterpret_cast<SetImGuiContextFunc>(GetProcAddress(handle, "DekiPluginSetImGuiContext"));
+    auto getImGuiContextSize =
+        reinterpret_cast<GetImGuiContextSizeFunc>(GetProcAddress(handle, "DekiPluginGetImGuiContextSize"));
+    auto getReflectionAbi =
+        reinterpret_cast<DekiGetReflectionAbiFunc>(GetProcAddress(handle, DEKI_REFLECTION_ABI_EXPORT_NAME));
+    auto getComponentCount =
+        reinterpret_cast<GetComponentCountFunc>(GetProcAddress(handle, "DekiPluginGetComponentCount"));
+    auto getComponentMeta =
+        reinterpret_cast<GetComponentMetaFunc>(GetProcAddress(handle, "DekiPluginGetComponentMeta"));
 #else
     void* handle = dlopen(path.c_str(), RTLD_NOW);
     if (!handle)
@@ -758,7 +764,7 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
     // Set the ImGui context BEFORE registering components: packages may use ImGui during init.
     if (setImGuiContext && imguiContext)
     {
-        SafeCallVoidPtr((void (*)(void*))setImGuiContext, imguiContext, "PackageLoader::setImGuiContext");
+        SafeCallVoidPtr(static_cast<void (*)(void*)>(setImGuiContext), imguiContext, "PackageLoader::setImGuiContext");
     }
 
     // One-time package init (e.g. registering desktop driver singletons like
@@ -792,8 +798,8 @@ bool PackageLoader::LoadPackage(const std::string& path, void* imguiContext)
         int count = SafeCallGetInt(getComponentCount, 0, "PackageLoader::getComponentCount");
         for (int i = 0; i < count; ++i)
         {
-            const auto* meta = (const Deki::ComponentMeta*)SafeCallGetPtr((void* (*)(int))getComponentMeta, i,
-                                                                          "PackageLoader::getComponentMeta");
+            const auto* meta = static_cast<const Deki::ComponentMeta*>(SafeCallGetPtr(
+                reinterpret_cast<void* (*)(int)>(getComponentMeta), i, "PackageLoader::getComponentMeta"));
             if (meta)
             {
                 info.registeredTypeIds.push_back(meta->typeId);
@@ -861,7 +867,8 @@ void PackageLoader::UnloadPackage(const std::string& name)
             onPackageUnloading(it->name);
         }
 #ifdef _WIN32
-        auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)it->handle, "DekiPluginShutdown");
+        auto shutdown =
+            reinterpret_cast<ShutdownFunc>(GetProcAddress(static_cast<HMODULE>(it->handle), "DekiPluginShutdown"));
         if (shutdown)
         {
             SafeCallVoid(shutdown, it->name.c_str());
@@ -884,8 +891,10 @@ void PackageLoader::UnloadPackage(const std::string& name)
         }
 
 #ifdef _WIN32
-        FreeLibrary((HMODULE)it->handle);
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
+        FreeLibrary(static_cast<HMODULE>(it->handle));
 #else
+        Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
         dlclose(it->handle);
 #endif
         it->handle = nullptr;
@@ -903,14 +912,14 @@ void PackageLoader::ReleaseImGuiContext()
             continue;
         }
 #ifdef _WIN32
-        auto setImGuiContext =
-            (SetImGuiContextFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginSetImGuiContext");
+        auto setImGuiContext = reinterpret_cast<SetImGuiContextFunc>(
+            GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginSetImGuiContext"));
 #else
         auto setImGuiContext = (SetImGuiContextFunc)dlsym(package.handle, "DekiPluginSetImGuiContext");
 #endif
         if (setImGuiContext)
         {
-            SafeCallVoidPtr((void (*)(void*))setImGuiContext, nullptr, "PackageLoader::setImGuiContext");
+            SafeCallVoidPtr(static_cast<void (*)(void*)>(setImGuiContext), nullptr, "PackageLoader::setImGuiContext");
         }
     }
 }
@@ -942,7 +951,8 @@ void PackageLoader::UnloadAllPackages()
         if (package.handle)
         {
 #ifdef _WIN32
-            auto shutdown = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginShutdown");
+            auto shutdown = reinterpret_cast<ShutdownFunc>(
+                GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginShutdown"));
             if (shutdown)
             {
                 SafeCallVoid(shutdown, package.name.c_str());
@@ -980,12 +990,14 @@ void PackageLoader::UnloadAllPackages()
         if (m_Packages[i].handle)
         {
 #ifdef _WIN32
-            if (!FreeLibrary((HMODULE)m_Packages[i].handle))
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
+            if (!FreeLibrary(static_cast<HMODULE>(m_Packages[i].handle)))
             {
                 DEKI_LOG_WARNING("PackageLoader: FreeLibrary failed for '%s' (error %lu)", m_Packages[i].name.c_str(),
                                  GetLastError());
             }
 #else
+            Deki::Memory::KeepSiteNames();  // its allocation sites' names live in its code
             dlclose(m_Packages[i].handle);
 #endif
             m_Packages[i].handle = nullptr;
@@ -1018,10 +1030,11 @@ std::vector<std::string> PackageLoader::CheckForUpdates()
                 // Seconds since the epoch give a portable, readable number.
                 auto toEpoch = [](std::filesystem::file_time_type t)
                 { return std::chrono::duration_cast<std::chrono::seconds>(t.time_since_epoch()).count(); };
-                DEKI_LOG_EDITOR(
-                    "PackageLoader: '%s' mtime changed (loaded=%lld, current=%lld, delta=%lld s, path=%s)",
-                    package.name.c_str(), (long long)toEpoch(package.lastModified), (long long)toEpoch(currentTime),
-                    (long long)(toEpoch(currentTime) - toEpoch(package.lastModified)), package.path.c_str());
+                DEKI_LOG_EDITOR("PackageLoader: '%s' mtime changed (loaded=%lld, current=%lld, delta=%lld s, path=%s)",
+                                package.name.c_str(), static_cast<long long>(toEpoch(package.lastModified)),
+                                static_cast<long long>(toEpoch(currentTime)),
+                                static_cast<long long>(toEpoch(currentTime) - toEpoch(package.lastModified)),
+                                package.path.c_str());
                 changedPackages.push_back(package.name);
             }
         }
@@ -1098,7 +1111,7 @@ void* PackageLoader::GetFunction(const std::string& packageName, const char* fun
         if (package.name == packageName && package.handle)
         {
 #ifdef _WIN32
-            return (void*)GetProcAddress((HMODULE)package.handle, funcName);
+            return reinterpret_cast<void*>(GetProcAddress(static_cast<HMODULE>(package.handle), funcName));
 #else
             return dlsym(package.handle, funcName);
 #endif
@@ -1117,13 +1130,14 @@ void PackageLoader::NotifyPlayModeStart(void* scene)
         }
 
 #ifdef _WIN32
-        auto func = (OnPlayModeStartFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginOnPlayModeStart");
+        auto func = reinterpret_cast<OnPlayModeStartFunc>(
+            GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginOnPlayModeStart"));
 #else
         auto func = (OnPlayModeStartFunc)dlsym(package.handle, "DekiPluginOnPlayModeStart");
 #endif
         if (func)
         {
-            SafeCallVoidPtr((void (*)(void*))func, scene, "PackageLoader::NotifyPlayModeStart");
+            SafeCallVoidPtr(static_cast<void (*)(void*)>(func), scene, "PackageLoader::NotifyPlayModeStart");
         }
     }
 }
@@ -1138,7 +1152,8 @@ void PackageLoader::NotifyPlayModeStop()
         }
 
 #ifdef _WIN32
-        auto func = (ShutdownFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginOnPlayModeStop");
+        auto func = reinterpret_cast<ShutdownFunc>(
+            GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginOnPlayModeStop"));
 #else
         auto func = (ShutdownFunc)dlsym(package.handle, "DekiPluginOnPlayModeStop");
 #endif
@@ -1159,7 +1174,8 @@ void PackageLoader::ClearPackageRegistries()
         }
 
 #ifdef _WIN32
-        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginClearRegistries");
+        auto func = reinterpret_cast<RegisterComponentsFunc>(
+            GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginClearRegistries"));
 #else
         auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPluginClearRegistries");
 #endif
@@ -1180,7 +1196,8 @@ void PackageLoader::ReRegisterAllPackages()
         }
 
 #ifdef _WIN32
-        auto func = (RegisterComponentsFunc)GetProcAddress((HMODULE)package.handle, "DekiPluginRegisterComponents");
+        auto func = reinterpret_cast<RegisterComponentsFunc>(
+            GetProcAddress(static_cast<HMODULE>(package.handle), "DekiPluginRegisterComponents"));
 #else
         auto func = (RegisterComponentsFunc)dlsym(package.handle, "DekiPluginRegisterComponents");
 #endif

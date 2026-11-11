@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <functional>
 #include <nlohmann/json_fwd.hpp>
@@ -38,6 +39,7 @@ enum class AssetCategory
     Data,  // generic data files
 };
 
+/// How the editor creates, compiles and inspects one asset type.
 struct DEKI_EDITOR_API AssetTypeHandler
 {
     std::string typeName;                 // "ProceduralSprite", "Animation", "Scene"
@@ -59,6 +61,7 @@ struct DEKI_EDITOR_API AssetTypeHandler
     std::function<bool(nlohmann::json& data, const std::string& assetPath, const std::string& assetGuid)> inspectorGUI;
 };
 
+/// The asset types and file extension categories the editor knows.
 class DEKI_EDITOR_API AssetTypeRegistry
 {
 public:
@@ -69,6 +72,13 @@ public:
     const AssetTypeHandler* GetHandler(const std::string& typeName) const;
     const AssetTypeHandler* GetHandlerForExtension(const std::string& extension) const;
     bool HasHandlerForExtension(const std::string& extension) const;
+
+    /// Goes up each time a file extension becomes registered that was not a
+    /// moment before: a package that loads after the project opened, or comes
+    /// back after a reload (Clear), brings types whose files were skipped
+    /// while it was away. Registering a type again without a Clear in
+    /// between leaves it as it was.
+    uint32_t ExtensionRevision() const { return m_ExtensionRevision; }
     bool CreateAsset(const std::string& typeName, const std::string& filePath);
     bool CompileAsset(const nlohmann::json& data, std::vector<uint8_t>& rgba, int& width, int& height);
     bool CompileAssetToFile(const nlohmann::json& data, const std::string& cachePath);
@@ -98,6 +108,8 @@ private:
     void RegisterBuiltInTypes();
     std::vector<AssetTypeHandler> m_Types;
     std::unordered_map<std::string, AssetCategory> m_ExtensionCategory;  // ext (lowercase) -> category
+    std::unordered_set<std::string> m_RegisteredExtensions;  // lowercase, since the last Clear
+    uint32_t m_ExtensionRevision = 0;
 };
 
 }  // namespace DekiEditor

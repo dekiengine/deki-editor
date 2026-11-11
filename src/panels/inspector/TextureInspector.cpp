@@ -412,11 +412,13 @@ void TextureInspector::DrawSettings()
 
         if (hasCached && !cachePath.empty() && m_PreviewTextureId != 0)
         {
-            if (DekiEditor::SchematicAddButton(Tr(ICON_TI_LAYOUT_GRID "  Open in Spritesheet Editor")))
+            if (DekiEditor::SchematicAddButton(Tr(ICON_TI_LAYOUT_GRID "  Open in Sprite Slicer")))
             {
                 if (auto* toolHost = m_App->GetToolHost())
                 {
-                    toolHost->OpenToolForFile(assetPath.c_str(), cachePath.c_str());
+                    // By name: the 9-Slice Editor opens images too, and was
+                    // picked first when the tool was left to the file type.
+                    toolHost->OpenToolForFile(assetPath.c_str(), cachePath.c_str(), "Sprite Slicer");
                 }
             }
         }

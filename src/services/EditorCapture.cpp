@@ -155,7 +155,7 @@ std::vector<EditorCapture::PanelInfo> EditorCapture::ListPanels()
 
 bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH, int& outX, int& outY, int& outW, int& outH) const
 {
-    float x = 0.0f, y = 0.0f, w = (float)fbW, h = (float)fbH;
+    float x = 0.0f, y = 0.0f, w = static_cast<float>(fbW), h = static_cast<float>(fbH);
 
     if (!req.panel.empty())
     {
@@ -186,20 +186,20 @@ bool EditorCapture::ResolveRect(const Request& req, int fbW, int fbH, int& outX,
     // off-screen shrinks the capture instead of shifting it.
     float x0 = std::max(0.0f, x);
     float y0 = std::max(0.0f, y);
-    float x1 = std::min((float)fbW, x + w);
-    float y1 = std::min((float)fbH, y + h);
+    float x1 = std::min(static_cast<float>(fbW), x + w);
+    float y1 = std::min(static_cast<float>(fbH), y + h);
 
-    outX = (int)x0;
-    outY = (int)y0;
-    outW = (int)(x1 - x0);
-    outH = (int)(y1 - y0);
+    outX = static_cast<int>(x0);
+    outY = static_cast<int>(y0);
+    outW = static_cast<int>(x1 - x0);
+    outH = static_cast<int>(y1 - y0);
 
     return outW > 0 && outH > 0;
 }
 
 bool EditorCapture::CaptureToFile(const std::string& path, int x, int y, int w, int h)
 {
-    const size_t byteCount = (size_t)w * (size_t)h * 4u;
+    const size_t byteCount = static_cast<size_t>(w) * static_cast<size_t>(h) * 4u;
     m_Pixels.resize(byteCount);
 
     if (!EditorRenderer::ReadPixels(x, y, w, h, m_Pixels.data()))

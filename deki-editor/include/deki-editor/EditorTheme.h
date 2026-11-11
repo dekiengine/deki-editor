@@ -460,6 +460,7 @@ enum class DialogButton
     Primary,
     Danger,
 };
+/// One button of SchematicDialogButtons: label, kind and whether it is enabled.
 struct DialogButtonSpec
 {
     const char* label;

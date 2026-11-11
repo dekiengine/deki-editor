@@ -341,12 +341,13 @@ bool ComponentManager::DrawComponentList(Deki::Object* obj, DrawComponentCallbac
                 ImGui::TextColored(DekiEditor::Palette::Red, "%s", Tr("Component type not found"));
                 if (!missing->jsonProperties.empty())
                 {
-                    ImGui::TextDisabled(Tr("Data preserved (%u properties)"), (unsigned)missing->jsonProperties.size());
+                    ImGui::TextDisabled(Tr("Data preserved (%u properties)"),
+                                        static_cast<unsigned>(missing->jsonProperties.size()));
                 }
                 else if (!missing->rawData.empty())
                 {
-                    ImGui::TextDisabled(Tr("Data preserved (%u bytes, %u fields)"), (unsigned)missing->rawData.size(),
-                                        missing->dataMapSize);
+                    ImGui::TextDisabled(Tr("Data preserved (%u bytes, %u fields)"),
+                                        static_cast<unsigned>(missing->rawData.size()), missing->dataMapSize);
                 }
                 else
                 {

@@ -56,6 +56,7 @@ set(EDITOR_DLL_SOURCES
     # one copy instead of compiling its own.
     src/ProcessLaunch.cpp
     src/SerialPorts.cpp
+    src/DeviceProfile.cpp
     src/ShellCommand.cpp
     src/BuildLoad.cpp
     src/CliTool.cpp

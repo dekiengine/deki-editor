@@ -23,16 +23,18 @@ void RegisterBuildersFromPackages(PackageLoader& loader)
     for (const PackageInfo& pkg : loader.GetLoadedPackages())
     {
         // Most packages have no builder; that is normal and not logged.
-        auto getAbi = (const DekiBuilderAbi* (*)())loader.GetFunction(pkg.name, "DekiBuilderGetAbi");
+        auto getAbi = reinterpret_cast<const DekiBuilderAbi* (*)()>(loader.GetFunction(pkg.name, "DekiBuilderGetAbi"));
         if (getAbi == nullptr)
         {
             continue;
         }
 
-        auto getName = (const char* (*)())loader.GetFunction(pkg.name, "DekiBuilderGetName");
-        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiBuilderGetBuilderCount");
-        auto create = (ITargetBuilder * (*)(int)) loader.GetFunction(pkg.name, "DekiBuilderCreateBuilder");
-        auto destroy = (void (*)(ITargetBuilder*))loader.GetFunction(pkg.name, "DekiBuilderDestroyBuilder");
+        auto getName = reinterpret_cast<const char* (*)()>(loader.GetFunction(pkg.name, "DekiBuilderGetName"));
+        auto getCount = reinterpret_cast<int (*)()>(loader.GetFunction(pkg.name, "DekiBuilderGetBuilderCount"));
+        auto create =
+            reinterpret_cast<ITargetBuilder* (*)(int)>(loader.GetFunction(pkg.name, "DekiBuilderCreateBuilder"));
+        auto destroy =
+            reinterpret_cast<void (*)(ITargetBuilder*)>(loader.GetFunction(pkg.name, "DekiBuilderDestroyBuilder"));
 
         if (getName == nullptr || getCount == nullptr || create == nullptr || destroy == nullptr)
         {
@@ -85,14 +87,16 @@ void RegisterInstallersFromPackages(PackageLoader& loader, ::PackageManager& man
 {
     for (const PackageInfo& pkg : loader.GetLoadedPackages())
     {
-        auto getCount = (int (*)())loader.GetFunction(pkg.name, "DekiInstallerGetCount");
+        auto getCount = reinterpret_cast<int (*)()>(loader.GetFunction(pkg.name, "DekiInstallerGetCount"));
         if (getCount == nullptr)
         {
             continue;
         }
 
-        auto create = (IPackageInstaller * (*)(int)) loader.GetFunction(pkg.name, "DekiInstallerCreate");
-        auto destroy = (void (*)(IPackageInstaller*))loader.GetFunction(pkg.name, "DekiInstallerDestroy");
+        auto create =
+            reinterpret_cast<IPackageInstaller* (*)(int)>(loader.GetFunction(pkg.name, "DekiInstallerCreate"));
+        auto destroy =
+            reinterpret_cast<void (*)(IPackageInstaller*)>(loader.GetFunction(pkg.name, "DekiInstallerDestroy"));
         if (create == nullptr || destroy == nullptr)
         {
             DEKI_LOG_ERROR("Package '%s' exports DekiInstallerGetCount but not Create/Destroy; "

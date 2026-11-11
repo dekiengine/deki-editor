@@ -481,26 +481,31 @@ public:
     // Each of the five callbacks gets the value:
     //   onStartChange(begin) / onChange(live) / onEndChange(old,new) / onUndo / onRedo.
     // =========================================================================
+    /// Change, undo and redo callbacks of a float field.
     struct FloatCallbacks
     {
         std::function<void(float)> onStartChange, onChange, onUndo, onRedo;
         std::function<void(float, float)> onEndChange;
     };
+    /// Change, undo and redo callbacks of an integer field.
     struct IntCallbacks
     {
         std::function<void(int64_t)> onStartChange, onChange, onUndo, onRedo;
         std::function<void(int64_t, int64_t)> onEndChange;
     };
+    /// Change, undo and redo callbacks of a vector field, with values as float arrays.
     struct VecCallbacks
     {
         std::function<void(const float*)> onStartChange, onChange, onUndo, onRedo;
         std::function<void(const float*, const float*)> onEndChange;
     };
+    /// Change, undo and redo callbacks of an enum field or integer slider.
     struct EnumCallbacks
     {
         std::function<void(int)> onStartChange, onChange, onUndo, onRedo;
         std::function<void(int, int)> onEndChange;
     };
+    /// Change, undo and redo callbacks of a text field.
     struct TextCallbacks
     {
         std::function<void(const char*)> onStartChange, onChange, onUndo, onRedo;
@@ -571,6 +576,7 @@ public:
     // The ImGui implementations, installed once by the editor executable.
     // EditCallbacksBytes are the edit callbacks the backend calls, with the
     // values as raw bytes.
+    /// Edit callbacks a WidgetBackend calls, with the values as raw bytes.
     struct EditCallbacksBytes
     {
         std::function<void(const void*)> onStartChange;             // begin (before-value bytes)
@@ -579,6 +585,7 @@ public:
         std::function<void(const void*)> onUndo;                    // undo (old-value bytes)
         std::function<void(const void*)> onRedo;                    // redo (new-value bytes)
     };
+    /// The ImGui widget implementations, installed once by the editor executable.
     struct WidgetBackend
     {
         std::function<bool(const char*)> sectionHeader;

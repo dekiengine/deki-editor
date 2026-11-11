@@ -4,6 +4,8 @@
 
 폰트는 컴파일 파이프라인을 거칩니다. TTF 소스 파일 -> 베이크된 BitmapFont(.dfont) + 텍스처 아틀라스. 폰트 크기마다 결정적 GUID를 가진 **별도의 파일 쌍**이 만들어집니다.
 
+![인스펙터의 텍스트 필드](../img/gs-inspector-text.png)
+
 ```
 assets/fonts/MyFont.ttf (source)
   -> cache/{variantGuid}  (compiled .dfont for 16px)

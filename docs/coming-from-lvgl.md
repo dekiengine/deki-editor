@@ -1,8 +1,10 @@
 # Coming from LVGL
 
 LVGL is a C library you call to build a screen. Deki is an editor and an
-engine: you lay the screen out in a scene, see it as it will look on the board,
+engine: you lay the screen out in a scene, see it as it will look on the device,
 and write code only for what it does. Most of what you know carries over.
+
+![Some of the widgets in the Scene View](img/widgets-scene.png)
 
 ## The same ideas, other names
 
@@ -17,8 +19,8 @@ and write code only for what it does. Most of what you know carries over.
 | Groups (`lv_group_t`) for keypad and encoder | The focus system: every widget joins it, Tab and the arrows move between them |
 | `lv_timer_create` | A component's `RuntimeUpdate`, called every frame |
 | Fonts converted with `lv_font_conv` | Drop a TTF in the project; the editor bakes the sizes your texts use |
-| Images converted to C arrays | Drop a PNG in the project; it is converted for each board's colour format |
-| The display and input drivers you write | A platform: pick your board, its display and input come with it |
+| Images converted to C arrays | Drop a PNG in the project; it is converted for each device's colour format |
+| The display and input drivers you write | A platform: pick your device, its display and input come with it |
 
 ## Widgets
 
@@ -53,14 +55,14 @@ See [UI widgets](ui-widgets.md) for how each one is added, styled and wired up.
 ## What changes in practice
 
 You see the screen while you build it. The editor draws the scene the way the
-board will, at the board's resolution and colour format, and the Play view
+device will, at the device's resolution and colour format, and the Play view
 runs it with your mouse as the touchscreen.
 
 You write less code. Layout, looks and assets live in the scene and the
 project. Code is for behaviour: what a click does, what a value drives.
 
-One project runs on several boards. A scene is in meters, and each board's
-camera shows it at that board's resolution, so a T-Deck and a T-Display share
+One project runs on several devices. A scene is in meters, and each device's
+camera shows it at that device's resolution, so a T-Deck and a T-Display share
 the same scenes.
 
 You are not limited to UI. The same scene can hold sprites, tilemaps,

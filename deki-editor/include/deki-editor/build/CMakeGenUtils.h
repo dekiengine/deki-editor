@@ -14,6 +14,7 @@ namespace DekiEditor
 
 struct PlatformConfig;
 
+/// Generates the CMake projects for builds, from the installed packages and the platform.
 namespace CMakeGen
 {
 

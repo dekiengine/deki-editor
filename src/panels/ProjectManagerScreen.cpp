@@ -50,12 +50,12 @@ std::string RelativeTime(int64_t stamp)
     }
     if (delta < 3600)
     {
-        std::snprintf(buf, sizeof(buf), Tr("%lld min ago"), (long long)(delta / 60));
+        std::snprintf(buf, sizeof(buf), Tr("%lld min ago"), static_cast<long long>(delta / 60));
         return buf;
     }
     if (delta < 86400)
     {
-        std::snprintf(buf, sizeof(buf), Tr("%lld hours ago"), (long long)(delta / 3600));
+        std::snprintf(buf, sizeof(buf), Tr("%lld hours ago"), static_cast<long long>(delta / 3600));
         return buf;
     }
     if (delta < 172800)
@@ -64,12 +64,12 @@ std::string RelativeTime(int64_t stamp)
     }
     if (delta < 2592000)
     {
-        std::snprintf(buf, sizeof(buf), Tr("%lld days ago"), (long long)(delta / 86400));
+        std::snprintf(buf, sizeof(buf), Tr("%lld days ago"), static_cast<long long>(delta / 86400));
         return buf;
     }
     if (delta < 31536000)
     {
-        std::snprintf(buf, sizeof(buf), Tr("%lld months ago"), (long long)(delta / 2592000));
+        std::snprintf(buf, sizeof(buf), Tr("%lld months ago"), static_cast<long long>(delta / 2592000));
         return buf;
     }
     return Tr("over a year ago");
@@ -81,8 +81,9 @@ bool ContainsNoCase(const std::string& haystack, const std::string& needle)
     {
         return true;
     }
-    auto it = std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char a, char b)
-                          { return std::tolower((unsigned char)a) == std::tolower((unsigned char)b); });
+    auto it = std::search(
+        haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char a, char b)
+        { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); });
     return it != haystack.end();
 }
 
@@ -150,7 +151,7 @@ void ProjectManagerScreen::RebuildFilter()
     m_Filtered.clear();
     const std::string needle = m_Search;
     const auto& entries = ProjectRegistry::Get().Entries();
-    for (int i = 0; i < (int)entries.size(); ++i)
+    for (int i = 0; i < static_cast<int>(entries.size()); ++i)
     {
         if (ContainsNoCase(entries[i].name, needle) || ContainsNoCase(entries[i].path, needle))
         {
@@ -217,10 +218,9 @@ void ProjectManagerScreen::Draw()
     const float railMinH = 290.0f * s;
     const size_t entryCount = ProjectRegistry::Get().Entries().size();
     const float availBodyH = avail.y - headerH - pad * 1.4f;
-    float bodyH =
-        entryCount == 0
-            ? 260.0f * s
-            : std::max(railMinH, (float)entryCount * rowStride + 8.0f * s + (m_Error.empty() ? 0.0f : 26.0f * s));
+    float bodyH = entryCount == 0 ? 260.0f * s
+                                  : std::max(railMinH, static_cast<float>(entryCount) * rowStride + 8.0f * s +
+                                                           (m_Error.empty() ? 0.0f : 26.0f * s));
     bodyH = std::max(std::min(bodyH, availBodyH), 120.0f * s);
 
     if (!UpdateCheck::AvailableVersion().empty() && EditorUpdater::CanUpdateInPlace())
@@ -301,11 +301,11 @@ void ProjectManagerScreen::Draw()
     if (!ImGui::IsAnyItemActive() && !m_Filtered.empty())
     {
         auto pos = std::find(m_Filtered.begin(), m_Filtered.end(), m_Selected);
-        const int cursor = (pos == m_Filtered.end()) ? 0 : (int)(pos - m_Filtered.begin());
+        const int cursor = (pos == m_Filtered.end()) ? 0 : static_cast<int>(pos - m_Filtered.begin());
 
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
         {
-            m_Selected = m_Filtered[std::min(cursor + 1, (int)m_Filtered.size() - 1)];
+            m_Selected = m_Filtered[std::min(cursor + 1, static_cast<int>(m_Filtered.size()) - 1)];
         }
         else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
         {
@@ -314,7 +314,7 @@ void ProjectManagerScreen::Draw()
         else if (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))
         {
             const auto& entries = ProjectRegistry::Get().Entries();
-            if (m_Selected >= 0 && m_Selected < (int)entries.size() && !entries[m_Selected].missing)
+            if (m_Selected >= 0 && m_Selected < static_cast<int>(entries.size()) && !entries[m_Selected].missing)
             {
                 m_PendingOpen = entries[m_Selected].path;
             }
@@ -561,7 +561,7 @@ void ProjectManagerScreen::DrawActionRail(float width, float height)
 {
     const float s = ImGui::GetStyle().FontScaleDpi;
     const auto& entries = ProjectRegistry::Get().Entries();
-    const bool hasSelection = (m_Selected >= 0 && m_Selected < (int)entries.size());
+    const bool hasSelection = (m_Selected >= 0 && m_Selected < static_cast<int>(entries.size()));
     const bool canOpen = hasSelection && !entries[m_Selected].missing;
 
     ImGui::BeginChild("##ProjectActions", ImVec2(width, height), ImGuiChildFlags_None);

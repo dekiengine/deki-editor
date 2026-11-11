@@ -69,6 +69,8 @@ float m_GyroScale = (245.0f / 32768.0f) * Deki::Math::kDegToRad;  // LSB -> rad/
 
 全部位于 `deki-editor/src/core/Units.h`。只有一个文件，因此添加单位只需修改一处：
 
+![检视器中以像素显示的位置](../img/units-inspector.png)
+
 - `GetUnitDisplay(unit)` - 乘数、偏移量、printf 格式、拖动速度。
 - `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` - 一对互逆函数，放在一起。当每次换算都只是一个乘法时，调用方可以在行内求逆；有了华氏度的偏移量后，手写的 `shown / multiplier` 会差 32 度，而且看起来仍然合理。
 - `CanonicalUnitSymbol(unit)` - 值*存储*时使用的 SI 符号，用于机器可读的输出。不受显示偏好影响：在元数据转储中写入 "px" 会让转储变成谎言。

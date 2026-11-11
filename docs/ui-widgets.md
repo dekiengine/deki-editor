@@ -2,7 +2,7 @@
 
 Deki 2D comes with the widgets a device screen needs: buttons, sliders,
 switches, lists, pickers, a text box with an on-screen keyboard, charts. They
-draw with shapes and text, so they look the same on every board and in every
+draw with shapes and text, so they look the same on every device and in every
 colour format, and each one is a component you add to an object.
 
 ## The widgets
@@ -27,6 +27,8 @@ colour format, and each one is a component you add to an object.
 | **Text Area** | A box to type into. | `AddOnTextChangedCallback`, `AddOnSubmitCallback` |
 | **Keyboard** | A keyboard on the screen that types into a text area. | `AddOnKeyCallback` |
 | **Chart** | A line or bar chart of a series of values. | `AddPoint` |
+
+![Some of the widgets in the Scene View](img/widgets-scene.png)
 
 The two building blocks under them are useful on their own: **Shape** draws a
 rounded rectangle, ellipse, arc, triangle or tick with smooth edges, and
@@ -95,7 +97,7 @@ The rest of the screen waits.
 
 ## Only what you use ships
 
-Each widget is a feature of Deki 2D. A build for a board leaves out the
+Each widget is a feature of Deki 2D. A build for a device leaves out the
 widgets its scenes do not use, with their code. A project that only shows a
 slider does not carry the keyboard or the chart.
 

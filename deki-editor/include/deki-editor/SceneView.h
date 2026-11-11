@@ -128,6 +128,19 @@ public:
     void DrawCircleFilled(float cx, float cy, float radius, uint32_t rgba);
 
     // =========================================================================
+    // Gizmo handles
+    // =========================================================================
+
+    /// Whether the pointer is over the scene canvas and free to act on it.
+    /// A gizmo checks this before reacting to the mouse.
+    bool IsPointerOnCanvas() const { return m_PointerOnCanvas; }
+
+    /// A gizmo calls this every frame the pointer is on one of its handles, or
+    /// a handle is being dragged: a click then goes to the handle instead of
+    /// selecting or moving an object.
+    void ClaimMouse() { m_MouseClaimed = true; }
+
+    // =========================================================================
     // Internal: called by SceneObjectRenderer
     // =========================================================================
 
@@ -135,6 +148,10 @@ public:
     void BeginObject(const SceneViewContext& ctx);
 
     void EndObject();
+
+    void SetPointerOnCanvas(bool onCanvas) { m_PointerOnCanvas = onCanvas; }
+    bool IsMouseClaimed() const { return m_MouseClaimed; }
+    void ClearMouseClaim() { m_MouseClaimed = false; }
 
 private:
     SceneView() = default;
@@ -162,6 +179,9 @@ private:
     int m_PreviewWidth = 0;
     int m_PreviewHeight = 0;
     Deki::ColorFormat m_PreviewFormat = Deki::ColorFormat::ARGB8888;
+
+    bool m_PointerOnCanvas = false;
+    bool m_MouseClaimed = false;
 };
 
 }  // namespace DekiEditor

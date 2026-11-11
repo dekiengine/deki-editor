@@ -23,6 +23,7 @@
 namespace DekiEditor
 {
 
+/// A platform a package offers a project, found in its platforms folder.
 struct DEKI_EDITOR_API PlatformTemplate
 {
     std::string platformId;  // the directory name, which is also the platform id
@@ -91,6 +92,7 @@ DEKI_EDITOR_API void RegisterPlatformTemplates(const std::string& projectPath);
 // (the boot scene) are compared whole.
 // ---------------------------------------------------------------------------
 
+/// Where an adopted platform came from and how it differs from that source.
 struct DEKI_EDITOR_API PlatformOriginStatus
 {
     bool fromPackage = false;  // adopted from a package, or an installed package offers this id
@@ -116,6 +118,7 @@ struct DEKI_EDITOR_API PlatformOriginStatus
 /// registry is not touched.
 DEKI_EDITOR_API PlatformOriginStatus GetPlatformOrigin(const std::string& projectPath, const std::string& platformId);
 
+/// Result of updating or restoring a platform from its package.
 struct DEKI_EDITOR_API PlatformSyncResult
 {
     bool ok = false;

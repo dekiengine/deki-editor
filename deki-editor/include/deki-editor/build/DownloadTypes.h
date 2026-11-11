@@ -19,6 +19,7 @@ enum class DownloadStatus
     Failed
 };
 
+/// State and progress of a toolchain download.
 struct DEKI_EDITOR_API DownloadProgress
 {
     DownloadStatus status = DownloadStatus::Idle;
@@ -29,6 +30,7 @@ struct DEKI_EDITOR_API DownloadProgress
     std::string error;
 };
 
+/// Result of checking a toolchain for a newer version.
 struct DEKI_EDITOR_API ToolchainVersionInfo
 {
     std::string name;

@@ -13,6 +13,7 @@ namespace DekiEditor
 // Toolchain definition, parsed from JSON a build backend supplies
 // ============================================================================
 
+/// How to find a toolchain component's latest version: a GitHub release or a fixed one.
 struct DEKI_EDITOR_API VersionCheckDef
 {
     std::string type;          // "github_release" or "static"
@@ -21,18 +22,21 @@ struct DEKI_EDITOR_API VersionCheckDef
     std::string version;       // For static: fixed version string
 };
 
+/// The pinned version and URL a toolchain component installs from.
 struct DEKI_EDITOR_API FallbackDef
 {
     std::string version;
     std::string url;
 };
 
+/// The setup command to run after installing a toolchain component, per host OS.
 struct DEKI_EDITOR_API PostInstallDef
 {
     std::string windows;
     std::string unixLike;  // Linux and macOS
 };
 
+/// One archive downloaded and unpacked as part of a toolchain component.
 struct DEKI_EDITOR_API SubComponentDef
 {
     std::string name;
@@ -46,6 +50,7 @@ struct DEKI_EDITOR_API SubComponentDef
     std::string targetName;     // Desired folder name after rename
 };
 
+/// One toolchain component: where it installs, how it is detected and updated.
 struct DEKI_EDITOR_API ComponentDef
 {
     std::string id;
@@ -79,6 +84,7 @@ struct DEKI_EDITOR_API ComponentDef
     std::string tooltip;
 };
 
+/// A build backend's toolchain definition, parsed from JSON.
 struct DEKI_EDITOR_API BuilderDefinition
 {
     std::string id;      // the framework id the backend claims

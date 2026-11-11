@@ -1057,7 +1057,7 @@ void AssetExporter::WriteProjectSettings(const std::string& storagePath)
 
     DEKI_LOG_EDITOR("Wrote %s (%zu bytes, pipeline=%s, %d passes)", Deki::ProjectSettings::kExportFilename,
                     settingsBuffer.size(), rendererName.empty() ? "(none)" : rendererName.c_str(),
-                    (int)passNames.size());
+                    static_cast<int>(passNames.size()));
 }
 
 bool AssetExporter::ExportBootPayload(const std::string& payloadDir, const std::string& bootSceneAssetPath)

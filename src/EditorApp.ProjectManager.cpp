@@ -189,6 +189,14 @@ bool EditorApp::OpenProject(const std::string& path)
         return false;
     }
 
+    // Before anything can save the project, which rewrites the version these
+    // go by. Asked in the window only: a command-line run has no one to tick.
+    if (!m_Headless)
+    {
+        m_ProjectChecks = RunProjectChecks(path);
+        m_ProjectChecksDialog = !m_ProjectChecks.empty();
+    }
+
     // Push project unit settings into the engine's global settings.
     // pixelsPerMeter drives inspector px<->m conversion and camera default
     // zoom. inspectorUnit is purely a display preference. The registry-owned
@@ -1054,6 +1062,8 @@ void EditorApp::CloseProject()
     {
         Stop();
     }
+
+    m_ProjectChecksDialog = false;
 
     // A build still running for this project would otherwise finish - and
     // reload its plugin - after the project has been torn down.

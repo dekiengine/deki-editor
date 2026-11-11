@@ -167,7 +167,7 @@ void EditModeRenderer::ClearBuffer(uint8_t r, uint8_t g, uint8_t b)
 
     uint16_t rgb565 = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
 
-    uint16_t* buffer16 = (uint16_t*)m_RenderBuffer;
+    uint16_t* buffer16 = reinterpret_cast<uint16_t*>(m_RenderBuffer);
     size_t pixelCount = m_Width * m_Height;
 
     for (size_t i = 0; i < pixelCount; i++)

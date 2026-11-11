@@ -14,6 +14,7 @@
 namespace DekiEditor
 {
 
+/// A project's choices for stripping unused features and packages from device builds.
 struct DEKI_EDITOR_API BuildStripSettings
 {
     // Leave out a feature when no scene or source names any of its components.

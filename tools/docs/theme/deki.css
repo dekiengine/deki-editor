@@ -189,20 +189,10 @@ div.title, .title, #projectname {
     font-weight: 400;
     text-decoration: none;
 }
-.deki-mark {
-    position: relative;
-    width: 22px;
-    height: 22px;
-    border: 1px solid var(--primary-color);
-    display: grid;
-    place-items: center;
-    flex-shrink: 0;
-}
-.deki-dot {
-    width: 6px;
-    height: 6px;
-    background: var(--primary-color);
-}
+.deki-brand .deki-cat { display: block; width: 32px; height: 18px; flex-shrink: 0; }
+/* Every link here loads a whole page, so the cat stays still instead of climbing
+ * back into view each time. */
+.deki-brand .deki-cat * { animation: none !important; }
 .deki-brand-name {
     font-size: 12.5px;
     letter-spacing: 0.08em;
@@ -219,6 +209,29 @@ div.title, .title, #projectname {
     text-transform: uppercase;
     flex-shrink: 0;
 }
+
+/* Manual and API reference: the bar's underlined pair, in the site's nav style. */
+.deki-tabs { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.deki-tab { position: relative; padding: 8px 12px; }
+.deki-tab::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 3px;
+    height: 1.5px;
+    background: var(--primary-color);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.12s ease;
+}
+.deki-tab:hover::after { transform: scaleX(1); }
+html[data-deki-tab="manual"] .deki-tab-manual::after,
+html[data-deki-tab="api"] .deki-tab-api::after { transform: scaleX(1); }
+html[data-deki-tab="manual"] .deki-bar a.deki-tab-manual:link,
+html[data-deki-tab="manual"] .deki-bar a.deki-tab-manual:visited,
+html[data-deki-tab="api"] .deki-bar a.deki-tab-api:link,
+html[data-deki-tab="api"] .deki-bar a.deki-tab-api:visited { color: var(--primary-color) !important; }
 
 .deki-bar-links {
     display: flex;
@@ -515,6 +528,9 @@ div.contents img[src^="deki-"] {
     margin: 4px 0 24px;
     border: 1px solid var(--separator-color);
 }
+/* Screenshots and diagrams in the guides. */
+div.contents img { max-width: 100%; height: auto; }
+
 /* Doxygen wraps a lone image in div.image and centres it. */
 div.contents div.image { margin: 0; text-align: left; }
 
@@ -534,3 +550,370 @@ div.contents div.image { margin: 0; text-align: left; }
 .deki-bar a.deki-chip-solid:visited { color: #0a0b0d !important; }
 .deki-chip-solid:hover { background: transparent !important; }
 .deki-bar a.deki-chip-solid:hover { color: var(--primary-color) !important; }
+
+/* ───────────────────────── guides and home ─────────────────────────
+ * Reads like dekiengine.com: one column of prose at a width people can read,
+ * a large plain title, and a lot of room around everything. Doxygen gives a
+ * guide page no class of its own; its anchors are the only mark it carries.
+ * API pages keep the width their tables need. */
+#projectbrief { display: none; }
+html, html.dark-mode, html:not(.light-mode) {
+    --top-height: 112px;
+    --page-font-size: 16px;
+    --content-line-height: 28px;
+}
+
+/* #doc-content does the scrolling; the bar's offset left the page 21px too tall. */
+@media screen and (min-width: 768px) {
+    html, body { overflow: clip; }
+}
+
+#nav-tree, #nav-tree .label, #nav-tree a { font-family: var(--font-family); }
+#nav-tree .item > a, #nav-tree .label { font-size: 15px; }
+#nav-tree .item { height: 40px; line-height: 40px; }
+#nav-tree .item > a, #nav-tree .label, #nav-tree .label a { line-height: 40px; }
+#nav-tree-contents { margin: 16px 0 32px; }
+#nav-tree a, #nav-tree a:hover, #nav-tree .label a:hover { text-decoration: none !important; }
+#nav-tree .item:hover .label a { color: var(--primary-color) !important; }
+/* A small chevron with room around it, always shown so rows do not jump. */
+#nav-tree .arrow { opacity: 1 !important; margin-right: 10px; }
+#nav-tree span.arrowhead {
+    width: 6px;
+    height: 6px;
+    margin: 0 0 2px 0;
+    border-right: 1.5px solid var(--page-secondary-foreground-color);
+    border-bottom: 1.5px solid var(--page-secondary-foreground-color);
+    transition: transform 0.12s ease;
+}
+#nav-tree .item:hover span.arrowhead,
+#nav-tree .selected span.arrowhead { border-color: var(--primary-color); }
+/* The API is one entry. Hidden here and not in DoxygenLayout.xml: a namespaces
+ * tab turned off there spills every namespace's functions into the tree. */
+#nav-tree li:has(> .item a[href="namespaces.html"]),
+#nav-tree li:has(> .item a[href="files.html"]) { display: none; }
+/* The tree's root only repeats the title above it. Its children move left by
+ * the indent it gave them. */
+html[data-deki-tab] #nav-tree-contents > ul > li > .item { display: none; }
+html[data-deki-tab] #nav-tree-contents > ul > li > ul.children_ul { margin-left: -16px; }
+/* Two halves, one tree: each tab shows its own groups. */
+html[data-deki-tab="manual"] #nav-tree-contents > ul > li > ul > li:has(> .item a[href="annotated.html"]) { display: none; }
+html[data-deki-tab="api"] #nav-tree-contents > ul > li > ul > li:not(:has(> .item a[href="annotated.html"])) { display: none; }
+/* The API tab already says what this list is, so its row goes too. */
+html[data-deki-tab="api"] #nav-tree-contents > ul > li > ul > li > .item { display: none; }
+html[data-deki-tab="api"] #nav-tree-contents > ul > li > ul > li > ul.children_ul { margin-left: -16px; }
+html[data-deki-tab="api"] #nav-tree-contents > ul > li > ul > li > ul > li > .item { display: none; }
+html[data-deki-tab="api"] #nav-tree-contents > ul > li > ul > li > ul > li > ul.children_ul { margin-left: -16px; }
+/* A class's members are on its page; the sidebar lists classes. */
+html[data-deki-tab="api"] #nav-tree-contents li:has(> .item .label a[href*="#a"]) { display: none; }
+/* A namespace inside Deki would sit above the classes and break the alphabet. */
+html[data-deki-tab="api"] #nav-tree-contents li:has(> .item .label a[href^="namespace_"]) li:has(> .item .label a[href^="namespace_"]) { display: none; }
+/* So a class has nothing to open. Hidden and not removed, so the names stay in line. */
+html[data-deki-tab="api"] #nav-tree-contents .item:has(.label a[href^="class_"], .label a[href^="struct_"], .label a[href^="union_"]) .arrow { visibility: hidden; }
+
+body:has(.textblock > p:first-child > a.anchor[id^="md_"]) #nav-path { display: none; }
+
+table.markdownTable th { text-align: left !important; padding: 18px 24px; font-size: 14px; letter-spacing: 0.04em; }
+table.markdownTable td { padding: 18px 24px; line-height: 28px; }
+div.contents div.image { margin: 40px 0; }
+div.contents div.image img { border: 1px solid var(--separator-color); }
+div.contents div.image .caption {
+    margin-top: 12px;
+    font-family: var(--font-family-monospace);
+    font-size: 12.5px;
+    font-weight: 400;
+    color: var(--page-secondary-foreground-color);
+    text-align: left;
+}
+
+/* Guides and the packages page: one roomy column. */
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.header,
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.contents {
+    margin: 0 auto;
+    padding-left: 48px;
+    padding-right: 48px;
+    box-sizing: border-box;
+}
+#doc-content:has(a.anchor[id*="guide-"]) div.header,
+#doc-content:has(a.anchor[id*="guide-"]) div.contents { max-width: 816px; }
+#doc-content:has(a.anchor[id*="section-"]) div.header,
+#doc-content:has(a.anchor[id*="section-"]) div.contents { max-width: 816px; }
+#doc-content:has(a.anchor[id*="section-packages"]) div.header,
+#doc-content:has(a.anchor[id*="section-packages"]) div.contents { max-width: 1040px; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.header {
+    background: none;
+    border: none;
+    padding-top: 96px;
+    padding-bottom: 0;
+}
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.headertitle,
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.title { padding: 0; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.title {
+    font-size: 56px;
+    line-height: 1.1;
+    font-weight: 500;
+    margin: 0;
+}
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.contents { padding-bottom: 160px; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) .textblock > p:first-child { margin: 0; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) .textblock p,
+#doc-content:has(a.anchor[id*="guide-"]) .textblock li {
+    font-size: 17px;
+    line-height: 31px;
+    color: #cdcbc6;
+    margin-top: 0;
+    margin-bottom: 22px;
+}
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) .textblock > p:first-child + p {
+    font-size: 22px;
+    line-height: 36px;
+    color: var(--page-foreground-color);
+    margin: 28px 0 24px;
+}
+#doc-content:has(a.anchor[id*="guide-"]) .textblock li { margin-bottom: 12px; }
+#doc-content:has(a.anchor[id*="guide-"]) .textblock ul,
+#doc-content:has(a.anchor[id*="guide-"]) .textblock ol { margin: 24px 0 32px; padding-left: 24px; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) h1.doxsection {
+    font-size: 32px;
+    line-height: 1.25;
+    font-weight: 500;
+    margin: 96px 0 24px;
+    padding: 0;
+    border: none;
+}
+#doc-content:has(a.anchor[id*="guide-"]) h2.doxsection {
+    font-size: 23px;
+    line-height: 1.3;
+    font-weight: 500;
+    margin: 64px 0 18px;
+    padding: 0;
+    border: none;
+}
+#doc-content:has(a.anchor[id*="guide-"]) div.fragment { margin: 32px 0; padding: 22px 24px; }
+#doc-content:has(a.anchor[id*="guide-"]) div.line { line-height: 24px; }
+#doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) table.markdownTable {
+    margin: 32px 0 40px;
+    width: 100%;
+}
+
+div.contents div.image img[src^="device-"] { max-width: 300px; border: none; }
+
+/* A group's page: a row per page, each with what it is for. */
+p.deki-section-lede {
+    font-size: 22px !important;
+    line-height: 36px !important;
+    color: var(--page-foreground-color) !important;
+    margin: 28px 0 72px !important;
+}
+.deki-rows { border-top: 1px solid var(--separator-color); }
+a.deki-row {
+    display: block;
+    padding: 32px 56px 32px 0;
+    position: relative;
+    border-bottom: 1px solid var(--separator-color);
+    background: none !important;
+    transition: padding-left 0.12s;
+}
+a.deki-row::after {
+    content: "\2192";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 22px;
+    color: var(--page-secondary-foreground-color);
+}
+a.deki-row:hover { padding-left: 12px; }
+a.deki-row:hover::after { color: var(--primary-color); }
+.deki-row-title {
+    display: block;
+    font-family: var(--font-family-display);
+    font-size: 25px;
+    line-height: 1.25;
+    font-weight: 500;
+    color: var(--page-foreground-color);
+}
+a.deki-row:hover .deki-row-title { color: var(--primary-color); }
+.deki-row-text { display: block; margin-top: 10px; font-size: 17px; line-height: 28px; color: var(--page-secondary-foreground-color); }
+
+/* The site draws right angles and hairlines, here too. */
+#nav-tree .selected, #nav-tree .item { border-radius: 0 !important; }
+.ui-resizable-e, #splitbar { background: var(--separator-color) !important; background-image: none !important; }
+#splitbar::after { display: none; }
+
+/* In a guide the first column is words, so it wraps and is set like the rest. */
+#doc-content:has(a.anchor[id*="guide-"]) table.markdownTable td:first-child {
+    white-space: normal;
+    font-family: var(--font-family);
+}
+
+/* Code inside a heading is part of the heading, not a chip beside it. */
+h1.doxsection .tt, h2.doxsection .tt, h3.doxsection .tt, div.title .tt {
+    font-size: 0.86em;
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--primary-color);
+}
+
+/* The home page: a title, then the cards, and nothing else. */
+#doc-content:has(.deki-home) div.header { display: none; }
+#doc-content:has(.deki-home) div.contents { max-width: none; padding: 0; margin: 0; }
+/* Sized by the space the page has, not the window: the sidebar takes a third
+ * of a small window, so a media query here lets the hero overlap itself. */
+#doc-content:has(.deki-home) div.contents { container: deki-home / inline-size; }
+.deki-home { max-width: 1160px; margin: 0 auto; padding: 112px 64px 176px; box-sizing: border-box; }
+.deki-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 88px; align-items: center; }
+.deki-hero img { width: 100%; height: auto; border: 1px solid var(--separator-color); }
+.deki-home-title {
+    font-family: var(--font-family-display);
+    font-size: 64px;
+    line-height: 1.06;
+    font-weight: 500;
+    margin: 0;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+}
+.deki-home-lede { font-size: 21px; line-height: 35px; color: #cdcbc6; margin: 32px 0 44px; }
+.deki-actions { display: flex; flex-wrap: wrap; gap: 14px; margin: 0; }
+.deki-actions a {
+    padding: 16px 24px;
+    border: 1px solid var(--separator-color);
+    font-family: var(--font-family-monospace);
+    font-size: 12.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--page-foreground-color) !important;
+    background: none !important;
+}
+.deki-actions a:hover { border-color: var(--primary-color); color: var(--primary-color) !important; }
+.deki-actions a.deki-action-solid {
+    background: var(--primary-color) !important;
+    border-color: var(--primary-color);
+    color: #0a0b0d !important;
+    font-weight: 600;
+}
+.deki-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 144px; }
+.deki-card { padding: 44px 48px 48px; border: 1px solid var(--separator-color); background: var(--page-background-color); }
+.deki-card:last-child { grid-column: 1 / -1; }
+.deki-card:last-child ul { columns: 3; }
+.deki-home h2 {
+    font-family: var(--font-family-display) !important;
+    font-size: 27px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--page-foreground-color) !important;
+    margin: 0 0 28px;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: none !important;
+}
+.deki-home ul { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 32px; }
+.deki-home li { margin: 0; line-height: 44px; font-size: 17px; break-inside: avoid; }
+.deki-home li a { color: #cdcbc6 !important; background: none !important; }
+.deki-home li a:hover { color: var(--primary-color) !important; }
+
+@container deki-home (max-width: 1240px) {
+    .deki-hero { grid-template-columns: 1fr; gap: 64px; }
+    .deki-hero img { max-width: 760px; }
+}
+@container deki-home (max-width: 900px) {
+    .deki-home ul, .deki-card:last-child ul { columns: 1; }
+}
+@container deki-home (max-width: 640px) {
+    .deki-home { padding: 56px 16px 96px; }
+    .deki-home-title { font-size: 44px; }
+    .deki-cards { grid-template-columns: 1fr; gap: 20px; margin-top: 72px; }
+    .deki-card:last-child { grid-column: auto; }
+    .deki-card { padding: 28px 24px 32px; }
+}
+@media screen and (max-width: 767px) {
+    #doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.header,
+    #doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.contents { padding-left: 16px; padding-right: 16px; }
+    #doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.header { padding-top: 56px; }
+    #doc-content:has(a.anchor[id*="guide-"], a.anchor[id*="section-"]) div.title { font-size: 40px; }
+    table.markdownTable th, table.markdownTable td { padding: 12px 14px; }
+}
+
+/* The class list: a title, then one line per class. tools/docs/class_list.py
+ * writes the rows. */
+#doc-content:has(.deki-api) div.header,
+#doc-content:has(.deki-api) div.contents {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding-left: 48px;
+    padding-right: 48px;
+    box-sizing: border-box;
+}
+#doc-content:has(.deki-api) div.header { background: none; border: none; padding-top: 96px; padding-bottom: 0; }
+#doc-content:has(.deki-api) div.headertitle { padding: 0; }
+#doc-content:has(.deki-api) div.title { font-size: 56px; line-height: 1.1; font-weight: 500; margin: 0; padding: 0; }
+#doc-content:has(.deki-api) div.contents { padding-bottom: 160px; margin-top: 0; }
+#doc-content:has(.deki-api) .textblock {
+    font-family: var(--font-family-display);
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--page-secondary-foreground-color);
+    margin: 20px 0 0;
+}
+.deki-api-heading {
+    font-family: var(--font-family-display);
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--page-foreground-color);
+    border: none;
+    margin: 88px 0 20px;
+    padding: 0;
+}
+.deki-api-rows { border-top: 1px solid var(--separator-color); }
+.deki-api-row {
+    display: grid;
+    grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+    gap: 32px;
+    align-items: baseline;
+    padding: 16px 8px;
+    border-bottom: 1px solid var(--separator-color);
+    text-decoration: none !important;
+    background: none !important;
+}
+.deki-api-row:hover { background: var(--deki-hover, rgba(255, 255, 255, 0.03)) !important; }
+.deki-api-name { font-family: var(--font-family-monospace); font-size: 14.5px; color: var(--primary-color); overflow-wrap: anywhere; }
+.deki-api-text { font-size: 15.5px; line-height: 24px; color: var(--page-secondary-foreground-color); }
+@media screen and (max-width: 767px) {
+    #doc-content:has(.deki-api) div.header,
+    #doc-content:has(.deki-api) div.contents { padding-left: 20px; padding-right: 20px; }
+    #doc-content:has(.deki-api) div.header { padding-top: 48px; }
+    #doc-content:has(.deki-api) div.title { font-size: 40px; }
+    .deki-api-row { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* A class's page: the same column as the list, and rows that read left to right. */
+html[data-deki-tab="api"] #doc-content div.header,
+html[data-deki-tab="api"] #doc-content div.contents {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding-left: 48px;
+    padding-right: 48px;
+    box-sizing: border-box;
+}
+html[data-deki-tab="api"] #doc-content div.header { background: none; border: none; padding-top: 72px; padding-bottom: 0; }
+html[data-deki-tab="api"] #doc-content div.summary { display: none; }
+html[data-deki-tab="api"] #doc-content div.headertitle { padding: 0; }
+html[data-deki-tab="api"] #doc-content div.title { font-size: 44px; line-height: 1.15; font-weight: 500; margin: 0; padding: 0; }
+html[data-deki-tab="api"] #doc-content div.contents { padding-bottom: 120px; }
+html[data-deki-tab="api"] #doc-content table.memberdecls { width: 100%; background: none; border: none; }
+html[data-deki-tab="api"] #doc-content table.memberdecls td { background: none; border: none; }
+html[data-deki-tab="api"] #doc-content td.memItemLeft { text-align: left; width: 220px; padding: 12px 16px 12px 0; color: var(--page-secondary-foreground-color); vertical-align: top; }
+html[data-deki-tab="api"] #doc-content td.memItemRight { padding: 12px 0; vertical-align: top; }
+html[data-deki-tab="api"] #doc-content td.mdescLeft { padding: 0; }
+html[data-deki-tab="api"] #doc-content td.mdescRight { padding: 0 0 14px; color: var(--page-secondary-foreground-color); font-size: 15px; line-height: 24px; }
+html[data-deki-tab="api"] #doc-content tr.separator\:* td { border-bottom: none; }
+html[data-deki-tab="api"] #doc-content h2.groupheader { font-size: 26px; font-weight: 500; margin: 64px 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--separator-color); }
+@media screen and (max-width: 767px) {
+    html[data-deki-tab="api"] #doc-content div.header,
+    html[data-deki-tab="api"] #doc-content div.contents { padding-left: 20px; padding-right: 20px; }
+    html[data-deki-tab="api"] #doc-content div.title { font-size: 32px; }
+}

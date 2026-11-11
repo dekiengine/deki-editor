@@ -15,6 +15,7 @@
 namespace DekiEditor
 {
 
+/// Where a build backend reports long-running work.
 class DEKI_EDITOR_API IBuildActivitySink
 {
 public:

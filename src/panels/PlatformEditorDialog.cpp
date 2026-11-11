@@ -58,7 +58,7 @@ void PlatformEditorDialog::PopulateBuilderList()
 
 void PlatformEditorDialog::ApplyBuilderDefaults(int builderIndex)
 {
-    if (builderIndex < 0 || builderIndex >= (int)m_AvailableBuilders.size())
+    if (builderIndex < 0 || builderIndex >= static_cast<int>(m_AvailableBuilders.size()))
     {
         return;
     }
@@ -145,8 +145,8 @@ void PlatformEditorDialog::LoadFromConfig(const PlatformConfig* config)
     strncpy(m_DisplayName, config->displayName.c_str(), sizeof(m_DisplayName) - 1);
 
     // The builder for this platform's framework
-    m_FamilyIndex = (int)m_AvailableBuilders.size() - 1;  // Custom (the last row) when none matches
-    for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
+    m_FamilyIndex = static_cast<int>(m_AvailableBuilders.size()) - 1;  // Custom (the last row) when none matches
+    for (int i = 0; i < static_cast<int>(m_AvailableBuilders.size()); i++)
     {
         if (!m_AvailableBuilders[i].frameworkId.empty() && m_AvailableBuilders[i].frameworkId == config->framework)
         {
@@ -194,7 +194,7 @@ PlatformConfig PlatformEditorDialog::BuildConfig()
     config.displayName = m_DisplayName;
 
     // Family and framework from the selected builder
-    if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size())
+    if (m_FamilyIndex >= 0 && m_FamilyIndex < static_cast<int>(m_AvailableBuilders.size()))
     {
         config.family = m_AvailableBuilders[m_FamilyIndex].family;
         config.framework = m_AvailableBuilders[m_FamilyIndex].frameworkId;
@@ -489,7 +489,7 @@ void PlatformEditorDialog::DrawFrameworkPicker()
     ImU32 iconColor = ImGui::GetColorU32(ImGuiCol_Text);
     ImU32 descColor = ImGui::GetColorU32(ImGuiCol_TextDisabled);
 
-    for (int i = 0; i < (int)m_AvailableBuilders.size(); i++)
+    for (int i = 0; i < static_cast<int>(m_AvailableBuilders.size()); i++)
     {
         const auto& entry = m_AvailableBuilders[i];
         const char* icon = GetFrameworkIcon(entry.icon, entry.frameworkId);
@@ -564,7 +564,7 @@ void PlatformEditorDialog::DrawBasicSection()
     }
 
     // A hint for the Custom row
-    if (m_FamilyIndex >= 0 && m_FamilyIndex < (int)m_AvailableBuilders.size() &&
+    if (m_FamilyIndex >= 0 && m_FamilyIndex < static_cast<int>(m_AvailableBuilders.size()) &&
         m_AvailableBuilders[m_FamilyIndex].frameworkId.empty())
     {
         InspectorUtils::BeginPropertyRow("");

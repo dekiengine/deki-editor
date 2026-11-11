@@ -1577,7 +1577,8 @@ void InspectorPanel::DrawMultiTransform(const std::vector<Deki::Object*>& object
         ImGui::BeginDisabled(locked);
         // The single-object rows' widths and gap (SchematicDragFloat2's).
         const float gap = ImGui::GetStyle().ItemInnerSpacing.x;
-        const float boxW = (ImGui::CalcItemWidth() - gap * (float)(r.count - 1)) / (float)r.count;
+        const float boxW =
+            (ImGui::CalcItemWidth() - gap * static_cast<float>(r.count - 1)) / static_cast<float>(r.count);
         for (int i = 0; i < r.count; ++i)
         {
             if (i > 0)

@@ -13,7 +13,7 @@
 namespace DekiEditor
 {
 
-// Decoded image, RGBA8 packed (4 bytes per pixel).
+/// Decoded image, RGBA8 packed (4 bytes per pixel).
 struct DEKI_EDITOR_API DecodedImage
 {
     std::vector<uint8_t> rgba;
@@ -36,10 +36,10 @@ enum class MetadataChunkType : uint32_t
                     // in the other chunks are in these source pixels.
 };
 
-// Optional chroma-key transparency for a texture. When enabled, pixels
-// matching (r,g,b) are transparent at render time. The importer also bakes
-// per-row spans of non-key columns so the blit can skip the per-pixel compare
-// on opaque rows.
+/// Optional chroma-key transparency for a texture. When enabled, pixels
+/// matching (r,g,b) are transparent at render time. The importer also bakes
+/// per-row spans of non-key columns so the blit can skip the per-pixel compare
+/// on opaque rows.
 struct DEKI_EDITOR_API ChromaKeySettings
 {
     bool enabled = false;
@@ -56,7 +56,7 @@ enum class SpriteSlicingMode
     Atlas = 2  // Custom frame definitions
 };
 
-// One frame in atlas mode.
+/// One frame in atlas mode.
 struct DEKI_EDITOR_API AtlasFrame
 {
     int32_t x = 0;
@@ -71,7 +71,7 @@ struct DEKI_EDITOR_API AtlasFrame
     int32_t id = -1;
 };
 
-// Optional sprite metadata baked into the texture file.
+/// Optional sprite metadata baked into the texture file.
 struct DEKI_EDITOR_API SpriteSettings
 {
     SpriteSlicingMode mode = SpriteSlicingMode::None;
@@ -124,6 +124,7 @@ struct DEKI_EDITOR_API SpriteFrameData
     int height = 0;  // Frame height in pixels
 };
 
+/// Imports images into the texture cache, and reads and writes TEX files.
 class DEKI_EDITOR_API TextureImporter : public IAssetImporter
 {
 public:

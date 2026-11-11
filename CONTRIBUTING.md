@@ -135,6 +135,11 @@ silently takes its default. So:
   class changes the id, so treat it like a reflected member: do it only with
   a release note, and re-save the scenes that use it.
 - A rename in a published package is a breaking release of that package.
+- A breaking change the editor cannot convert gets an entry in
+  `src/services/ProjectChecks.cpp` as well as its `### Breaking` line in the
+  changelog: what the project has to do and, if it can be detected, a scan that
+  names what is affected. Older projects see it as a checklist when they open,
+  and MCP reads the same list through `run_project_checks`.
 
 ## Every allocation goes through the engine
 

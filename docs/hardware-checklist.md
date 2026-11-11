@@ -1,7 +1,7 @@
 # Hardware checklist
 
 What to run on a LilyGO T-Deck Plus before tagging a release. CI cannot hold
-a board, so everything below the provider line (the panel over SPI, DMA, touch,
+a device, so everything below the provider line (the panel over SPI, DMA, touch,
 the keyboard, the radios, real frame time) is checked here by hand, once per
 release. It takes about half an hour.
 
@@ -11,13 +11,13 @@ about to tag, and the packages at the versions that release pins.
 ## Before you start
 
 - A T-Deck Plus on USB, with an SD card in it. A GPS fix needs a view of the
-  sky; LoRa needs a second board on the same frequency, or skip that line.
+  sky; LoRa needs a second device on the same frequency, or skip that line.
 - The previous release's numbers from the bottom of this file, to compare
   against.
 - The Serial Monitor closed: `device_stats` and `device_screenshot` need the
   port.
 
-In the commands, `<demo>` is a checkout of deki-demo and `COM5` is the board's
+In the commands, `<demo>` is a checkout of deki-demo and `COM5` is the device's
 port (`/dev/ttyACM0` on Linux).
 
 ## 1. Build and flash
@@ -29,7 +29,7 @@ DekiEditor --deploy --deploy-target COM5 <demo>
 ```
 
 - [ ] The firmware builds with no warnings new since the last release
-- [ ] It flashes, and the board boots into the menu scene
+- [ ] It flashes, and the device boots into the menu scene
 - [ ] The boot log (Serial Monitor, then close it) shows the PSRAM found at
       8 MB and no errors or warnings from the engine or a package
 
@@ -44,7 +44,7 @@ keyboard, trackball, gps, lora.
 - [ ] Sprite animations run (the meadow's alien and flyer)
 - [ ] Going back to the menu and into a scene again works, ten times in a row
 
-For a scene that looks off, take the board's frame and compare it with the
+For a scene that looks off, take the device's frame and compare it with the
 editor's:
 
 ```bash
@@ -94,8 +94,8 @@ deki-demo has `redrawChanges` on in its Rendering settings.
 
 - [ ] GPS: the gps scene shows a fix (outdoors) or reports no fix without
       stalling the frame
-- [ ] LoRa: the lora scene sends to a second board and shows what it
-      receives. Skip if there is no second board.
+- [ ] LoRa: the lora scene sends to a second device and shows what it
+      receives. Skip if there is no second device.
 
 ## 8. Record the numbers
 

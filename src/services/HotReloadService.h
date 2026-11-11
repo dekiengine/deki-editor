@@ -244,6 +244,10 @@ private:
     // which assumes the loaded packages already match disk - untrue when the
     // build just produced them for the first time.
     bool m_LastBuildWasCold = false;
+    // A failed rebuild at open removed package libraries built for another
+    // editor: the next build builds every target and loads the packages, as a
+    // first build does. Plugin-only builds would leave them missing for good.
+    bool m_PackagesRemoved = false;
     bool m_HasBuildErrors = false;
     std::vector<std::string> m_LastBuildErrors;
 

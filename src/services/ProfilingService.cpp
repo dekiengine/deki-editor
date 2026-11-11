@@ -44,7 +44,7 @@ void ProfilingService::Initialize()
     // Symbol resolution for deep profiling
 #ifdef _WIN32
     SymSetOptions(SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS);
-    if (SymInitialize(GetCurrentProcess(), NULL, TRUE))
+    if (SymInitialize(GetCurrentProcess(), nullptr, TRUE))
     {
         m_SymbolsInitialized = true;
     }
@@ -311,12 +311,12 @@ const char* ProfilingService::ResolveFunctionName(void* address)
 
     // Not cached: ask DbgHelp.
     char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-    PSYMBOL_INFO symbol = (PSYMBOL_INFO)buffer;
+    PSYMBOL_INFO symbol = reinterpret_cast<PSYMBOL_INFO>(buffer);
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     symbol->MaxNameLen = MAX_SYM_NAME;
 
     DWORD64 displacement = 0;
-    if (SymFromAddr(GetCurrentProcess(), (DWORD64)address, &displacement, symbol))
+    if (SymFromAddr(GetCurrentProcess(), reinterpret_cast<DWORD64>(address), &displacement, symbol))
     {
         std::lock_guard<std::mutex> lock(m_SymbolMutex);
         m_SymbolCache.push_back({ address, std::string(symbol->Name) });

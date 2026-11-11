@@ -14,7 +14,7 @@ A release must not break a project that is not touched. That comes down to
 five rules:
 
 1. **A project changes only when its owner updates it.** Projects pin package
-   versions in `deki-packages.json`; a board's platform is the project's own
+   versions in `deki-packages.json`; a device's platform is the project's own
    copy, which takes a package's new version only on **Update**. Nothing in
    a release edits someone's project.
 2. **A package releases only when it changed.** An unchanged package keeps
@@ -36,7 +36,7 @@ And one for whoever adds a package:
 6. **A new package is optional for everyone who does not use it.** Another
    package that can work with it names it in a feature's `requires` and
    checks for it with `__has_include` (see [platforms.md](platforms.md),
-   "Features that need other packages"); the board or project that uses it
+   "Features that need other packages"); the device or project that uses it
    brings it. Only add it to a package's own `requires` when that package
    cannot build without it.
 
@@ -118,19 +118,19 @@ Every box, on the branches about to be released:
 
   Do the editor too (run with no `--package`). A new package ships
   `editor/lang/ja.json`, `zh.json` and `ko.json`.
-- [ ] **The demo's firmware builds for every board it has**, and the
+- [ ] **The demo's firmware builds for every device it has**, and the
   [hardware checklist](hardware-checklist.md) passes on a T-Deck Plus, with
   this release's numbers added at its bottom. When a release changes frame
   timing, compare libraries and releases with the frame cap lifted:
   `targetFps` 200 in `deki-demo/settings/core.json`. At 60 the engine's
-  16 ms budget caps every board at 62.5 fps. Put it back afterwards.
+  16 ms budget caps every device at 62.5 fps. Put it back afterwards.
 
-  Build them in `deki-demo` itself, whose build folders are warm: a board
+  Build them in `deki-demo` itself, whose build folders are warm: a device
   takes from under a minute to several minutes there, depending on what
   changed, and 10 to 15 minutes from an empty cache (0.30.3 took an hour for
-  five boards in a fresh copy). A check that needs
+  five devices in a fresh copy). A check that needs
   an empty cache, such as what a first open logs, only needs the copy opened,
-  not its boards built.
+  not its devices built.
 - [ ] **An existing project still works.** Open a project made with the
   previous release in the new editor without updating anything, and build
   it. It must load and build as before. This is the check for rule 1.
@@ -138,7 +138,7 @@ Every box, on the branches about to be released:
   `gh workflow run CI --ref <branch>`. Its Project smoke jobs (which a push
   skips) create a project, build its code, and build it for Desktop as a
   program. Then, with the editor about to ship, do the same by hand and
-  build it for one board too. Existing projects use most components; a new
+  build it for one device too. Existing projects use most components; a new
   one leaves most out, and 0.30.0 went out with a Desktop build that failed
   only then.
 - [ ] **An older project with an editable package upgrades and updates.** On
@@ -274,7 +274,7 @@ lost.
 
 - [ ] **Install the release** from the GitHub release page on a clean
   machine, or with the old one moved aside. Create a project, add the
-  released packages, and build for the desktop and one board.
+  released packages, and build for the desktop and one device.
 - [ ] **Run the update path:** open a project from the previous release.
   Package Manager offers the updates; take them, build, and run.
 - [ ] **Check from an editor one version back** that a releasing package with

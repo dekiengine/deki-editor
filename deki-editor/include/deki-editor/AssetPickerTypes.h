@@ -17,6 +17,7 @@ enum class AssetFilterType
     Animations
 };
 
+/// One row in the asset picker: an asset, or a frame of a spritesheet.
 struct AssetPickerEntry
 {
     std::string displayName;

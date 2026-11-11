@@ -57,8 +57,8 @@ std::string Format(const char* format, const std::string& value)
 // Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)
 {
-    return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
-                          (uint8_t)(c.w * 255.0f));
+    return EditorUI::Rgba(static_cast<uint8_t>(c.x * 255.0f), static_cast<uint8_t>(c.y * 255.0f),
+                          static_cast<uint8_t>(c.z * 255.0f), static_cast<uint8_t>(c.w * 255.0f));
 }
 }  // namespace
 
@@ -206,7 +206,7 @@ void PackageManagerPanel::Draw()
             // The line sits on the list pane's right edge, so the list scrollbar
             // touches it; the rest of the drag area reaches into the details
             // pane's left margin, which makes it easy to grab.
-            const float spLineX = (float)(int)spX;
+            const float spLineX = static_cast<float>(static_cast<int>(spX));
             const uint32_t spCol = spActive    ? Pack(Palette::Accent)
                                    : spHovered ? Pack(Palette::Line3)
                                                : Pack(Palette::Line2);
@@ -592,7 +592,7 @@ void PackageManagerPanel::DrawPackageDetails()
         std::string frameworkDisplay = config->framework;
         if (!frameworkDisplay.empty())
         {
-            frameworkDisplay[0] = (char)std::toupper((unsigned char)frameworkDisplay[0]);
+            frameworkDisplay[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(frameworkDisplay[0])));
         }
 
         ui.Spacing();
@@ -746,7 +746,7 @@ void PackageManagerPanel::DrawPackageDetails()
         const char* hint = (m_VersionMode == 0) ? Tr("e.g. 1.2.7") : Tr("e.g. develop");
         TextCol(ui, Palette::Dim, (m_VersionMode == 0) ? Tr("Version") : Tr("Branch"));
         ui.SetNextItemWidth(m_App->Dpi(220.0f));
-        ui.InputTextWithHint("##version_input", hint, m_VersionInput, (int)sizeof(m_VersionInput));
+        ui.InputTextWithHint("##version_input", hint, m_VersionInput, static_cast<int>(sizeof(m_VersionInput)));
 
         ui.Spacing();
     }
@@ -870,7 +870,8 @@ void PackageManagerPanel::DrawAddPackagePopup()
         float aw = 0.0f;
         ui.GetContentRegionAvail(&aw, nullptr);
         ui.SetNextItemWidth(aw);
-        ui.InputTextWithHint("##url", "https://github.com/owner/repo", m_AddPackageUrl, (int)sizeof(m_AddPackageUrl));
+        ui.InputTextWithHint("##url", "https://github.com/owner/repo", m_AddPackageUrl,
+                             static_cast<int>(sizeof(m_AddPackageUrl)));
 
         ui.Spacing();
         ui.Spacing();
@@ -1994,7 +1995,7 @@ void PackageManagerPanel::DrawAddRegistryPopup()
         ui.GetContentRegionAvail(&aw, nullptr);
         ui.SetNextItemWidth(aw);
         ui.InputTextWithHint("##reg_url", "https://example.com/registry", m_AddRegistryUrl,
-                             (int)sizeof(m_AddRegistryUrl));
+                             static_cast<int>(sizeof(m_AddRegistryUrl)));
 
         ui.Spacing();
         ui.Spacing();

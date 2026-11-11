@@ -228,7 +228,8 @@ bool DrawSelectableCard(const char* id, const char* title, const char* subtitle,
     }
 
     const ImU32 titleCol = ImGui::ColorConvertFloat4ToU32(Palette::Fg);
-    const ImU32 subCol = subtitleColor ? (ImU32)subtitleColor : ImGui::ColorConvertFloat4ToU32(Palette::Dim);
+    const ImU32 subCol =
+        subtitleColor ? static_cast<ImU32>(subtitleColor) : ImGui::ColorConvertFloat4ToU32(Palette::Dim);
     const float tx = pmin.x + padX;
     float ty = pmin.y + padY;
     dl->AddText(ImVec2(tx, ty), titleCol, title);
@@ -585,25 +586,25 @@ static void InstallEditorUIBackend()
     b.setCursorScreenPos = [](float x, float y) { ImGui::SetCursorScreenPos(ImVec2(x, y)); };
     b.dummy = [](float w, float h) { ImGui::Dummy(ImVec2(w, h)); };
     b.drawLine = [](float x0, float y0, float x1, float y1, uint32_t c, float t)
-    { ImGui::GetWindowDrawList()->AddLine(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, t); };
+    { ImGui::GetWindowDrawList()->AddLine(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(c), t); };
     b.drawRect = [](float x0, float y0, float x1, float y1, uint32_t c, float t, float r)
-    { ImGui::GetWindowDrawList()->AddRect(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r, 0, t); };
+    { ImGui::GetWindowDrawList()->AddRect(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(c), r, 0, t); };
     b.drawRectFilled = [](float x0, float y0, float x1, float y1, uint32_t c, float r)
-    { ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), (ImU32)c, r); };
+    { ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(x0, y0), ImVec2(x1, y1), static_cast<ImU32>(c), r); };
     b.drawCircle = [](float cx, float cy, float rad, uint32_t c, float t)
-    { ImGui::GetWindowDrawList()->AddCircle(ImVec2(cx, cy), rad, (ImU32)c, 0, t); };
+    { ImGui::GetWindowDrawList()->AddCircle(ImVec2(cx, cy), rad, static_cast<ImU32>(c), 0, t); };
     b.drawCircleFilled = [](float cx, float cy, float rad, uint32_t c)
-    { ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(cx, cy), rad, (ImU32)c); };
+    { ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(cx, cy), rad, static_cast<ImU32>(c)); };
     b.drawImage =
         [](uint32_t tex, float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1, uint32_t tint)
     {
         ImGui::GetWindowDrawList()->AddImage(EditorTexture::ToImGui(tex), ImVec2(x0, y0), ImVec2(x1, y1),
-                                             ImVec2(u0, v0), ImVec2(u1, v1), (ImU32)tint);
+                                             ImVec2(u0, v0), ImVec2(u1, v1), static_cast<ImU32>(tint));
     };
     b.drawText = [](float px, float x, float y, uint32_t c, const char* s)
     {
         const float sz = px > 0.0f ? px : ImGui::GetFontSize();
-        ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), sz, ImVec2(x, y), (ImU32)c, s);
+        ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), sz, ImVec2(x, y), static_cast<ImU32>(c), s);
     };
     b.drawTextCss = [](float cssPx, float x, float y, uint32_t c, const char* s)
     {
@@ -611,7 +612,7 @@ static void InstallEditorUIBackend()
         // panels size hand-drawn dl->AddText (see ConsolePanel / EditorTheme).
         ImFont* font = ImGui::GetFont();
         const float sz = Fonts::CssPx(font, cssPx) * ImGui::GetStyle().FontScaleDpi;
-        ImGui::GetWindowDrawList()->AddText(font, sz, ImVec2(x, y), (ImU32)c, s);
+        ImGui::GetWindowDrawList()->AddText(font, sz, ImVec2(x, y), static_cast<ImU32>(c), s);
     };
     b.measureTextCss = [](float cssPx, const char* s, float* w, float* h)
     {

@@ -4,6 +4,8 @@
 
 スプライトシートはインポートのパイプラインを通ります。PNG ソースファイル -> フレームのメタデータを埋め込んだコンパイル済みの .tex ファイル、という流れです。すべてのフレームは領域として**親の .tex ファイルの中**にあり、フレームごとに別のファイルが生成されることはありません。
 
+![スプライトシートのフレームを使うアニメーションエディター](../img/animation-editor.png)
+
 ```
 assets/sprites/player.png (source)
   -> cache/{parentGuid}  (compiled .tex with FrameList chunk)

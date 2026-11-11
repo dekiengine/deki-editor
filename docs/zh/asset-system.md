@@ -2,6 +2,8 @@
 
 ## AssetRef\<T\> 模板
 
+![检视器中的图像设置](../img/asset-settings.png)
+
 **文件：** `deki-engine/include/deki/assets/AssetRef.h`
 
 所有引用资源的组件都使用 `AssetRef<T>`。它有四个字段：

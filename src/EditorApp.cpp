@@ -456,6 +456,7 @@ void EditorApp::Update()
     }
     DrawRecoveryDialog();
     DrawUpgradeDialog();
+    DrawProjectChecksDialog();
 
     // Toasts last: they stack above the build progress card in the
     // bottom-right corner, so that card must already be drawn.
@@ -1326,6 +1327,94 @@ void EditorApp::DrawUpgradeDialog()
             {
                 DEKI_LOG_EDITOR("Upgrade Project: cancelled; '%s' was left as it is and not opened.", path.c_str());
             }
+        }
+        EndSchematicModal();
+    }
+}
+
+bool EditorApp::SetProjectCheck(const std::string& id, bool done, std::string& why)
+{
+    if (!m_Project || !SetProjectCheckDone(m_Project->GetPath(), id, done, why))
+    {
+        return false;
+    }
+    for (ProjectCheck& check : m_ProjectChecks)
+    {
+        if (check.id == id)
+        {
+            check.done = done;
+        }
+    }
+    return true;
+}
+
+void EditorApp::DrawProjectChecksDialog()
+{
+    // One modal at a time: after a crash, the recovered scenes come first.
+    if (!m_ProjectChecksDialog || m_Headless || !m_Project || m_Recovery.DialogRequested())
+    {
+        return;
+    }
+    auto& ui = EditorUI::Get();
+    ui.OpenPopup(TrLabel("Breaking Changes"));
+    if (BeginSchematicModal(TrLabel("Breaking Changes"), 560.0f))
+    {
+        ui.TextWrapped(Tr("A newer Deki changed how this project behaves, and nothing in it was converted. "
+                          "Look over each of these, and tick it once it is right:"));
+        ui.Spacing();
+        // Scrolls: a project that skipped releases gets the changes of them all.
+        ui.BeginChild("##project_checks", 0.0f, Dpi(320.0f), /*border*/ true);
+        const std::string* release = nullptr;
+        for (ProjectCheck& check : m_ProjectChecks)
+        {
+            if (!release || *release != check.version)
+            {
+                release = &check.version;
+                ui.Spacing();
+                ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Amber));
+                ui.TextWrapped(FormatText(Tr("Deki %s"), check.version.c_str()).c_str());
+                ui.PopStyleColor();
+            }
+            ui.Spacing();
+            bool done = check.done;
+            // The title beside the box, not as its label: a label is cut to
+            // the width of the theme's label column.
+            if (ui.Checkbox(("##" + check.id).c_str(), &done))
+            {
+                std::string why;
+                if (!SetProjectCheck(check.id, done, why))
+                {
+                    Toast::Push(Toast::Level::Error, Tr("Could not save the checklist"), why);
+                }
+            }
+            ui.SameLine();
+            ui.TextWrapped(Tr(check.title));
+            ui.TextWrapped(Tr(check.todo));
+            ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
+            const size_t kShown = 50;
+            for (size_t i = 0; i < check.findings.size() && i < kShown; ++i)
+            {
+                ui.TextWrapped(("  " + check.findings[i]).c_str());
+            }
+            if (check.findings.size() > kShown)
+            {
+                ui.TextWrapped(FormatText(Tr("  and %d more"), static_cast<int>(check.findings.size() - kShown)).c_str());
+            }
+            ui.PopStyleColor();
+        }
+        ui.EndChild();
+        ui.Spacing();
+        ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
+        ui.TextWrapped(Tr("Anything left unticked comes back the next time this project opens."));
+        ui.PopStyleColor();
+
+        const int choice = SchematicDialogButtons({ { TrMark("Close"), DialogButton::Primary } });
+        if (choice == 0 || m_ProjectChecksClose)
+        {
+            m_ProjectChecksDialog = false;
+            m_ProjectChecksClose = false;
+            m_ProjectChecks.clear();
+            ui.CloseCurrentPopup();
         }
         EndSchematicModal();
     }

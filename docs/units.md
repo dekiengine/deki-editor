@@ -92,6 +92,8 @@ into a rotation on the wrong assumption is out by 57.3×.
 All of it lives in `deki-editor/src/core/Units.h`. One file, so adding a unit
 means editing one place:
 
+![Positions shown in pixels in the Inspector](img/units-inspector.png)
+
 - `GetUnitDisplay(unit)` - multiplier, offset, printf format, drag speed.
 - `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` - an inverse pair, kept
   together. While every conversion was a bare multiply a caller could invert it

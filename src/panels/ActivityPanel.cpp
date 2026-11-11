@@ -128,7 +128,7 @@ void ActivityPanel::Draw()
     std::lock_guard<std::mutex> lock(m_Mutex);
 
     // Draw each process as a card
-    for (int i = 0; i < (int)m_Processes.size(); i++)
+    for (int i = 0; i < static_cast<int>(m_Processes.size()); i++)
     {
         auto& proc = m_Processes[i];
         ImGui::PushID(i);
@@ -237,10 +237,11 @@ void ActivityPanel::Draw()
         // Expanded: show log entries
         if (proc.expanded && !proc.entries.empty())
         {
-            float logHeight = (std::min)((float)proc.entries.size() * (ImGui::GetTextLineHeightWithSpacing()), 300.0f);
+            float logHeight =
+                (std::min)(static_cast<float>(proc.entries.size()) * (ImGui::GetTextLineHeightWithSpacing()), 300.0f);
             ImGui::BeginChild("##log", ImVec2(0, logHeight), true);
 
-            for (int e = 0; e < (int)proc.entries.size(); e++)
+            for (int e = 0; e < static_cast<int>(proc.entries.size()); e++)
             {
                 const auto& entry = proc.entries[e];
                 char entryTime[16];
@@ -345,7 +346,8 @@ void ActivityPanel::AddEntry(const std::string& process, const std::string& mess
     const size_t maxEntries = 500;
     if (proc.entries.size() > maxEntries)
     {
-        proc.entries.erase(proc.entries.begin(), proc.entries.begin() + (int)(proc.entries.size() - maxEntries));
+        proc.entries.erase(proc.entries.begin(),
+                           proc.entries.begin() + static_cast<int>(proc.entries.size() - maxEntries));
     }
 }
 

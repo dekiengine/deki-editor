@@ -340,3 +340,33 @@ TEST(EngineHardening, AnImpossibleAllocationSizeIsRefused)
     EXPECT_EQ(Deki::Memory::Allocate(SIZE_MAX - 8, Deki::Memory::Internal), nullptr);
     EXPECT_EQ(Deki::Memory::Allocate(SIZE_MAX - 8, Deki::Memory::External), nullptr);
 }
+
+// A scene loaded from bytes keeps a copy of them to instantiate from. The copy
+// goes to external RAM where there is some (it is read again only when
+// instantiating), and the scene itself still loads.
+TEST(SceneData, AKeptSceneCopyLivesInExternalRam)
+{
+    Deki::Scene source;
+    Deki::Object* root = source.CreateDekiObject("Root");
+    root->AddChild(new Deki::Object("Crate"));
+    const std::string json = source.SaveToJsonString();
+    ASSERT_FALSE(json.empty());
+
+    const Deki::MemoryStats before = Deki::Memory::GetStats();
+    Deki::Scene* loaded =
+        Deki::Scene::LoadFromMemory(reinterpret_cast<const uint8_t*>(json.data()), json.size());
+    ASSERT_NE(loaded, nullptr);
+    const Deki::MemoryStats after = Deki::Memory::GetStats();
+    if (Deki::Memory::IsExternalAvailable())
+    {
+        EXPECT_GE(after.externalAllocated - before.externalAllocated, json.size());
+    }
+    ASSERT_FALSE(loaded->GetObjects().empty());
+    bool foundCrate = false;
+    for (Deki::Object* child : loaded->GetObjects()[0]->GetChildren())
+    {
+        foundCrate = foundCrate || child->GetName() == "Crate";
+    }
+    EXPECT_TRUE(foundCrate);
+    delete loaded;
+}

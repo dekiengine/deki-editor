@@ -232,7 +232,8 @@ static void ShowCrashDialog(const std::string& title, const std::string& callsta
         preDpiScale = 1.0f;
     }
 
-    SDL_Window* crashWindow = SDL_CreateWindow(title.c_str(), (int)(700 * preDpiScale), (int)(500 * preDpiScale), 0);
+    SDL_Window* crashWindow =
+        SDL_CreateWindow(title.c_str(), static_cast<int>(700 * preDpiScale), static_cast<int>(500 * preDpiScale), 0);
 
     if (!crashWindow)
     {
@@ -453,7 +454,7 @@ static void InitializeSymbols()
          entirely */
     }
 
-    SymInitialize(process, searchPath.empty() ? NULL : searchPath.c_str(), TRUE);
+    SymInitialize(process, searchPath.empty() ? nullptr : searchPath.c_str(), TRUE);
     s_SymbolsInitialized = true;
 }
 
@@ -493,7 +494,7 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
 #endif
 
     char symbolBuffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
-    SYMBOL_INFO* symbol = (SYMBOL_INFO*)symbolBuffer;
+    SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>(symbolBuffer);
     symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
     symbol->MaxNameLen = MAX_SYM_NAME;
 
@@ -512,7 +513,8 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
 
         DWORD64 returnAddr = 0;
         SIZE_T bytesRead = 0;
-        if (ReadProcessMemory(process, (LPCVOID)context->Rsp, &returnAddr, sizeof(returnAddr), &bytesRead) &&
+        if (ReadProcessMemory(process, reinterpret_cast<LPCVOID>(context->Rsp), &returnAddr, sizeof(returnAddr),
+                              &bytesRead) &&
             bytesRead == sizeof(returnAddr) && returnAddr != 0)
         {
             frame.AddrPC.Offset = returnAddr;
@@ -521,8 +523,8 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
     }
 #endif
 
-    while (StackWalk64(machineType, process, thread, &frame, context, NULL, SymFunctionTableAccess64,
-                       SymGetModuleBase64, NULL))
+    while (StackWalk64(machineType, process, thread, &frame, context, nullptr, SymFunctionTableAccess64,
+                       SymGetModuleBase64, nullptr))
     {
         if (frame.AddrPC.Offset == 0)
         {
@@ -535,7 +537,7 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
         char packageName[64] = "";
         HMODULE hMod = nullptr;
         if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                               (LPCSTR)frame.AddrPC.Offset, &hMod))
+                               reinterpret_cast<LPCSTR>(frame.AddrPC.Offset), &hMod))
         {
             char modPath[MAX_PATH];
             if (GetModuleFileNameA(hMod, modPath, MAX_PATH))
@@ -563,13 +565,13 @@ static std::string CaptureStackTraceWindows(CONTEXT* context, HANDLE threadHandl
             else
             {
                 snprintf(line, sizeof(line), "#%-3d %s!%s  +0x%llx", frameNum, packageName[0] ? packageName : "??",
-                         symbol->Name, (unsigned long long)displacement);
+                         symbol->Name, static_cast<unsigned long long>(displacement));
             }
         }
         else
         {
             snprintf(line, sizeof(line), "#%-3d %s!0x%llx", frameNum, packageName[0] ? packageName : "??",
-                     (unsigned long long)frame.AddrPC.Offset);
+                     static_cast<unsigned long long>(frame.AddrPC.Offset));
         }
 
         result += line;
@@ -589,7 +591,8 @@ static std::string WriteMiniDump(EXCEPTION_POINTERS* exceptionInfo)
 {
     std::string dumpPath = GetTimestampedDumpPath(".dmp");
 
-    HANDLE hFile = CreateFileA(dumpPath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE hFile =
+        CreateFileA(dumpPath.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (hFile == INVALID_HANDLE_VALUE)
     {
         return {};
@@ -610,7 +613,8 @@ static std::string WriteMiniDump(EXCEPTION_POINTERS* exceptionInfo)
         static_cast<MINIDUMP_TYPE>(MiniDumpWithDataSegs | MiniDumpWithHandleData | MiniDumpWithThreadInfo |
                                    MiniDumpWithFullMemoryInfo | MiniDumpWithUnloadedModules);
 
-    BOOL success = MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, pMei, NULL, NULL);
+    BOOL success =
+        MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, pMei, nullptr, nullptr);
 
     CloseHandle(hFile);
 
@@ -652,11 +656,12 @@ static std::string FormatAccessViolationDetails(EXCEPTION_RECORD* record)
     if (address < 0x10000)
     {
         snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx (null pointer dereference)\n", accessType,
-                 (unsigned long long)address);
+                 static_cast<unsigned long long>(address));
     }
     else
     {
-        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx\n", accessType, (unsigned long long)address);
+        snprintf(buf, sizeof(buf), "Attempted to %s address 0x%llx\n", accessType,
+                 static_cast<unsigned long long>(address));
     }
     return buf;
 }
@@ -734,8 +739,8 @@ static std::string FormatLoadedModules()
         do
         {
             char line[512];
-            snprintf(line, sizeof(line), "  0x%p  %6lu KB  %s\n", (void*)me.modBaseAddr,
-                     (unsigned long)(me.modBaseSize / 1024), me.szExePath);
+            snprintf(line, sizeof(line), "  0x%p  %6lu KB  %s\n", static_cast<void*>(me.modBaseAddr),
+                     static_cast<unsigned long>(me.modBaseSize / 1024), me.szExePath);
             result += line;
         } while (Module32Next(snapshot, &me));
     }
@@ -781,7 +786,7 @@ static std::string CaptureAllThreadStacks(DWORD crashingThreadId)
                 continue;
             }
 
-            if (SuspendThread(hThread) != (DWORD)-1)
+            if (SuspendThread(hThread) != static_cast<DWORD>(-1))
             {
                 CONTEXT ctx = {};
                 ctx.ContextFlags = CONTEXT_FULL;
@@ -987,12 +992,12 @@ static std::string FormatFaultDetails(int sig, siginfo_t* info)
         uintptr_t addr = (uintptr_t)info->si_addr;
         if (addr < 0x10000)
         {
-            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s, null pointer dereference)\n", (unsigned long)addr,
-                     reason);
+            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s, null pointer dereference)\n",
+                     static_cast<unsigned long>(addr), reason);
         }
         else
         {
-            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s)\n", (unsigned long)addr, reason);
+            snprintf(buf, sizeof(buf), "Fault address: 0x%lx (%s)\n", static_cast<unsigned long>(addr), reason);
         }
         result = buf;
     }
@@ -1087,32 +1092,41 @@ static std::string FormatRegistersUnix(void* ucontextRaw)
 #elif defined(__linux__)
     ucontext_t* uc = static_cast<ucontext_t*>(ucontextRaw);
 #if defined(__x86_64__)
-    snprintf(line, sizeof(line), "  RAX=%016llx  RBX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RAX],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_RBX]);
+    snprintf(line, sizeof(line), "  RAX=%016llx  RBX=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RAX]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RBX]));
     result += line;
-    snprintf(line, sizeof(line), "  RCX=%016llx  RDX=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RCX],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_RDX]);
+    snprintf(line, sizeof(line), "  RCX=%016llx  RDX=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RCX]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RDX]));
     result += line;
-    snprintf(line, sizeof(line), "  RSI=%016llx  RDI=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RSI],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_RDI]);
+    snprintf(line, sizeof(line), "  RSI=%016llx  RDI=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RSI]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RDI]));
     result += line;
-    snprintf(line, sizeof(line), "  RBP=%016llx  RSP=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RBP],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_RSP]);
+    snprintf(line, sizeof(line), "  RBP=%016llx  RSP=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RBP]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RSP]));
     result += line;
-    snprintf(line, sizeof(line), "  R8 =%016llx  R9 =%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R8],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_R9]);
+    snprintf(line, sizeof(line), "  R8 =%016llx  R9 =%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R8]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R9]));
     result += line;
-    snprintf(line, sizeof(line), "  R10=%016llx  R11=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R10],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_R11]);
+    snprintf(line, sizeof(line), "  R10=%016llx  R11=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R10]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R11]));
     result += line;
-    snprintf(line, sizeof(line), "  R12=%016llx  R13=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R12],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_R13]);
+    snprintf(line, sizeof(line), "  R12=%016llx  R13=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R12]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R13]));
     result += line;
-    snprintf(line, sizeof(line), "  R14=%016llx  R15=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_R14],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_R15]);
+    snprintf(line, sizeof(line), "  R14=%016llx  R15=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R14]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_R15]));
     result += line;
-    snprintf(line, sizeof(line), "  RIP=%016llx  EFL=%016llx\n", (unsigned long long)uc->uc_mcontext.gregs[REG_RIP],
-             (unsigned long long)uc->uc_mcontext.gregs[REG_EFL]);
+    snprintf(line, sizeof(line), "  RIP=%016llx  EFL=%016llx\n",
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_RIP]),
+             static_cast<unsigned long long>(uc->uc_mcontext.gregs[REG_EFL]));
     result += line;
 #elif defined(__aarch64__)
     for (int i = 0; i < 31; i += 2)
@@ -1120,17 +1134,18 @@ static std::string FormatRegistersUnix(void* ucontextRaw)
         if (i + 1 < 31)
         {
             snprintf(line, sizeof(line), "  X%-2d=%016llx  X%-2d=%016llx\n", i,
-                     (unsigned long long)uc->uc_mcontext.regs[i], i + 1,
-                     (unsigned long long)uc->uc_mcontext.regs[i + 1]);
+                     static_cast<unsigned long long>(uc->uc_mcontext.regs[i]), i + 1,
+                     static_cast<unsigned long long>(uc->uc_mcontext.regs[i + 1]));
         }
         else
         {
-            snprintf(line, sizeof(line), "  X%-2d=%016llx\n", i, (unsigned long long)uc->uc_mcontext.regs[i]);
+            snprintf(line, sizeof(line), "  X%-2d=%016llx\n", i,
+                     static_cast<unsigned long long>(uc->uc_mcontext.regs[i]));
         }
         result += line;
     }
-    snprintf(line, sizeof(line), "  SP =%016llx  PC =%016llx\n", (unsigned long long)uc->uc_mcontext.sp,
-             (unsigned long long)uc->uc_mcontext.pc);
+    snprintf(line, sizeof(line), "  SP =%016llx  PC =%016llx\n", static_cast<unsigned long long>(uc->uc_mcontext.sp),
+             static_cast<unsigned long long>(uc->uc_mcontext.pc));
     result += line;
 #else
     result += "  (register dump not supported on this architecture)\n";
@@ -1243,7 +1258,7 @@ static std::string CaptureOtherThreadsLinux()
         return result;
     }
 
-    pid_t selfTid = (pid_t)syscall(SYS_gettid);
+    pid_t selfTid = static_cast<pid_t>(syscall(SYS_gettid));
     int captured = 0;
 
     struct dirent* entry;
@@ -1254,7 +1269,7 @@ static std::string CaptureOtherThreadsLinux()
             continue;
         }
 
-        pid_t tid = (pid_t)atoi(entry->d_name);
+        pid_t tid = static_cast<pid_t>(atoi(entry->d_name));
         if (tid == 0 || tid == selfTid)
         {
             continue;

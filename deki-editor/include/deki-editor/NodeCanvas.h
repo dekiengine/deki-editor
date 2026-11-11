@@ -99,6 +99,7 @@ struct NodeCanvasEvents
     bool deleteRequested = false;  // Del pressed while the canvas is hovered
 };
 
+/// Immediate-mode node-graph widget with pan, zoom, nodes, pins and links.
 class DEKI_EDITOR_API NodeCanvas
 {
 public:

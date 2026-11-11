@@ -2587,7 +2587,7 @@ int CmdPlatformCompat(EditorApp& editor)
         nameWidth = std::max(nameWidth, pkg.id.size());
     }
 
-    printf("%-*s", (int)nameWidth + 2, "Package");
+    printf("%-*s", static_cast<int>(nameWidth) + 2, "Package");
     for (const auto& t : targets)
     {
         printf("%-22s", t.c_str());
@@ -2596,7 +2596,7 @@ int CmdPlatformCompat(EditorApp& editor)
 
     for (const auto& pkg : packages)
     {
-        printf("%-*s", (int)nameWidth + 2, pkg.id.c_str());
+        printf("%-*s", static_cast<int>(nameWidth) + 2, pkg.id.c_str());
         for (const auto& t : targets)
         {
             const PlatformConfig* platform = registry.GetPlatform(t);

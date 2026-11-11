@@ -581,6 +581,8 @@ void AssetPipeline::ImportAllAssets()
     }
 
     ScopedTimer tTotal("ImportAllAssets total");
+    // Everything a registered type can read is imported now.
+    m_SeenExtensionRevision = AssetTypeRegistry::Instance().ExtensionRevision();
 
     // Defer per-asset table rewrites to one at the end (see m_ImportingAll).
     struct ImportScope
@@ -898,6 +900,15 @@ void AssetPipeline::Tick()
     }
 
     const auto now = std::chrono::steady_clock::now();
+    // A package that loaded after the scan brings types whose files were
+    // skipped: look at the disk again for them.
+    const uint32_t extensions = AssetTypeRegistry::Instance().ExtensionRevision();
+    if (extensions != m_SeenExtensionRevision && !m_ImportingAll)
+    {
+        m_SeenExtensionRevision = extensions;
+        m_ResyncPending = true;
+        m_ResyncAt = now;
+    }
     if (m_FileWatcher->TakeMissedEvents())
     {
         if (!m_ResyncPending)
@@ -1295,7 +1306,15 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
         }
     }
 
-    auto lastWrite = fs::last_write_time(absolutePath);
+    // A file removed while it was imported (a tool's temporary file, say) is
+    // gone: its Removed event follows. The throwing overload crashed the editor.
+    std::error_code writeEc;
+    auto lastWrite = fs::last_write_time(absolutePath, writeEc);
+    if (writeEc)
+    {
+        DEKI_LOG_INTERNAL("AssetPipeline: %s was removed while it was imported", relativePath.c_str());
+        return;
+    }
     info.lastModified = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
         lastWrite - fs::file_time_type::clock::now() + std::chrono::system_clock::now());
 

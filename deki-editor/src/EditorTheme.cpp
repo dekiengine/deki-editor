@@ -518,8 +518,8 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
         // FT_SIZE_REQUEST_TYPE_REAL_DIM divides the requested pixel_size by.
         // CSS px times this ratio is the pixel_size to ask FreeType for, so
         // the em-square matches CSS.
-        const float upm = (float)face->units_per_EM;
-        const float ascDesc = (float)(face->ascender - face->descender);
+        const float upm = static_cast<float>(face->units_per_EM);
+        const float ascDesc = static_cast<float>(face->ascender - face->descender);
         if (upm > 0.0f)
         {
             s_FontCssRatios[font] = ascDesc / upm;
@@ -530,7 +530,7 @@ void RegisterTtf(ImFont* font, const char* ttfPath)
         if (upm > 0.0f && FT_IS_FIXED_WIDTH(face) && zero != 0 &&
             FT_Get_Advance(face, zero, FT_LOAD_NO_SCALE, &advance) == 0 && advance > 0)
         {
-            s_FontMonoAdvance[font] = (float)advance / upm;
+            s_FontMonoAdvance[font] = static_cast<float>(advance) / upm;
         }
         FT_Done_Face(face);
     }
@@ -1301,7 +1301,7 @@ bool SchematicCollapsingHeader(const char* label, ImGuiTreeNodeFlags flags)
     // id: the same ImGui id, so its state is kept, and no label text.
     const char* hash = ImStrchrRange(label, label + strlen(label), '#');
     const bool hasId = hash && hash[1] == '#' && hash[2] == '#';
-    const size_t visLen = hasId ? (size_t)(hash - label) : strlen(label);
+    const size_t visLen = hasId ? static_cast<size_t>(hash - label) : strlen(label);
 
     // The id comes from the English text; only the drawn text is translated.
     char visUpper[256];
@@ -1453,7 +1453,7 @@ bool SchematicSectionBand(const char* label, float* outLabelX)
     // rename field (SchematicBandTitleField) look exactly like the title.
     const char* hash = ImStrchrRange(label, label + strlen(label), '#');
     const bool hasId = hash && hash[1] == '#' && hash[2] == '#';
-    const size_t visLen = hasId ? (size_t)(hash - label) : strlen(label);
+    const size_t visLen = hasId ? static_cast<size_t>(hash - label) : strlen(label);
 
     char vis[128];
     {
@@ -1560,7 +1560,7 @@ bool SchematicBandTitleField(const char* id, char* buf, int bufSize, float x, fl
     const float frameH = ImGui::GetFrameHeight();
     ImGui::SetCursorScreenPos(ImVec2(x, ImFloor((bandTop + bandBottom - frameH) * 0.5f)));
     ImGui::SetNextItemWidth(ImMax(width, 1.0f));
-    const bool changed = ImGui::InputTextWithHint(id, hint ? hint : "", buf, (size_t)bufSize);
+    const bool changed = ImGui::InputTextWithHint(id, hint ? hint : "", buf, static_cast<size_t>(bufSize));
 
     ImGui::PopStyleColor(5);
     ImGui::PopStyleVar(2);
@@ -2299,7 +2299,7 @@ static bool SchematicColorEditN(const char* id, float* col, int n)
     // cells with the theme's padding cut "255" to "25".
     const float gap = 3.0f * dpi;
     const float channelsW = totalW - swatchW - gap;
-    const float channelW = ImMax(20.0f * dpi, (channelsW - gap * (float)(n - 1)) / (float)n);
+    const float channelW = ImMax(20.0f * dpi, (channelsW - gap * static_cast<float>(n - 1)) / static_cast<float>(n));
     const float stripeW = 3.0f * dpi;
 
     bool changed = false;
@@ -2332,11 +2332,11 @@ static bool SchematicColorEditN(const char* id, float* col, int n)
         ImGui::PushID(ch);
         ImGui::SetCursorScreenPos(ImVec2(cellPos.x + stripeW, cellPos.y));
         ImGui::SetNextItemWidth(channelW - stripeW);
-        int v = (int)ImClamp(col[ch] * 255.0f + 0.5f, 0.0f, 255.0f);
+        int v = static_cast<int>(ImClamp(col[ch] * 255.0f + 0.5f, 0.0f, 255.0f));
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f * dpi, ImGui::GetStyle().FramePadding.y));
         if (SchematicDragInt("##v", &v, 1.0f, 0, 255, "%d"))
         {
-            col[ch] = (float)v / 255.0f;
+            col[ch] = static_cast<float>(v) / 255.0f;
             changed = true;
         }
         ImGui::PopStyleVar();

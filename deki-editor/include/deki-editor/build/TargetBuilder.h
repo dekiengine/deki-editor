@@ -50,6 +50,7 @@ enum class ToolchainComponentStatus
     Installing
 };
 
+/// One toolchain component as the Build panel shows it: status, versions and actions.
 struct ToolchainComponent
 {
     std::string id;  // the backend's own id for it: an SDK, an interpreter, a flash tool
@@ -76,6 +77,7 @@ enum class BuildState
     Failed
 };
 
+/// State, status text and progress of a running build.
 struct BuildProgress
 {
     BuildState state = BuildState::Idle;
@@ -95,6 +97,7 @@ constexpr const char* kSimulationSceneDir = "simulation";
 /// editor fills it on every simulated build; the backend makes the card.
 constexpr const char* kSimulationCardDir = "sd_card";
 
+/// Options a build backend takes: logging, and whether to build for the simulator.
 struct BuildOptions
 {
     bool enableLogging = true;           // Enable DEKI_LOG_* macros in firmware

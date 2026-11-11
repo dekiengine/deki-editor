@@ -28,7 +28,7 @@ NewProjectDialog::NewProjectDialog(EditorApp* app)
     // Default location: the user's Documents folder, or $HOME elsewhere.
 #ifdef _WIN32
     char path[MAX_PATH];
-    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_PERSONAL, NULL, 0, path)))
+    if (SUCCEEDED(SHGetFolderPathA(nullptr, CSIDL_PERSONAL, nullptr, 0, path)))
     {
         strncpy(m_Location, path, sizeof(m_Location) - 1);
     }
@@ -226,7 +226,7 @@ bool NewProjectDialog::CreateProject()
     }
 
     const PlatformConfig* platform = nullptr;
-    if (m_SelectedPlatformIndex < (int)m_Platforms.size())
+    if (m_SelectedPlatformIndex < static_cast<int>(m_Platforms.size()))
     {
         platform = PlatformRegistry::Instance().GetPlatform(m_Platforms[m_SelectedPlatformIndex].first);
     }

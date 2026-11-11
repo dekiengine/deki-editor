@@ -70,6 +70,18 @@ void AssetTypeRegistry::Register(const AssetTypeHandler& handler)
     {
         m_Types.push_back(handler);
     }
+    for (const std::string& extension : handler.extensions)
+    {
+        std::string lower = extension;
+        for (auto& c : lower)
+        {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        if (m_RegisteredExtensions.insert(lower).second)
+        {
+            ++m_ExtensionRevision;
+        }
+    }
 
     // Copy the handler's category into the extension map, so
     // GetCategoryForExtension knows it without a separate RegisterCategory.
@@ -189,6 +201,7 @@ void AssetTypeRegistry::Clear()
 {
     m_Types.clear();
     m_ExtensionCategory.clear();
+    m_RegisteredExtensions.clear();
     RegisterBuiltInTypes();
 }
 

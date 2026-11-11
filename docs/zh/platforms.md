@@ -1,6 +1,6 @@
 # 平台
 
-**平台**是项目构建的一个目标：一块开发板、桌面版或一台游戏机。本页介绍平台由什么组成、平台从哪里来、包如何附带开发板，以及项目开始使用某块开发板之后会发生什么。
+**平台**是项目构建的一个目标：一块设备、桌面版或一台游戏机。本页介绍平台由什么组成、平台从哪里来、包如何附带设备，以及项目开始使用某块设备之后会发生什么。
 
 ## 平台是什么
 
@@ -22,7 +22,7 @@ JSON 描述编辑器需要知道的内容，而不涉及如何构建：
 | `family` | 仅用于描述。会成为能力 `family:<x>`。 |
 | `screenWidth`, `screenHeight`, `colorFormat` | 该目标的屏幕。编辑器会预览它，桌面版会打开该尺寸的窗口，设为“自动”的图像会以 `colorFormat` 为它存储。设备以其显示屏自身的尺寸和格式进行渲染；参见 [screens.md](screens.md)。 |
 | `externalMemorySize` | 内部堆之外的内存字节数（在微控制器上即 PSRAM）。为包提供 `memory:external`。 |
-| `provides` | 该目标可以为包提供的东西：`wifi`、`spi`、`hosted`、... `hosted` 表示由操作系统把游戏作为程序启动，游戏退出时控制权回到操作系统（桌面、Miyoo Mini）。游戏本身就是固件的开发板（包括 RTOS）不是 hosted。旧名 `desktop-os` 在一个版本内仍会被读取。 |
+| `provides` | 该目标可以为包提供的东西：`wifi`、`spi`、`hosted`、... `hosted` 表示由操作系统把游戏作为程序启动，游戏退出时控制权回到操作系统（桌面、Miyoo Mini）。游戏本身就是固件的设备（包括 RTOS）不是 hosted。旧名 `desktop-os` 在一个版本内仍会被读取。 |
 | `requiresPackages` | 无论场景使用什么，该目标始终需要的包。通常是它的硬件抽象层。 |
 | `defines`, `cFlags`, `cxxFlags`, `linkFlags` | 游戏自身代码的编译器设置。 |
 | `bootScene` | 引导场景的路径，相对于项目。 |
@@ -36,7 +36,7 @@ JSON 描述编辑器需要知道的内容，而不涉及如何构建：
 
 构建将游戏资源保存在以下两个位置之一：
 
-- **内部存储**，默认选项：设备的一部分。资源由构建携带，放在引导场景旁边的 `assets/` 中（运行时为 `F:/assets/`）。在 ESP32 上就是闪存：游戏数据被打包成一个镜像，开发板直接就地读取，查找一个文件只需几微秒。它占用除用户数据外的芯片其余部分（在 16 MB 的开发板上约为 12 MB），如果游戏放不下，构建就会失败。桌面版和 Tactility 应用把资源放在同样的位置。
+- **内部存储**，默认选项：设备的一部分。资源由构建携带，放在引导场景旁边的 `assets/` 中（运行时为 `F:/assets/`）。在 ESP32 上就是闪存：游戏数据被打包成一个镜像，设备直接就地读取，查找一个文件只需几微秒。它占用除用户数据外的芯片其余部分（在 16 MB 的设备上约为 12 MB），如果游戏放不下，构建就会失败。桌面版和 Tactility 应用把资源放在同样的位置。
 - **外部存储**：可移除的存储，即 SD 卡。构建只携带引导场景和 `project_data.bin`；**SD 卡部署**面板会将资源复制到卡上，卡的存储包在挂载后从卡中加载它们（`S:/`）。
 
 只有 `provides` 中包含 `external-storage` 的平台才能选择外部存储；平台编辑器只对这些平台显示该选项（**存储 > 资源存放位置**）。只有游戏大到闪存放不下时才选择它：使用外部存储时如果卡槽中没有卡，游戏就没有任何资源。LilyGO T-Deck Plus 可以选择；除非另行指定，它会将资源保存在闪存中。
@@ -45,20 +45,20 @@ JSON 描述编辑器需要知道的内容，而不涉及如何构建：
 
 ### 游戏写入的文件
 
-游戏也把自己的文件（例如存档）写在 `F:/` 下（`F:/save.bin`）。在 ESP32 上，它们位于闪存末尾的用户数据分区（16 MB 开发板上为 1 MB，8 MB 上为 512 KB，4 MB 上为 128 KB）。烧录新构建不会触及它，因此存档在更新后依然保留。游戏自身的数据永远不会被写入：以写入方式打开其中的文件会失败，日志会说明原因。
+游戏也把自己的文件（例如存档）写在 `F:/` 下（`F:/save.bin`）。在 ESP32 上，它们位于闪存末尾的用户数据分区（16 MB 设备上为 1 MB，8 MB 上为 512 KB，4 MB 上为 128 KB）。烧录新构建不会触及它，因此存档在更新后依然保留。游戏自身的数据永远不会被写入：以写入方式打开其中的文件会失败，日志会说明原因。
 在桌面版中，它们位于旁边的 `userdata/`；在 Tactility 应用中，位于应用用户数据里的 `internal/`，规则相同。
 
-## 模拟开发板
+## 模拟设备
 
-如果开发板的后端带有模拟器（ESP32 或 ESP32-S3 使用 QEMU），就可以将其构建为在模拟器中运行：在构建面板中勾选 **在 QEMU 中模拟**，然后点击“构建”和 **运行**。在命令行中：
+如果设备的后端带有模拟器（ESP32 或 ESP32-S3 使用 QEMU），就可以将其构建为在模拟器中运行：在构建面板中勾选 **在 QEMU 中模拟**，然后点击“构建”和 **运行**。在命令行中：
 
 ```
 DekiEditor --build-firmware --deploy --simulate --platform lilygo_t_deck_plus <project>
 ```
 
-模拟构建保留开发板引导场景的每一个步骤，并在其后加上模拟器自己的步骤（QEMU 屏幕），这些都保存在其构建目录下的一个副本中（`generated/build/<platform>_qemu/simulation/boot.scene`）。如果模拟器需要以其他方式运行某个步骤，副本中会注明：通过 SPI 连接的 SD 卡会改为接在 QEMU 的 SD 主机上。构建日志会列出每一处改动。平台的 `boot.scene`、它的常规构建以及烧录到开发板上的固件都不会被更改，模拟器需要的任何东西也都不会编译进去。
+模拟构建保留设备引导场景的每一个步骤，并在其后加上模拟器自己的步骤（QEMU 屏幕），这些都保存在其构建目录下的一个副本中（`generated/build/<platform>_qemu/simulation/boot.scene`）。如果模拟器需要以其他方式运行某个步骤，副本中会注明：通过 SPI 连接的 SD 卡会改为接在 QEMU 的 SD 主机上。构建日志会列出每一处改动。平台的 `boot.scene`、它的常规构建以及烧录到设备上的固件都不会被更改，模拟器需要的任何东西也都不会编译进去。
 
-模拟的开发板带有一张 SD 卡，每次构建时在 `simulation/sd_card` 中重新生成：对于将资源保存在卡上的目标，卡中是 SD 卡部署面板会复制的那些资源；对于将资源保存在内部的目标，卡是空的。
+模拟的设备带有一张 SD 卡，每次构建时在 `simulation/sd_card` 中重新生成：对于将资源保存在卡上的目标，卡中是 SD 卡部署面板会复制的那些资源；对于将资源保存在内部的目标，卡是空的。
 
 后端通过 `ITargetBuilder::SupportsSimulation`、`GetSimulatorName` 和 `MakeSimulationBootScene`（配合 `deki-editor/build/SimulationBootScene.h` 中的 `AddSimulationSteps`）提供此功能，其余部分则读取 `BuildOptions::simulate` 来处理：它自己的构建目录、SD 卡以及部署时要做的事。
 
@@ -66,15 +66,19 @@ DekiEditor --build-firmware --deploy --simulate --platform lilygo_t_deck_plus <p
 
 构建面板的目标列表有三个来源，后面的覆盖前面的：
 
-1. `~/.deki-editor/board-packs/` 下的**开发板包**。
+![选择了设备的构建面板](../img/gs-build-panel.png)
+
+![项目可以构建的平台](../img/platform-manager.png)
+
+1. `~/.deki-editor/board-packs/` 下的**设备包**。
 2. 项目中安装的**包**：每个 `<package>/platforms/<id>/`。
 3. **项目自己的** `platforms/`。
 
 安装或移除包会立即更新该列表。
 
-## 在包中附带开发板
+## 在包中附带设备
 
-在包中为每块开发板放一个目录：
+在包中为每块设备放一个目录：
 
 ```
 deki-lilygo-boards/
@@ -88,13 +92,13 @@ deki-lilygo-boards/
         └── boot.scene
 ```
 
-这就是全部机制。包不需要任何代码：不需要 `package.cmake`，也不需要入口点。它的 `package.json` 应在 `requires` 下列出其开发板的引导场景所用的包，这样安装开发板时也会一并安装这些包；每个平台还应在 `requiresPackages` 中再次列出它的硬件抽象层。
+这就是全部机制。包不需要任何代码：不需要 `package.cmake`，也不需要入口点。它的 `package.json` 应在 `requires` 下列出其设备的引导场景所用的包，这样安装设备时也会一并安装这些包；每个平台还应在 `requiresPackages` 中再次列出它的硬件抽象层。
 
 会被检查的规则：
 
 - **目录名就是平台 id**，JSON 是其中的 `<id>.json`。它必须是一个简单的名称；任何看起来像路径的名称都会被跳过。
 - **两个已安装的包提供同一个 id 是错误**，在有人选择它时报告。请为 id 加上厂商前缀（`lilygo_...`）。
-- **`defines` 不得指定 `DEKI_PACKAGE_*` 或 `DEKI_FEATURE_*`。** 构建中有哪些包，由解析器决定。始终需要某个包的开发板应在 `requiresPackages` 中声明。
+- **`defines` 不得指定 `DEKI_PACKAGE_*` 或 `DEKI_FEATURE_*`。** 构建中有哪些包，由解析器决定。始终需要某个包的设备应在 `requiresPackages` 中声明。
 - **`bootScene` 相对于项目**，而不是相对于包：`platforms/<id>/boot.scene`。被构建的是采用后的副本。
 
 ### 需要其他包的功能
@@ -106,7 +110,7 @@ deki-lilygo-boards/
   "requires": ["deki-gpio"] }
 ```
 
-这些包不会随该包一起安装。由使用该功能的开发板或项目引入它们：`deki-lilygo-boards` 需要 `deki-i2c` 和 `deki-gpio`，因为 T-Deck 有 I2C 总线和引脚，正是这一点让 `deki-input` 的键盘和轨迹球得以构建。安装了 `deki-input` 的桌面项目则两者都不会得到。
+这些包不会随该包一起安装。由使用该功能的设备或项目引入它们：`deki-lilygo-boards` 需要 `deki-i2c` 和 `deki-gpio`，因为 T-Deck 有 I2C 总线和引脚，正是这一点让 `deki-input` 的键盘和轨迹球得以构建。安装了 `deki-input` 的桌面项目则两者都不会得到。
 
 只有当某个目标使用了该功能时，构建才会引入该功能的包。正在使用但缺少所需包的功能，会被构建为一个在日志中记录需要安装什么的步骤，并且构建会发出警告。功能的代码用 `__has_include` 检查该包，因此无论哪种情况都能编译。
 

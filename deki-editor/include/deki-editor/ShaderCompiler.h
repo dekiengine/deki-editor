@@ -38,6 +38,7 @@ enum class ShaderStage
     Fragment,
 };
 
+/// One shader stage to compile: HLSL source, entry point and defines.
 struct ShaderCompileRequest
 {
     std::string source;      // the whole HLSL, with #line directives for the user's file
@@ -54,6 +55,7 @@ struct ShaderStageText
     std::string gl;  // GLSL 3.30, for desktop OpenGL 3.3
 };
 
+/// Translates HLSL shaders to the GLSL an OpenGL device runs, through Slang.
 class DEKI_EDITOR_API ShaderCompiler
 {
 public:

@@ -205,8 +205,8 @@ void SceneGizmos::DrawSelectionBounds(ImDrawList* drawList, Deki::Object* obj, D
         float scaledHalfW = displayW * obj->GetWorldScaleX() * 0.5f * zoom;  // zoom includes DPI
         float scaledHalfH = displayH * obj->GetWorldScaleY() * 0.5f * zoom;
 
-        // World rotation is in radians.
-        float rotRad = obj->GetWorldRotation();
+        // World rotation is in radians, counter-clockwise; ImGui's Y runs down.
+        float rotRad = -obj->GetWorldRotation();
         float cosR = std::cos(rotRad);
         float sinR = std::sin(rotRad);
 

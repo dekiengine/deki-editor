@@ -51,6 +51,7 @@ struct TextureTargetSettings
     bool Empty() const { return format.empty() && maxSize < 0 && filter.empty(); }
 };
 
+/// An image's storage and filter settings, with per-target overrides.
 struct TextureSettings
 {
     std::string format;  // "" or "Automatic" = Automatic

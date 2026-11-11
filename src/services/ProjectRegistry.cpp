@@ -57,8 +57,9 @@ bool SamePath(const std::string& a, const std::string& b)
     // Windows paths are case-insensitive; compared byte by byte, the same
     // project opened from a shell and from the picker would be two rows.
     return a.size() == b.size() &&
-           std::equal(a.begin(), a.end(), b.begin(),
-                      [](char x, char y) { return std::tolower((unsigned char)x) == std::tolower((unsigned char)y); });
+           std::equal(
+               a.begin(), a.end(), b.begin(), [](char x, char y)
+               { return std::tolower(static_cast<unsigned char>(x)) == std::tolower(static_cast<unsigned char>(y)); });
 #else
     return a == b;
 #endif
@@ -168,7 +169,7 @@ void ProjectRegistry::Load()
 
             entry.name = item.value("name", std::string{});
             entry.platformId = item.value("platform", std::string{});
-            entry.lastOpened = item.value("lastOpened", (int64_t)0);
+            entry.lastOpened = item.value("lastOpened", static_cast<int64_t>(0));
             m_Entries.push_back(std::move(entry));
         }
     }

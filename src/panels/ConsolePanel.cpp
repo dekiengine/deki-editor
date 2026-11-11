@@ -14,6 +14,7 @@
 #include <deki/Object.h>
 #include "imgui.h"
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -89,6 +90,44 @@ bool ConsolePanel::PassesFilter(const LogEntry& e, const std::string& filterLowe
         }
     }
     return true;
+}
+
+std::vector<LogEntry> ConsolePanel::RecentEntries(size_t limit, const std::set<::Deki::LogLevel>& levels,
+                                                  const std::string& contains)
+{
+    std::string needle = contains;
+    std::transform(needle.begin(), needle.end(), needle.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::vector<LogEntry> out;
+    std::lock_guard<std::mutex> lock(m_Mutex);
+    for (auto it = m_Entries.rbegin(); it != m_Entries.rend() && out.size() < limit; ++it)
+    {
+        if (levels.count(it->level) == 0)
+        {
+            continue;
+        }
+        if (!needle.empty() && it->messageLower.find(needle) == std::string::npos)
+        {
+            continue;
+        }
+        out.push_back(*it);
+    }
+    std::reverse(out.begin(), out.end());
+    return out;
+}
+
+const char* ConsolePanel::LevelName(::Deki::LogLevel level)
+{
+    switch (level)
+    {
+        case ::Deki::LogLevel::Editor: return "Editor";
+        case ::Deki::LogLevel::Internal: return "Internal";
+        case ::Deki::LogLevel::Debug: return "Debug";
+        case ::Deki::LogLevel::Info: return "Info";
+        case ::Deki::LogLevel::Warning: return "Warning";
+        case ::Deki::LogLevel::Error: return "Error";
+    }
+    return "Info";
 }
 
 std::string ConsolePanel::FormatLogLine(const LogEntry& e)
@@ -460,7 +499,7 @@ void ConsolePanel::Draw()
     const float viewBottom = ImGui::GetWindowPos().y + ImGui::GetWindowSize().y + 64.0f;
 
     int entryIndex = 0;
-    for (int vecIndex = 0; vecIndex < (int)m_Entries.size(); ++vecIndex)
+    for (int vecIndex = 0; vecIndex < static_cast<int>(m_Entries.size()); ++vecIndex)
     {
         const auto& entry = m_Entries[vecIndex];
         if (!PassesFilter(entry, filterStr))
@@ -624,7 +663,7 @@ void ConsolePanel::Draw()
                 m_SelectedRows.clear();
                 const int lo = std::min(m_LastClickedRow, vecIndex);
                 const int hi = std::max(m_LastClickedRow, vecIndex);
-                for (int i = lo; i <= hi && i < (int)m_Entries.size(); ++i)
+                for (int i = lo; i <= hi && i < static_cast<int>(m_Entries.size()); ++i)
                 {
                     if (PassesFilter(m_Entries[i], filterStr))
                     {
@@ -719,7 +758,7 @@ void ConsolePanel::Draw()
                     std::string out;
                     for (int idx : m_SelectedRows)
                     {
-                        if (idx >= 0 && idx < (int)m_Entries.size())
+                        if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
                         {
                             out += FormatLogLine(m_Entries[idx]) + "\n";
                         }
@@ -761,7 +800,7 @@ void ConsolePanel::Draw()
         std::string out;
         for (int idx : m_SelectedRows)  // std::set iterates ascending
         {
-            if (idx >= 0 && idx < (int)m_Entries.size())
+            if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
             {
                 out += FormatLogLine(m_Entries[idx]) + "\n";
             }
@@ -888,7 +927,7 @@ void ConsolePanel::AddEntry(const std::string& message, ::Deki::LogLevel level, 
     const size_t maxEntries = 1000;
     if (m_Entries.size() > maxEntries)
     {
-        const int removed = (int)(m_Entries.size() - maxEntries);
+        const int removed = static_cast<int>(m_Entries.size() - maxEntries);
         m_Entries.erase(m_Entries.begin(), m_Entries.begin() + removed);
 
         // Trimming the front shifts every index down by `removed`. Shift the

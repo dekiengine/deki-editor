@@ -14,6 +14,7 @@
 
 namespace DekiEditor
 {
+/// Shared timing and easing for animated editor UI.
 namespace Motion
 {
 // Durations, in seconds, for a full 0 -> 1 change.

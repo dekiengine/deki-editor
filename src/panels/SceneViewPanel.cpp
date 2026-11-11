@@ -745,7 +745,10 @@ void SceneViewPanel::DrawSceneCanvas()
         m_Gizmos->SetHoveredEdge(ResizeEdge::None);
     }
 
-    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isCanvasHovered && !m_IsPanning && !io.KeyAlt)
+    // Claimed during the last frame's gizmos, which are drawn after this.
+    DekiEditor::SceneView::Get().SetPointerOnCanvas(isCanvasHovered);
+    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && isCanvasHovered && !m_IsPanning && !io.KeyAlt &&
+        !DekiEditor::SceneView::Get().IsMouseClaimed())
     {
         ImVec2 mousePos = ImGui::GetMousePos();
         ImVec2 worldPos = m_Coords->ScreenToWorld(mousePos.x, mousePos.y);
@@ -1283,6 +1286,7 @@ void SceneViewPanel::DrawSceneCanvas()
     // component that has an editor. SceneView::BeginObject is set up for each
     // object first, so editors can read its screen position and zoom through
     // SceneView::Get().
+    DekiEditor::SceneView::Get().ClearMouseClaim();
     if (m_Toolbar->ShowGizmos() && scene && m_EditorCamera)
     {
         auto& editorRegistry = DekiEditor::CustomEditorRegistry::Instance();

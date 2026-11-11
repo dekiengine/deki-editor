@@ -76,7 +76,7 @@ public:
     // for editor services that keep data next to settings.json.
     static std::string GetSettingsDir();
 
-    // An external dependency listed in a package.json file.
+    /// An external dependency listed in a package.json file.
     struct DEKI_EDITOR_API PackageDepInfo
     {
         std::string name;

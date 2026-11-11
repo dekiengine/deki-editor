@@ -768,7 +768,7 @@ void ToolchainComponentManager::DoInstallSubComponents(const ComponentDef& comp,
     { /* best effort: the operation that needs this path fails visibly on its own if it did not happen */
     }
 
-    int total = (int)comp.subComponents.size();
+    int total = static_cast<int>(comp.subComponents.size());
     int current = 0;
 
     for (const auto& sub : comp.subComponents)

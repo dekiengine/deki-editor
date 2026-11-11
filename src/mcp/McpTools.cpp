@@ -1010,19 +1010,33 @@ void RegisterAllTools(McpToolRegistry& registry, EditorApp* editor)
     registry.Register(
         { "open_scene",
           "Open an existing scene file. A relative path is taken as "
-          "project-relative. Fails if the file cannot be read, or if the open is "
-          "waiting on the unsaved-changes dialog.",
+          "project-relative. Fails if the file is missing or cannot be read. When the "
+          "open scene has unsaved changes, the unsaved-changes dialog asks first and this "
+          "fails saying so: answer_dialog \"save\" or \"discard\" then opens the scene, "
+          "\"cancel\" keeps the current one.",
           { { "type", "object" },
             { "properties",
               { { "path", { { "type", "string" }, { "description", "Scene path, absolute or project-relative" } } } } },
             { "required", nlohmann::json::array({ "path" }) } },
           [editor](const nlohmann::json& args) -> nlohmann::json
           {
+              namespace fs = std::filesystem;
               std::string path = args["path"].get<std::string>();
+              const std::string resolved = editor->ResolveProjectPath(path);
               if (!editor->OpenScene(path))
               {
-                  throw std::runtime_error("Could not open " + editor->ResolveProjectPath(path) +
-                                           " (missing, unreadable, or blocked by an open dialog)");
+                  if (editor->IsUnsavedChangesDialogOpen())
+                  {
+                      throw std::runtime_error("The open scene has unsaved changes, so the unsaved-changes dialog is "
+                                               "asking first. answer_dialog \"save\" or \"discard\" then opens " +
+                                               resolved + "; \"cancel\" keeps the current scene.");
+                  }
+                  std::error_code ec;
+                  if (!fs::exists(resolved, ec))
+                  {
+                      throw std::runtime_error("No scene at " + resolved);
+                  }
+                  throw std::runtime_error("Could not read " + resolved + " as a scene (the Console says why)");
               }
               return { { "success", true }, { "path", editor->GetCurrentScenePath() } };
           } });

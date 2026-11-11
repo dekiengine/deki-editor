@@ -352,7 +352,7 @@ void HierarchyPanel::Draw()
         {
             newSel = m_FlattenedObjects[idx - 1];
         }
-        else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && idx < (int)m_FlattenedObjects.size() - 1)
+        else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && idx < static_cast<int>(m_FlattenedObjects.size()) - 1)
         {
             newSel = m_FlattenedObjects[idx + 1];
         }
@@ -560,7 +560,7 @@ static bool ContainsIgnoreCase(const char* haystack, const std::string& needleLo
     for (const char* h = haystack; *h; ++h)
     {
         size_t i = 0;
-        while (i < n && h[i] && (char)std::tolower((unsigned char)h[i]) == needleLower[i])
+        while (i < n && h[i] && static_cast<char>(std::tolower(static_cast<unsigned char>(h[i]))) == needleLower[i])
         {
             ++i;
         }
@@ -609,7 +609,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
             m_SearchLowerSource = m_SearchBuf;
             m_SearchLower = m_SearchLowerSource;
             std::transform(m_SearchLower.begin(), m_SearchLower.end(), m_SearchLower.begin(),
-                           [](unsigned char c) { return (char)std::tolower(c); });
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         }
         if (!SubtreeMatchesSearch(obj, m_SearchLower))
         {
@@ -1048,7 +1048,7 @@ bool HierarchyPanel::DrawObjectNode(Deki::Object* obj, bool readOnly)
         ImGui::SetDragDropPayload("HIERARCHY_OBJECT", &obj, sizeof(Deki::Object*));
         if (m_DraggedObjects.size() > 1)
         {
-            ImGui::Text(Tr("Move %d items"), (int)m_DraggedObjects.size());
+            ImGui::Text(Tr("Move %d items"), static_cast<int>(m_DraggedObjects.size()));
         }
         else
         {

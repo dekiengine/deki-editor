@@ -14,6 +14,7 @@
 #include "../EditorApp.h"
 #include "../core/Project.h"
 #include <deki-editor/build/PlatformConfig.h>
+#include "../panels/ConsolePanel.h"
 #include "../panels/PackageManagerPanel.h"
 #include "../services/ProjectTemplate.h"
 #include "../services/HotReloadService.h"
@@ -22,7 +23,11 @@
 #include <deki-editor/AssetPipeline.h>
 #include <deki-editor/CommandHistory.h>
 
+#include <chrono>
+#include <cstdio>
+#include <ctime>
 #include <filesystem>
+#include <set>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -467,6 +472,69 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               return { { "startupScene", project->GetStartupScene() } };
           } });
 
+    registry.Register(
+        { "get_console",
+          "Read the Console: its newest entries, oldest first, each with time, level, message, how many "
+          "times it repeated, and the source file and line when it has one. A crash in play mode is an "
+          "Error entry with its stack trace.",
+          { { "type", "object" },
+            { "properties",
+              { { "limit", { { "type", "integer" }, { "description", "Most entries to return (default 50)" } } },
+                { "levels",
+                  { { "type", "array" },
+                    { "items", { { "type", "string" }, { "enum", nlohmann::json::array({ "Error", "Warning", "Info", "Debug", "Editor" }) } } },
+                    { "description", "Which levels to return (default Error, Warning and Info)" } } },
+                { "contains", { { "type", "string" }, { "description", "Only entries containing this text, any case" } } } } } },
+          [](const nlohmann::json& args) -> nlohmann::json
+          {
+              ConsolePanel* console = ConsolePanel::GetInstance();
+              if (!console)
+              {
+                  throw std::runtime_error("The Console is not open yet");
+              }
+              const size_t limit = args.contains("limit") ? args["limit"].get<size_t>() : 50;
+              std::set<::Deki::LogLevel> levels;
+              const nlohmann::json names = args.contains("levels")
+                                               ? args["levels"]
+                                               : nlohmann::json::array({ "Error", "Warning", "Info" });
+              for (const auto& n : names)
+              {
+                  const std::string name = n.get<std::string>();
+                  for (::Deki::LogLevel l : { ::Deki::LogLevel::Error, ::Deki::LogLevel::Warning, ::Deki::LogLevel::Info,
+                                              ::Deki::LogLevel::Debug, ::Deki::LogLevel::Editor })
+                  {
+                      if (name == ConsolePanel::LevelName(l))
+                      {
+                          levels.insert(l);
+                      }
+                  }
+              }
+              nlohmann::json entries = nlohmann::json::array();
+              for (const LogEntry& e : console->RecentEntries(limit, levels, args.value("contains", std::string())))
+              {
+                  const auto t = std::chrono::system_clock::to_time_t(e.timestamp);
+                  std::tm tm{};
+#ifdef _WIN32
+                  localtime_s(&tm, &t);
+#else
+                  localtime_r(&t, &tm);
+#endif
+                  char time[16];
+                  std::snprintf(time, sizeof(time), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+                  nlohmann::json row = { { "time", time },
+                                         { "level", ConsolePanel::LevelName(e.level) },
+                                         { "message", e.message },
+                                         { "count", e.count } };
+                  if (!e.sourceFile.empty())
+                  {
+                      row["file"] = e.sourceFile;
+                      row["line"] = e.sourceLine;
+                  }
+                  entries.push_back(std::move(row));
+              }
+              return { { "entries", entries } };
+          } });
+
     // ── Dialogs ──────────────────────────────────────────────────────────────
 
     registry.Register(
@@ -497,9 +565,15 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
               }
 
               const bool upgrade = editor->IsUpgradeDialogOpen();
+              const bool checks = editor->IsProjectChecksDialogOpen();
+              // The crash-recovery window is modal too: the game stands still
+              // behind it. answer_dialog "later" puts it away.
+              const bool recovery = editor->IsRecoveryDialogOpen();
               nlohmann::json result = { { "unsavedChangesDialog", unsaved },
                                         { "upgradeDialog", upgrade },
-                                        { "blocking", unsaved || upgrade },
+                                        { "projectChecksDialog", checks },
+                                        { "recoveryDialog", recovery },
+                                        { "blocking", unsaved || upgrade || checks || recovery },
                                         { "floatingWindows", others } };
               // A project from an older Deki, waiting to be upgraded before it
               // opens: what the upgrade would do, so a caller can decide.
@@ -528,14 +602,15 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                         "first). The crash-recovery window (Recover Scenes): \"later\", which dismisses it and "
                         "keeps every recovered file for the next open. The Upgrade Project dialog (a project "
                         "made with an older Deki, which does not open until it is upgraded): \"upgrade\", which "
-                        "upgrades and opens it, or \"cancel\", which leaves it closed and unchanged. Applied on "
-                        "the next frame.",
+                        "upgrades and opens it, or \"cancel\", which leaves it closed and unchanged. The Breaking "
+                        "Changes checklist: \"close\"; anything unticked comes back at the next open. "
+                        "Applied on the next frame.",
                         { { "type", "object" },
                           { "properties",
                             { { "answer",
                                 { { "type", "string" },
                                   { "enum",
-                                    nlohmann::json::array({ "save", "discard", "cancel", "later", "upgrade" }) } } } } },
+                                    nlohmann::json::array({ "save", "discard", "cancel", "later", "upgrade", "close" }) } } } } },
                           { "required", nlohmann::json::array({ "answer" }) } },
                         [editor](const nlohmann::json& args) -> nlohmann::json
                         {
@@ -545,6 +620,15 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
                             if (editor->IsUpgradeDialogOpen() && (answer == "upgrade" || answer == "cancel"))
                             {
                                 editor->AnswerUpgradeDialog(answer == "upgrade");
+                                return { { "answered", answer } };
+                            }
+                            if (answer == "close")
+                            {
+                                if (!editor->IsProjectChecksDialogOpen())
+                                {
+                                    throw std::runtime_error("The Breaking Changes checklist is not open");
+                                }
+                                editor->CloseProjectChecksDialog();
                                 return { { "answered", answer } };
                             }
                             if (answer == "upgrade")
@@ -585,6 +669,52 @@ void RegisterEditorTools(McpToolRegistry& registry, EditorApp* editor)
 
                             editor->AnswerUnsavedChangesDialog(value);
                             return { { "answered", answer } };
+                        } });
+
+    // ── Breaking changes ───────────────────────────────────────────────────────
+
+    registry.Register(
+        { "run_project_checks",
+          "What this project has to migrate by hand because of breaking changes in a newer Deki: the same "
+          "checklist the editor shows when it opens. Scans the project and changes nothing in its scenes "
+          "or code. Each check has an id, the release with the change, what to do, and its findings "
+          "(\"scene: object path\" or \"file:line\"; none when no scan can see the change). Only checks "
+          "still to do are listed. Tick one with set_project_check once it is migrated.",
+          { { "type", "object" }, { "properties", nlohmann::json::object() } },
+          [editor](const nlohmann::json&) -> nlohmann::json
+          {
+              Project* project = RequireProject(editor);
+              nlohmann::json checks = nlohmann::json::array();
+              for (const ProjectCheck& check : RunProjectChecks(project->GetPath()))
+              {
+                  checks.push_back({ { "id", check.id },
+                                     { "version", check.version },
+                                     { "title", check.title },
+                                     { "todo", check.todo },
+                                     { "findings", check.findings } });
+              }
+              return { { "checks", checks } };
+          } });
+
+    registry.Register({ "set_project_check",
+                        "Tick a check from run_project_checks, or untick it with done=false. Written to deki.json; "
+                        "an open checklist follows.",
+                        { { "type", "object" },
+                          { "properties",
+                            { { "id", { { "type", "string" } } },
+                              { "done", { { "type", "boolean" }, { "default", true } } } } },
+                          { "required", nlohmann::json::array({ "id" }) } },
+                        [editor](const nlohmann::json& args) -> nlohmann::json
+                        {
+                            RequireProject(editor);
+                            const std::string id = args.at("id").get<std::string>();
+                            const bool done = args.value("done", true);
+                            std::string why;
+                            if (!editor->SetProjectCheck(id, done, why))
+                            {
+                                throw std::runtime_error(why);
+                            }
+                            return { { "id", id }, { "done", done } };
                         } });
 
     // ── Capture ──────────────────────────────────────────────────────────────

@@ -93,6 +93,7 @@ set(TEST_SOURCES
     core/ProjectNameTests.cpp
     services/HostedRenameTests.cpp
     services/ProjectUpgradeTests.cpp
+    services/ProjectChecksTests.cpp
     core/ProjectSettingsFilesTests.cpp
     core/RemoveTreeTests.cpp
     core/RenamedComponentRefTests.cpp
@@ -143,6 +144,7 @@ set(TEST_SOURCES
     core/SceneInstanceRefsTests.cpp
     core/PropertyColorTests.cpp
     core/HeadlessRuntimeTests.cpp
+    core/SafeDestroyTests.cpp
 
     # Service tests
     services/HotReloadServiceTests.cpp
@@ -543,7 +545,7 @@ deki_add_package_tests(deki-imu TARGET DekiImuTests)
 # the simulator; as std::fopen they only worked in the editor. The baker is
 # here so the object tests can write a map the way the editor does.
 deki_add_package_tests(deki-tiledmapeditor-integration TARGET DekiTiledMapTests
-                       SOURCES Tilemap.cpp Tileset.cpp TilemapStreamer.cpp editor/TilemapBaker.cpp)
+                       SOURCES Tilemap.cpp Tileset.cpp TilemapStreamer.cpp editor/TilemapBaker.cpp editor/TmjParser.cpp)
 
 # The easing curves are free functions in one .cpp. Compiling just that file
 # keeps the tween components and their codegen out of this target.
@@ -559,7 +561,7 @@ deki_add_package_tests(deki-nodegraph TARGET DekiNodeGraphTests
 # The keyboard and trackball drivers take how a device is read as a function,
 # so they need no bus here.
 deki_add_package_tests(deki-input TARGET DekiInputTests
-                       SOURCES InputCollider.cpp InputDispatch.cpp I2CKeyboard.cpp Trackball.cpp)
+                       SOURCES InputCollider.cpp InputDispatch.cpp I2CKeyboard.cpp Trackball.cpp DekiInput.cpp)
 
 # BuildOpaqueRowSpans is header-inline. It decides which pixels the blitter
 # copies straight, and getting it wrong is visible only as a wrong pixel in a
@@ -574,21 +576,22 @@ deki_add_package_tests(deki-input TARGET DekiInputTests
 # widgets are here with what they draw with (ShapeComponent and, for labels,
 # TextComponent) and the focus system, which listens to deki-input's event
 # stream. The font compiler bakes the editor's own Inter with FreeType, to
-# check each glyph lands where FreeType puts it.
+# check each glyph lands where FreeType puts it. SpriteBatchComponent is
+# drawn through the 2D renderer next to sprite objects, which it must match.
 set(_deki_2d_test_font "${CMAKE_SOURCE_DIR}/resources/fonts/Inter-SemiBold.ttf")
 set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp GradientComponent.cpp
                        ShapeMask.cpp ShapeComponent.cpp FocusSystem.cpp WidgetParts.cpp
                        BarComponent.cpp SliderComponent.cpp SwitchComponent.cpp CheckboxComponent.cpp
                        ArcComponent.cpp LedComponent.cpp SpinnerComponent.cpp SpinboxComponent.cpp
                        DropdownComponent.cpp ListComponent.cpp TabviewComponent.cpp MsgboxComponent.cpp ButtonComponent.cpp
-                       DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp TextareaComponent.cpp
+                       DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp SpriteBatchComponent.cpp TextareaComponent.cpp
                        KeyboardComponent.cpp ChartComponent.cpp TextComponent.cpp BitmapFont.cpp
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
                        ../deki-rendering/RenderProfiler.cpp ../deki-rendering/Light.cpp
-                       ../deki-rendering/Lighting2D.cpp editor/FontCompiler.cpp)
+                       ../deki-rendering/Lighting2D.cpp editor/FontCompiler.cpp editor/ProceduralSpriteRaised.cpp)
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
                        DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
                        LIBS freetype)
@@ -695,7 +698,7 @@ deki_add_package_tests(deki-ble TARGET DekiBLETests SOURCES DekiBLE.cpp DekiBLEP
 # SDL3Input against SDL's own event queue (the event subsystem only, no
 # window), linked to the SDL3 the editor builds or fetches.
 deki_add_package_tests(deki-sdl3-integration TARGET DekiSDL3IntegrationTests
-                       SOURCES SDL3Input.cpp LIBS ${DEKI_SDL3_TARGET})
+                       SOURCES SDL3Input.cpp SDL3Gamepad.cpp LIBS ${DEKI_SDL3_TARGET})
 
 # deki-lovyangfx-integration off a device: the stubs it compiles to and its
 # plugin entry file. The driver itself only builds for ESP32.

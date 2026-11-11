@@ -4,6 +4,8 @@
 
 精灵表要经过一条导入管线：PNG 源文件 -> 内嵌帧元数据的已编译 .tex 文件。所有帧都作为区域存在于**父 .tex 文件内部**，不会为每一帧生成单独的文件。
 
+![使用精灵表帧的动画编辑器](../img/animation-editor.png)
+
 ```
 assets/sprites/player.png (source)
   -> cache/{parentGuid}  (compiled .tex with FrameList chunk)

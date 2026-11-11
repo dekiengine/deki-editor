@@ -15,6 +15,7 @@
 namespace DekiEditor
 {
 
+/// Shared base of build backends: build thread, progress and toolchain handling.
 class DEKI_EDITOR_API FirmwareBuilderBase : public ITargetBuilder
 {
 public:

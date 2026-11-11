@@ -71,8 +71,8 @@ void DeployAnalysisPanel::Draw()
         // A theme ImVec4 as the RGBA word EditorUI's Draw* calls take.
         auto pack = [](const ImVec4& c)
         {
-            return EditorUI::Rgba((uint8_t)(c.x * 255.0f), (uint8_t)(c.y * 255.0f), (uint8_t)(c.z * 255.0f),
-                                  (uint8_t)(c.w * 255.0f));
+            return EditorUI::Rgba(static_cast<uint8_t>(c.x * 255.0f), static_cast<uint8_t>(c.y * 255.0f),
+                                  static_cast<uint8_t>(c.z * 255.0f), static_cast<uint8_t>(c.w * 255.0f));
         };
         const float dpi = m_App->Dpi(1.0f);
         const float rowH = 34.0f * dpi;
@@ -146,7 +146,7 @@ void DeployAnalysisPanel::Draw()
         ui.Indent(pad);
 
         char header[64];
-        std::snprintf(header, sizeof(header), Tr("Assets (%d total)"), (int)m_AssetEntries.size());
+        std::snprintf(header, sizeof(header), Tr("Assets (%d total)"), static_cast<int>(m_AssetEntries.size()));
         ui.TextColored(Palette::Dim.x, Palette::Dim.y, Palette::Dim.z, Palette::Dim.w, header);
         ui.Spacing();
 
@@ -180,13 +180,13 @@ void DeployAnalysisPanel::Draw()
                 const auto& entry = m_AssetEntries[i];
                 ui.TableNextRow();
 
-                bool isSelected = (m_SelectedIndex == (int)i);
+                bool isSelected = (m_SelectedIndex == static_cast<int>(i));
 
                 // Asset path; the selectable spans all columns.
                 ui.TableNextColumn();
                 if (ui.Selectable(entry.displayPath.c_str(), isSelected, /*spanAllColumns*/ true))
                 {
-                    m_SelectedIndex = (int)i;
+                    m_SelectedIndex = static_cast<int>(i);
 
                     // Select it in the editor so the Inspector shows it.
                     auto* pipeline = m_App->GetAssetPipeline();
@@ -480,9 +480,11 @@ void DeployAnalysisPanel::ScanAssets()
 
             // Shown in the table; made at scan time, in the language of the moment.
             char baked[256];
-            std::snprintf(baked, sizeof(baked), Tr("(baked) %s @ %dpx"), fontName.c_str(), (int)fu.fontSize);
+            std::snprintf(baked, sizeof(baked), Tr("(baked) %s @ %dpx"), fontName.c_str(),
+                          static_cast<int>(fu.fontSize));
             addBakedEntry(variantGuid, baked);
-            std::snprintf(baked, sizeof(baked), Tr("(baked) %s atlas @ %dpx"), fontName.c_str(), (int)fu.fontSize);
+            std::snprintf(baked, sizeof(baked), Tr("(baked) %s atlas @ %dpx"), fontName.c_str(),
+                          static_cast<int>(fu.fontSize));
             addBakedEntry(atlasGuid, baked);
         }
     }

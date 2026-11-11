@@ -390,14 +390,14 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
     SECURITY_ATTRIBUTES sa;
     sa.nLength = sizeof(sa);
     sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor = NULL;
+    sa.lpSecurityDescriptor = nullptr;
     // A large pipe. The default holds about 4 KB, and the loop below sleeps
     // 50 ms whenever it finds the pipe empty, so a child printing a lot (tar
     // listing ESP-IDF's 40 000 entries) spent most of its time blocked on a
     // full pipe: some 80 KB/s, over two minutes for a listing tar writes in
     // under a second.
     constexpr DWORD kPipeBytes = 1u << 20;
-    HANDLE readPipe = NULL, writePipe = NULL;
+    HANDLE readPipe = nullptr, writePipe = nullptr;
     if (!CreatePipe(&readPipe, &writePipe, &sa, kPipeBytes))
     {
         return -1;
@@ -411,13 +411,14 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
     si.wShowWindow = SW_HIDE;
     si.hStdOutput = writePipe;
     si.hStdError = writePipe;
-    si.hStdInput = NULL;
+    si.hStdInput = nullptr;
 
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
     std::vector<char> cmdBuf(command.begin(), command.end());
     cmdBuf.push_back('\0');
-    const BOOL started = CreateProcessA(NULL, cmdBuf.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+    const BOOL started =
+        CreateProcessA(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
     CloseHandle(writePipe);
     if (!started)
     {
@@ -433,10 +434,10 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
     for (;;)
     {
         DWORD avail = 0;
-        if (PeekNamedPipe(readPipe, NULL, 0, NULL, &avail, NULL) && avail > 0)
+        if (PeekNamedPipe(readPipe, nullptr, 0, nullptr, &avail, nullptr) && avail > 0)
         {
             DWORD n = 0;
-            if (ReadFile(readPipe, buffer, sizeof(buffer), &n, NULL) && n > 0)
+            if (ReadFile(readPipe, buffer, sizeof(buffer), &n, nullptr) && n > 0)
             {
                 out.append(buffer, n);
             }
@@ -446,8 +447,8 @@ int RunProcessCaptureWindows(const std::vector<std::string>& args, std::string& 
         {
             // Child exited: take whatever is left.
             DWORD n = 0;
-            while (PeekNamedPipe(readPipe, NULL, 0, NULL, &avail, NULL) && avail > 0 &&
-                   ReadFile(readPipe, buffer, sizeof(buffer), &n, NULL) && n > 0)
+            while (PeekNamedPipe(readPipe, nullptr, 0, nullptr, &avail, nullptr) && avail > 0 &&
+                   ReadFile(readPipe, buffer, sizeof(buffer), &n, nullptr) && n > 0)
             {
                 out.append(buffer, n);
             }
@@ -503,13 +504,13 @@ static std::string FormatBytes(DWORD bytes)
     if (bytes >= 1024 * 1024)
     {
         char buf[64];
-        snprintf(buf, sizeof(buf), "%.1f MB", (double)bytes / (1024.0 * 1024.0));
+        snprintf(buf, sizeof(buf), "%.1f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
         return buf;
     }
     else if (bytes >= 1024)
     {
         char buf[64];
-        snprintf(buf, sizeof(buf), "%.1f KB", (double)bytes / 1024.0);
+        snprintf(buf, sizeof(buf), "%.1f KB", static_cast<double>(bytes) / 1024.0);
         return buf;
     }
     char buf[64];
@@ -608,7 +609,7 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
 
     DWORD flags = (urlComp.nScheme == INTERNET_SCHEME_HTTPS) ? WINHTTP_FLAG_SECURE : 0;
     HINTERNET hRequest =
-        WinHttpOpenRequest(hConnect, L"GET", urlPath, NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
+        WinHttpOpenRequest(hConnect, L"GET", urlPath, nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
 
     if (!hRequest)
     {
@@ -628,7 +629,7 @@ std::string EditorHttpUtils::FetchUrl(const std::string& url)
         return "";
     }
 
-    if (!WinHttpReceiveResponse(hRequest, NULL))
+    if (!WinHttpReceiveResponse(hRequest, nullptr))
     {
         WinHttpCloseHandle(hRequest);
         WinHttpCloseHandle(hConnect);
@@ -1167,7 +1168,7 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
         }
 
         DWORD flags = isSecure ? WINHTTP_FLAG_SECURE : 0;
-        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath, NULL, WINHTTP_NO_REFERER,
+        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"GET", urlPath, nullptr, WINHTTP_NO_REFERER,
                                                 WINHTTP_DEFAULT_ACCEPT_TYPES, flags);
 
         if (!hRequest)
@@ -1221,7 +1222,7 @@ bool EditorHttpUtils::DownloadFile(const std::string& url, const std::string& lo
             return true;
         };
 
-        if (!WinHttpReceiveResponse(hRequest, NULL))
+        if (!WinHttpReceiveResponse(hRequest, nullptr))
         {
             DWORD statusCode = 0;
             DWORD statusCodeSize = sizeof(statusCode);

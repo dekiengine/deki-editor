@@ -2,6 +2,8 @@
 
 ## AssetRef\<T\> テンプレート
 
+![インスペクターに表示された画像の設定](../img/asset-settings.png)
+
 **ファイル:** `deki-engine/include/deki/assets/AssetRef.h`
 
 アセットを参照するコンポーネントはすべて `AssetRef<T>` を使います。フィールドは 4 つあります。

@@ -47,6 +47,7 @@ struct DEKI_EDITOR_API ExecutableLibrary
     std::string afterLink;
 };
 
+/// What a build backend chooses for a game built as one ordinary executable.
 struct DEKI_EDITOR_API ExecutableCMakeOptions
 {
     // Who is generating, for the log ("NativeBuilder").

@@ -17,8 +17,8 @@ namespace DekiEditor
 ///   class SpritesheetEditorWindow : public EditorWindow
 ///   {
 ///   public:
-///       const char* GetTitle() override { return "Spritesheet Editor"; }
-///       const char* GetMenuPath() override { return "2D/Spritesheet Editor"; }
+///       const char* GetTitle() override { return "Sprite Slicer"; }
+///       const char* GetMenuPath() override { return "2D/Sprite Slicer"; }
 ///
 ///       void OnOpen() override
 ///       {
@@ -34,7 +34,7 @@ namespace DekiEditor
 ///       }
 ///   };
 ///
-///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
+///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Sprite Slicer", "2D/Sprite Slicer")
 class DEKI_EDITOR_API EditorWindow
 {
 public:
@@ -47,7 +47,7 @@ public:
     /// The window title.
     virtual const char* GetTitle() = 0;
 
-    /// Where the window sits in the Tools menu (e.g. "2D/Spritesheet Editor"),
+    /// Where the window sits in the Tools menu (e.g. "2D/Sprite Slicer"),
     /// or nullptr.
     virtual const char* GetMenuPath() { return nullptr; }
 
@@ -127,6 +127,7 @@ protected:
 // Window Registration
 // ============================================================================
 
+/// A registered editor window: its title, menu path and factory.
 struct EditorWindowMeta
 {
     const char* title;
@@ -147,7 +148,7 @@ DEKI_EDITOR_API void TrimRegisteredWindows(int keepCount);
 // ============================================================================
 
 /// Registers an editor window:
-///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Spritesheet Editor", "2D/Spritesheet Editor")
+///   REGISTER_EDITOR_WINDOW(SpritesheetEditorWindow, "Sprite Slicer", "2D/Sprite Slicer")
 #define REGISTER_EDITOR_WINDOW(WindowClass, WindowTitle, MenuPath)                                                     \
     namespace                                                                                                          \
     {                                                                                                                  \

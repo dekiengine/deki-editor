@@ -66,11 +66,11 @@ static WNDPROC g_OriginalWndProc = nullptr;
 // The button region under the cursor: 0=none, 1=min, 2=max, 3=close.
 static int GetTitleBarButton(HWND hwnd, int x, int y)
 {
-    if (y >= (int)g_MenuBarHeight || g_ControlButtonW <= 0.0f)
+    if (y >= static_cast<int>(g_MenuBarHeight) || g_ControlButtonW <= 0.0f)
     {
         return 0;
     }
-    float fx = (float)x;
+    float fx = static_cast<float>(x);
     if (fx < g_ControlsStartX)
     {
         return 0;
@@ -101,7 +101,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // clamp to the work area so the window does not cover the taskbar.
             if (wParam == TRUE)
             {
-                NCCALCSIZE_PARAMS* params = (NCCALCSIZE_PARAMS*)lParam;
+                NCCALCSIZE_PARAMS* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
                 HMONITOR monitor = MonitorFromRect(&params->rgrc[0], MONITOR_DEFAULTTONEAREST);
                 MONITORINFO mi = { sizeof(mi) };
                 GetMonitorInfo(monitor, &mi);
@@ -135,7 +135,7 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             MONITORINFO mi = { sizeof(mi) };
             GetMonitorInfo(monitor, &mi);
-            MINMAXINFO* mmi = (MINMAXINFO*)lParam;
+            MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
             mmi->ptMaxPosition.x = mi.rcWork.left - mi.rcMonitor.left;
             mmi->ptMaxPosition.y = mi.rcWork.top - mi.rcMonitor.top;
             mmi->ptMaxSize.x = mi.rcWork.right - mi.rcWork.left;
@@ -226,12 +226,13 @@ static LRESULT CALLBACK CustomWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
             // them report HTCLIENT, so ImGui gets mouse moves and clicks there.
             // Hover features like the item picker need that: HTCAPTION regions
             // get WM_NCMOUSEMOVE instead of WM_MOUSEMOVE.
-            if (y < (int)g_MenuBarHeight && g_MenuItemsStartX > 0.0f && x < (int)g_MenuItemsStartX)
+            if (y < static_cast<int>(g_MenuBarHeight) && g_MenuItemsStartX > 0.0f &&
+                x < static_cast<int>(g_MenuItemsStartX))
             {
                 ImGuiContext* ctx = ImGui::GetCurrentContext();
                 if (ctx && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
                 {
-                    if (!ImGui::IsPopupOpen((ImGuiID)0, ImGuiPopupFlags_AnyPopup))
+                    if (!ImGui::IsPopupOpen(static_cast<ImGuiID>(0), ImGuiPopupFlags_AnyPopup))
                     {
                         return HTCAPTION;
                     }
@@ -449,8 +450,8 @@ void ReportGpuFailure(SDL_Window* window, const char* step)
 
 #ifdef _WIN32
     std::string windowDevice;
-    if (HWND hwnd =
-            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL))
+    if (HWND hwnd = static_cast<HWND>(
+            SDL_GetPointerProperty(SDL_GetWindowProperties(window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr)))
     {
         MONITORINFOEXA mi{};
         mi.cbSize = sizeof(mi);
@@ -565,11 +566,12 @@ bool BootDisplay(BootContext& ctx)
     // Custom title bar: subclass WndProc to keep the native window controls
     // (snap layouts, etc.).
     {
-        HWND hwnd =
-            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        HWND hwnd = static_cast<HWND>(
+            SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
         if (hwnd)
         {
-            g_OriginalWndProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)CustomWndProc);
+            g_OriginalWndProc = reinterpret_cast<WNDPROC>(
+                SetWindowLongPtr(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(CustomWndProc)));
 
             // Keep the thick frame for resizing and snapping; drop the caption.
             LONG style = GetWindowLong(hwnd, GWL_STYLE);
@@ -580,7 +582,7 @@ bool BootDisplay(BootContext& ctx)
             MARGINS margins = { 1, 1, 1, 1 };
             DwmExtendFrameIntoClientArea(hwnd, &margins);
 
-            SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+            SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                          SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
             // Maximize now that the WndProc handles WM_NCCALCSIZE and
@@ -639,12 +641,12 @@ bool BootDisplay(BootContext& ctx)
                 }
             }
 
-            if (y < (int)g_MenuBarHeight && !g_HoveringWindowControls)
+            if (y < static_cast<int>(g_MenuBarHeight) && !g_HoveringWindowControls)
             {
                 ImGuiContext* ctx = ImGui::GetCurrentContext();
                 if (ctx && !ImGui::IsAnyItemHovered() && !ImGui::IsAnyItemActive())
                 {
-                    if (!ImGui::IsPopupOpen((ImGuiID)0, ImGuiPopupFlags_AnyPopup))
+                    if (!ImGui::IsPopupOpen(static_cast<ImGuiID>(0), ImGuiPopupFlags_AnyPopup))
                     {
                         return SDL_HITTEST_DRAGGABLE;
                     }
@@ -779,8 +781,8 @@ bool BootDisplay(BootContext& ctx)
 #ifdef _WIN32
         // Restore to maximized when the user clicks it. The window is already
         // minimized, so this changes nothing on screen.
-        HWND hwnd =
-            (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+        HWND hwnd = static_cast<HWND>(
+            SDL_GetPointerProperty(SDL_GetWindowProperties(ctx.window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
         if (hwnd && IsIconic(hwnd))
         {
             WINDOWPLACEMENT wp{};

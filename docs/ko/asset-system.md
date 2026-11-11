@@ -2,6 +2,8 @@
 
 ## AssetRef\<T\> 템플릿
 
+![인스펙터의 이미지 설정](../img/asset-settings.png)
+
 **파일:** `deki-engine/include/deki/assets/AssetRef.h`
 
 에셋을 참조하는 모든 컴포넌트는 `AssetRef<T>`를 사용합니다. 필드는 네 개입니다.

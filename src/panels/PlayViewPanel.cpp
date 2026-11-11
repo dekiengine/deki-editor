@@ -1,4 +1,10 @@
 #include "PlayViewPanel.h"
+
+#include <SDL3/SDL.h>
+
+#include <algorithm>
+#include <set>
+#include <vector>
 #include "../PanelMaximize.h"
 #include <deki-editor/EditorTheme.h>
 #include <deki-editor/Localization.h>
@@ -85,6 +91,94 @@ PlayViewPanel::PlayViewPanel(EditorApp* app)
 
 PlayViewPanel::~PlayViewPanel() = default;
 
+namespace
+{
+// Gamepads, read straight from SDL, as the keys a handheld's buttons send: the
+// same table as deki-sdl3-integration's SDL3Gamepad, so a game plays the same
+// in the Play view as in a desktop build.
+// The keys the pads hold this frame: at most one of each of the 13 a pad sends.
+struct PadKeys
+{
+    uint32_t keys[16];
+    int count = 0;
+    void Add(uint32_t key)
+    {
+        if (count < 16 && !Has(key))
+        {
+            keys[count++] = key;
+        }
+    }
+    bool Has(uint32_t key) const { return std::find(keys, keys + count, key) != keys + count; }
+};
+
+PadKeys GamepadKeys()
+{
+    static bool s_Started = false;
+    static std::vector<SDL_Gamepad*> s_Pads;
+    if (!s_Started)
+    {
+        s_Started = true;
+        if (!SDL_InitSubSystem(SDL_INIT_GAMEPAD))
+        {
+            DEKI_LOG_EDITOR("Play view: no gamepads (%s)", SDL_GetError());
+        }
+    }
+    s_Pads.erase(std::remove_if(s_Pads.begin(), s_Pads.end(),
+                                [](SDL_Gamepad* pad)
+                                {
+                                    if (SDL_GamepadConnected(pad))
+                                    {
+                                        return false;
+                                    }
+                                    SDL_CloseGamepad(pad);
+                                    return true;
+                                }),
+                 s_Pads.end());
+    int count = 0;
+    SDL_JoystickID* ids = SDL_GetGamepads(&count);
+    for (int i = 0; ids && i < count; ++i)
+    {
+        if (std::none_of(s_Pads.begin(), s_Pads.end(), [&](SDL_Gamepad* pad) { return SDL_GetGamepadID(pad) == ids[i]; }))
+        {
+            if (SDL_Gamepad* pad = SDL_OpenGamepad(ids[i]))
+            {
+                s_Pads.push_back(pad);
+            }
+        }
+    }
+    SDL_free(ids);
+
+    constexpr Sint16 kThreshold = 16000;
+    PadKeys keys;
+    for (SDL_Gamepad* pad : s_Pads)
+    {
+        auto button = [pad](SDL_GamepadButton b) { return SDL_GetGamepadButton(pad, b); };
+        auto axis = [pad](SDL_GamepadAxis a) { return SDL_GetGamepadAxis(pad, a); };
+        auto add = [&](bool down, uint32_t key)
+        {
+            if (down)
+            {
+                keys.Add(key);
+            }
+        };
+        add(button(SDL_GAMEPAD_BUTTON_DPAD_UP) || axis(SDL_GAMEPAD_AXIS_LEFTY) < -kThreshold, Deki::InputKeys::Up);
+        add(button(SDL_GAMEPAD_BUTTON_DPAD_DOWN) || axis(SDL_GAMEPAD_AXIS_LEFTY) > kThreshold, Deki::InputKeys::Down);
+        add(button(SDL_GAMEPAD_BUTTON_DPAD_LEFT) || axis(SDL_GAMEPAD_AXIS_LEFTX) < -kThreshold, Deki::InputKeys::Left);
+        add(button(SDL_GAMEPAD_BUTTON_DPAD_RIGHT) || axis(SDL_GAMEPAD_AXIS_LEFTX) > kThreshold, Deki::InputKeys::Right);
+        add(button(SDL_GAMEPAD_BUTTON_SOUTH) || button(SDL_GAMEPAD_BUTTON_START), Deki::InputKeys::Enter);
+        add(button(SDL_GAMEPAD_BUTTON_EAST), Deki::InputKeys::Esc);
+        add(button(SDL_GAMEPAD_BUTTON_WEST), Deki::InputKeys::Space);
+        add(button(SDL_GAMEPAD_BUTTON_NORTH), 9);  // Tab
+        add(button(SDL_GAMEPAD_BUTTON_BACK), Deki::InputKeys::Backspace);
+        add(button(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER), Deki::InputKeys::A + ('q' - 'a'));
+        add(button(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER), Deki::InputKeys::A + ('e' - 'a'));
+        add(axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > kThreshold, Deki::InputKeys::A + ('z' - 'a'));
+        add(axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > kThreshold, Deki::InputKeys::A + ('c' - 'a'));
+    }
+    return keys;
+}
+}  // namespace
+
 void PlayViewPanel::Draw()
 {
     if (!isOpen)
@@ -116,6 +210,8 @@ void PlayViewPanel::Draw()
     // reach the game and no key sticks down.
     {
         const bool acceptKeys = m_App->IsPlaying() && ImGui::IsWindowFocused();
+        // A key is down while the keyboard or a gamepad holds it.
+        const PadKeys padKeys = m_App->IsPlaying() ? GamepadKeys() : PadKeys{};
         int slot = 0;
         auto forward = [&](ImGuiKey imguiKey, uint32_t dekiKey)
         {
@@ -123,7 +219,7 @@ void PlayViewPanel::Draw()
             {
                 return;  // a key past the table's room is not forwarded
             }
-            const bool down = acceptKeys && ImGui::IsKeyDown(imguiKey);
+            const bool down = acceptKeys && (ImGui::IsKeyDown(imguiKey) || padKeys.Has(dekiKey));
             if (down != m_PlayKeyDown[slot])
             {
                 m_PlayKeyDown[slot] = down;

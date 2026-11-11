@@ -741,7 +741,7 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
 
     auto isOpaque = [&](int x, int y) -> bool
     {
-        if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
+        if (x < 0 || x >= static_cast<int>(width) || y < 0 || y >= static_cast<int>(height))
         {
             return false;
         }
@@ -767,7 +767,7 @@ std::vector<AtlasFrame> TextureImporter::AutoDetectFrames(const uint8_t* rgbaDat
             int x = pos.first;
             int y = pos.second;
 
-            if (x < 0 || x >= (int)width || y < 0 || y >= (int)height)
+            if (x < 0 || x >= static_cast<int>(width) || y < 0 || y >= static_cast<int>(height))
             {
                 continue;
             }

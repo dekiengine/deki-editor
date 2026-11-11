@@ -69,6 +69,8 @@ float m_GyroScale = (245.0f / 32768.0f) * Deki::Math::kDegToRad;  // LSB -> rad/
 
 모두 `deki-editor/src/core/Units.h`에 있습니다. 파일 하나이므로 단위를 추가할 때는 한 곳만 편집하면 됩니다.
 
+![인스펙터에 픽셀로 표시된 위치](../img/units-inspector.png)
+
 - `GetUnitDisplay(unit)` - 배율, 오프셋, printf 형식, 드래그 속도.
 - `ToDisplay(stored, ud)` / `FromDisplay(shown, ud)` - 함께 관리되는 역변환 쌍입니다. 모든 변환이 단순 곱셈이던 때에는 호출하는 쪽에서 인라인으로 역변환할 수 있었지만, 화씨의 오프셋이 생긴 지금은 직접 작성한 `shown / multiplier`가 32도 틀리면서도 여전히 그럴듯해 보입니다.
 - `CanonicalUnitSymbol(unit)` - 값이 *저장되는* SI 기호로, 기계가 읽는 출력용입니다. 표시 설정의 영향을 받지 않습니다. 메타데이터 덤프에 "px"를 쓰면 덤프가 거짓말을 하게 됩니다.

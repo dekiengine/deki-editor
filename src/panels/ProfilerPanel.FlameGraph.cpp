@@ -27,7 +27,7 @@ uint32_t ProfilerPanel::GetColorForEvent(const ProfileEvent* event, int depth)
     float r, g, b;
     ImGui::ColorConvertHSVtoRGB(hue, sat, val, r, g, b);
 
-    return IM_COL32((int)(r * 255), (int)(g * 255), (int)(b * 255), 255);
+    return IM_COL32(static_cast<int>(r * 255), static_cast<int>(g * 255), static_cast<int>(b * 255), 255);
 }
 
 void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs)
@@ -140,8 +140,8 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
                 continue;
             }
 
-            float x = (float)(startUs * pixelsPerUs);
-            float w = (float)(event->durationUs * pixelsPerUs);
+            float x = static_cast<float>(startUs * pixelsPerUs);
+            float w = static_cast<float>(event->durationUs * pixelsPerUs);
             float y = depth * (barHeight + spacing);
 
             // Bars under a pixel wide are skipped, with their children.
@@ -183,7 +183,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
             // Children are pushed in reverse so they pop left to right. Each
             // starts where the siblings before it end.
             double childStartUs = startUs;
-            for (int i = (int)event->children.size() - 1; i >= 0; i--)
+            for (int i = static_cast<int>(event->children.size()) - 1; i >= 0; i--)
             {
                 const auto& child = event->children[i];
                 double childStart = startUs;
@@ -205,7 +205,7 @@ void ProfilerPanel::DrawFlameGraph(const ProfileEvent* root, double activeTimeMs
     {
         ImGui::BeginTooltip();
         double eventMs = m_HoveredEvent->durationUs / 1000.0;
-        float percent = activeTimeMs > 0 ? (float)(eventMs / activeTimeMs * 100.0) : 0.0f;
+        float percent = activeTimeMs > 0 ? static_cast<float>(eventMs / activeTimeMs * 100.0) : 0.0f;
 
         ImGui::Text("%s", m_HoveredEvent->name.c_str());
         ImGui::Separator();

@@ -28,7 +28,7 @@ enum class TextureFormat : uint32_t
     ALPHA8 = 4
 };
 
-// TEX file header.
+/// TEX file header.
 struct DEKI_EDITOR_API TexHeader
 {
     char magic[4];  // "DTEX" (kept for compatibility)
@@ -41,7 +41,7 @@ struct DEKI_EDITOR_API TexHeader
     uint32_t flags;
 };
 
-// A loaded TEX file.
+/// A loaded TEX file.
 struct DEKI_EDITOR_API TexData
 {
     TexHeader header;

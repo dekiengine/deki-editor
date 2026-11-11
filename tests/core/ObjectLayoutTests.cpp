@@ -54,7 +54,7 @@ TEST(ObjectLayout, SceneSizeIsPinned)
     {
         GTEST_SKIP() << "sizes are pinned for 64-bit only";
     }
-    EXPECT_EQ(sizeof(Deki::Scene), 120u)
+    EXPECT_EQ(sizeof(Deki::Scene), 112u)
         << "sizeof(Scene) changed. deki-editor.dll constructs a Scene by value in "
            "AssetPipeline::CompileSceneFile, so this must agree across the DLL boundary.";
 }

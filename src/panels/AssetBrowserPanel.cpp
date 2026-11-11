@@ -899,7 +899,7 @@ static bool AssetNameMatches(const std::string& name, const std::string& needleL
         return true;
     }
     std::string n = name;
-    std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+    std::transform(n.begin(), n.end(), n.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     return n.find(needleLower) != std::string::npos;
 }
 
@@ -931,7 +931,7 @@ void AssetBrowserPanel::DrawAssetTree()
     {
         m_AssetFilterLower = m_AssetFilter;
         std::transform(m_AssetFilterLower.begin(), m_AssetFilterLower.end(), m_AssetFilterLower.begin(),
-                       [](unsigned char c) { return (char)std::tolower(c); });
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     }
 
     m_HoveredFolderPath.clear();
@@ -944,16 +944,16 @@ void AssetBrowserPanel::DrawAssetTree()
     std::string primaryKey, anchorKey;
     for (int idx : m_SelectedIndices)
     {
-        if (idx >= 0 && idx < (int)m_Entries.size())
+        if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
         {
             selectedKeys.push_back(keyOf(m_Entries[idx]));
         }
     }
-    if (m_SelectedIndex >= 0 && m_SelectedIndex < (int)m_Entries.size())
+    if (m_SelectedIndex >= 0 && m_SelectedIndex < static_cast<int>(m_Entries.size()))
     {
         primaryKey = keyOf(m_Entries[m_SelectedIndex]);
     }
-    if (m_LastClickedIndex >= 0 && m_LastClickedIndex < (int)m_Entries.size())
+    if (m_LastClickedIndex >= 0 && m_LastClickedIndex < static_cast<int>(m_Entries.size()))
     {
         anchorKey = keyOf(m_Entries[m_LastClickedIndex]);
     }
@@ -1040,7 +1040,7 @@ void AssetBrowserPanel::DrawAssetTree()
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D) && m_SelectedIndices.size() == 1)
         {
             const int idx = *m_SelectedIndices.begin();
-            if (idx >= 0 && idx < (int)m_Entries.size())
+            if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
             {
                 m_DeferredActions.push_back([this, p = m_Entries[idx].path]() { DuplicateAsset(p); });
             }
@@ -1050,7 +1050,7 @@ void AssetBrowserPanel::DrawAssetTree()
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_F2)) && m_SelectedIndices.size() == 1)
         {
             int idx = *m_SelectedIndices.begin();
-            if (idx >= 0 && idx < (int)m_Entries.size())
+            if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
             {
                 std::string currentName = fs::path(m_Entries[idx].name).stem().string();
                 m_RenameDialog->Open(idx, currentName, m_Entries[idx].isDirectory);
@@ -1069,7 +1069,7 @@ void AssetBrowserPanel::DrawAssetTree()
             auto& e = m_Entries[newIdx];
             m_App->SetSelectedAsset(e.path, e.cachePath, e.hasCachedVersion, e.guid);
         }
-        else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && m_SelectedIndex < (int)m_Entries.size() - 1)
+        else if (ImGui::IsKeyPressed(ImGuiKey_DownArrow) && m_SelectedIndex < static_cast<int>(m_Entries.size()) - 1)
         {
             int newIdx = m_SelectedIndex + 1;
             m_SelectedIndices.clear();
@@ -1979,7 +1979,7 @@ void AssetBrowserPanel::DrawScriptsList()
                 {
                     for (int si : m_SelectedIndices)
                     {
-                        if (si < (int)m_Entries.size())
+                        if (si < static_cast<int>(m_Entries.size()))
                         {
                             std::string rel = m_Entries[si].relativePath;
                             if (rel.rfind("src/", 0) == 0)
@@ -1996,7 +1996,7 @@ void AssetBrowserPanel::DrawScriptsList()
                     {
                         for (int si : m_SelectedIndices)
                         {
-                            if (si < (int)m_Entries.size())
+                            if (si < static_cast<int>(m_Entries.size()))
                             {
                                 std::string rel = m_Entries[si].relativePath;
                                 if (rel.rfind("src/", 0) == 0)
@@ -2263,7 +2263,7 @@ void AssetBrowserPanel::DrawScriptsList()
                     bool draggedIsSelected = false;
                     for (int si : m_SelectedIndices)
                     {
-                        if (si < (int)m_Entries.size())
+                        if (si < static_cast<int>(m_Entries.size()))
                         {
                             std::string rel = m_Entries[si].relativePath;
                             if (rel.rfind("src/", 0) == 0)
@@ -2281,7 +2281,7 @@ void AssetBrowserPanel::DrawScriptsList()
                     {
                         for (int si : m_SelectedIndices)
                         {
-                            if (si < (int)m_Entries.size())
+                            if (si < static_cast<int>(m_Entries.size()))
                             {
                                 std::string rel = m_Entries[si].relativePath;
                                 if (rel.rfind("src/", 0) == 0)

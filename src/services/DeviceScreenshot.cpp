@@ -1,5 +1,7 @@
 #include "DeviceScreenshot.h"
 
+#include <deki-editor/SerialPorts.h>
+
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -233,106 +235,6 @@ bool ParseDeviceScreenshot(const std::string& received, DeviceFrame& frame, std:
     return true;
 }
 
-namespace
-{
-// Opens `port`, sends `request` and collects what comes back until
-// `finished(received)` or the time is up. The port is opened without raising
-// DTR or RTS, which would reset an ESP32. False only when the port could not
-// be opened or written; what arrived is in `received` either way.
-bool Exchange(const std::string& port, const std::string& request, const std::function<bool(const std::string&)>& isDone,
-              int timeoutMs, std::string& received, std::string& error)
-{
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeoutMs);
-    auto finished = [&]() { return isDone(received); };
-
-#ifdef _WIN32
-    const std::string path = port.rfind("\\\\.\\", 0) == 0 ? port : "\\\\.\\" + port;
-    HANDLE handle = CreateFileA(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, nullptr);
-    if (handle == INVALID_HANDLE_VALUE)
-    {
-        const DWORD code = GetLastError();
-        error = "could not open " + port +
-                (code == ERROR_ACCESS_DENIED ? " (in use: close the Serial Monitor or whatever else has it open)"
-                                             : " (error " + std::to_string(code) + ")");
-        return false;
-    }
-    DCB dcb = {};
-    dcb.DCBlength = sizeof(dcb);
-    GetCommState(handle, &dcb);
-    dcb.BaudRate = 115200;  // USB serial ignores it; a UART console needs it
-    dcb.ByteSize = 8;
-    dcb.StopBits = ONESTOPBIT;
-    dcb.Parity = NOPARITY;
-    dcb.fDtrControl = DTR_CONTROL_DISABLE;
-    dcb.fRtsControl = RTS_CONTROL_DISABLE;
-    SetCommState(handle, &dcb);
-    COMMTIMEOUTS timeouts = {};
-    timeouts.ReadIntervalTimeout = 20;
-    timeouts.ReadTotalTimeoutConstant = 50;
-    timeouts.WriteTotalTimeoutConstant = 500;
-    SetCommTimeouts(handle, &timeouts);
-    PurgeComm(handle, PURGE_RXCLEAR | PURGE_TXCLEAR);
-
-    DWORD written = 0;
-    if (!WriteFile(handle, request.data(), static_cast<DWORD>(request.size()), &written, nullptr) ||
-        written != request.size())
-    {
-        CloseHandle(handle);
-        error = "could not send the request to " + port;
-        return false;
-    }
-    char buffer[16384];
-    while (!finished() && std::chrono::steady_clock::now() < deadline)
-    {
-        DWORD read = 0;
-        if (ReadFile(handle, buffer, sizeof(buffer), &read, nullptr) && read > 0)
-        {
-            received.append(buffer, read);
-        }
-    }
-    CloseHandle(handle);
-#else
-    const int fd = open(port.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (fd < 0)
-    {
-        error = "could not open " + port;
-        return false;
-    }
-    termios tty = {};
-    if (tcgetattr(fd, &tty) == 0)
-    {
-        cfmakeraw(&tty);
-        cfsetispeed(&tty, B115200);
-        cfsetospeed(&tty, B115200);
-        tty.c_cflag |= (CLOCAL | CREAD);
-        tty.c_cflag &= ~(CRTSCTS | HUPCL);  // HUPCL drops DTR on close
-        tcsetattr(fd, TCSANOW, &tty);
-    }
-    tcflush(fd, TCIOFLUSH);
-    if (write(fd, request.data(), request.size()) != static_cast<ssize_t>(request.size()))
-    {
-        close(fd);
-        error = "could not send the request to " + port;
-        return false;
-    }
-    char buffer[16384];
-    while (!finished() && std::chrono::steady_clock::now() < deadline)
-    {
-        const ssize_t n = read(fd, buffer, sizeof(buffer));
-        if (n > 0)
-        {
-            received.append(buffer, static_cast<size_t>(n));
-        }
-        else
-        {
-            usleep(5000);
-        }
-    }
-    close(fd);
-#endif
-    return true;
-}
-}  // namespace
 
 bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame& frame, std::string& error)
 {
@@ -344,7 +246,7 @@ bool CaptureDeviceScreenshot(const std::string& port, int timeoutMs, DeviceFrame
                 text.find('\n', text.find(kEnd, begin)) != std::string::npos) ||
                text.find(kError) != std::string::npos;
     };
-    if (!Exchange(port, "\nDEKI:SCREENSHOT\n", finished, timeoutMs, received, error))
+    if (!SerialExchange(port, "\nDEKI:SCREENSHOT\n", finished, timeoutMs, received, error))
     {
         return false;
     }
@@ -407,7 +309,7 @@ bool QueryDeviceStats(const std::string& port, int timeoutMs, std::map<std::stri
         const size_t at = text.rfind("DEKI:STATS");
         return at != std::string::npos && text.find('\n', at) != std::string::npos;
     };
-    if (!Exchange(port, "\nDEKI:STATS\n", finished, timeoutMs, received, error))
+    if (!SerialExchange(port, "\nDEKI:STATS\n", finished, timeoutMs, received, error))
     {
         return false;
     }
@@ -422,7 +324,7 @@ bool QueryDeviceMemory(const std::string& port, int timeoutMs, MemoryReport& rep
         const size_t at = text.rfind("DEKI:MEMORY:END");
         return at != std::string::npos && text.find('\n', at) != std::string::npos;
     };
-    if (!Exchange(port, "\nDEKI:MEMORY\n", finished, timeoutMs, received, error))
+    if (!SerialExchange(port, "\nDEKI:MEMORY\n", finished, timeoutMs, received, error))
     {
         return false;
     }

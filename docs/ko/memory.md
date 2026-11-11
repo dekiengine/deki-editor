@@ -6,8 +6,8 @@
 
 이것은 스타일 취향이 아니며, [`tools/ci/check_allocations.py`](../../tools/ci/check_allocations.py)가 강제합니다. 이 규칙이 지켜져야 하는 이유는 세 가지입니다.
 
-1. **`new[]`는 실패를 우아하게 처리할 수 없습니다.** ESP-IDF는 예외를 끈 상태로 빌드하므로(`CONFIG_COMPILER_CXX_EXCEPTIONS`가 설정되지 않음), 할당이 실패하면 `__cxa_allocate_exception`에 도달하여 `abort()`를 호출하고 보드가 재부팅됩니다. 추가할 catch 지점이 없습니다. `std::nothrow`도 도움이 *되지 않습니다*. libstdc++는 nothrow 형식을 `-fno-exceptions`가 제거해 버린 `try`/`catch` 안에서 throw 형식을 호출하는 방식으로 구현하므로, 똑같이 중단됩니다. 이는 `operator new[](unsigned int, std::nothrow_t const&)`가 곧바로 throw 형식을 호출하는 백트레이스로 진단되었습니다.
-2. **메모리가 어디에 있어야 하는지는 엔진만 압니다.** 이 보드에 외부 RAM이 있는지, 얼마나 느린지, 주변 장치가 특정 영역에 접근할 수 있는지는 호출하는 쪽이 아니라 플랫폼의 속성입니다. 영역을 직접 고르는 호출자는 다음 보드에서 틀리게 됩니다.
+1. **`new[]`는 실패를 우아하게 처리할 수 없습니다.** ESP-IDF는 예외를 끈 상태로 빌드하므로(`CONFIG_COMPILER_CXX_EXCEPTIONS`가 설정되지 않음), 할당이 실패하면 `__cxa_allocate_exception`에 도달하여 `abort()`를 호출하고 디바이스가 재부팅됩니다. 추가할 catch 지점이 없습니다. `std::nothrow`도 도움이 *되지 않습니다*. libstdc++는 nothrow 형식을 `-fno-exceptions`가 제거해 버린 `try`/`catch` 안에서 throw 형식을 호출하는 방식으로 구현하므로, 똑같이 중단됩니다. 이는 `operator new[](unsigned int, std::nothrow_t const&)`가 곧바로 throw 형식을 호출하는 백트레이스로 진단되었습니다.
+2. **메모리가 어디에 있어야 하는지는 엔진만 압니다.** 이 디바이스에 외부 RAM이 있는지, 얼마나 느린지, 주변 장치가 특정 영역에 접근할 수 있는지는 호출하는 쪽이 아니라 플랫폼의 속성입니다. 영역을 직접 고르는 호출자는 다음 디바이스에서 틀리게 됩니다.
 3. **`Deki::Memory`는 사용량 집계이자 누수 검사이기도 합니다.** 통계, 이중 해제 방지, (디버그 빌드에서의) 누수 테이블이 모두 그 뒤에 있습니다. 이를 건너뛴 할당은 보이지 않습니다.
 
 ## `Deki::Buffer<T>` - 이것을 사용하십시오
@@ -49,9 +49,9 @@ RenderInto(baked.Data());  // Data(), Count(), Bytes(), operator[], begin/end
 | 영역 | 할당되는 곳 |
 | --- | --- |
 | `Deki::Memory::Internal` | 내부 RAM. 빠르고, 부족한 쪽입니다 |
-| `Deki::Memory::External` | 보드에 PSRAM이 있으면 PSRAM. 메가바이트 단위이며 SPI를 통해 접근하므로 눈에 띄게 느립니다 |
+| `Deki::Memory::External` | 디바이스에 PSRAM이 있으면 PSRAM. 메가바이트 단위이며 SPI를 통해 접근하므로 눈에 띄게 느립니다 |
 
-`Deki::Memory::AllocateDma(bytes, region)`는 DMA 엔진이 그 블록을 읽을 수 있어야 한다는 제약을 추가합니다. 이것은 배치와는 별개입니다. 프레임버퍼는 보드가 내부에 두든 PSRAM에 두든 접근 가능해야 하므로, 세 번째 영역이 아니라 별도의 진입점으로 되어 있습니다.
+`Deki::Memory::AllocateDma(bytes, region)`는 DMA 엔진이 그 블록을 읽을 수 있어야 한다는 제약을 추가합니다. 이것은 배치와는 별개입니다. 프레임버퍼는 디바이스가 내부에 두든 PSRAM에 두든 접근 가능해야 하므로, 세 번째 영역이 아니라 별도의 진입점으로 되어 있습니다.
 
 ### 영역은 이름이므로 패키지가 직접 추가할 수 있습니다
 
@@ -67,15 +67,15 @@ inline constexpr Deki::Memory::Region Rtc{"esp32.rtc"};
 battery.Allocate(count, DekiEsp32::Rtc);
 ```
 
-패키지는 자신의 영역을 `Deki::Memory`가 아니라 **자신의 네임스페이스**에 둡니다. 클래스는 닫혀 있으므로 어차피 그렇게 할 수도 없으며, 바로 그것이 핵심입니다. 둘 다 `Rtc` 상수를 원하는 두 보드 패키지는 언어가 둘을 분리해 주므로 충돌할 수 없습니다. 상수가 어디에 있는지는 결코 중요하지 않습니다. 영역의 정체성은 해시된 이름이므로, 네임스페이스 사이에서 옮겨도 아무것도 바뀌지 않습니다.
+패키지는 자신의 영역을 `Deki::Memory`가 아니라 **자신의 네임스페이스**에 둡니다. 클래스는 닫혀 있으므로 어차피 그렇게 할 수도 없으며, 바로 그것이 핵심입니다. 둘 다 `Rtc` 상수를 원하는 두 디바이스 패키지는 언어가 둘을 분리해 주므로 충돌할 수 없습니다. 상수가 어디에 있는지는 결코 중요하지 않습니다. 영역의 정체성은 해시된 이름이므로, 네임스페이스 사이에서 옮겨도 아무것도 바뀌지 않습니다.
 
 `Region()`은 엔진의 다른 곳에서 쓰는 것과 같은 FNV-1a로 컴파일 시점에 이름을 해시하므로, 영역은 프로바이더가 switch로 분기할 수 있는 상수 표현식입니다.
 
-**두 패키지가 같은 영역 이름을 쓰면 같은 영역을 뜻합니다.** 두 보드 패키지가 서로 조율하지 않고도 `"rtc"`에 합의하는 방식이 이것이며, 두 패키지가 모두 `spi` 케이퍼빌리티를 요구하는 것과 똑같습니다. 이 방식이 감당하지 못하는 것은 두 패키지가 한 단어로 *서로 다른* 것을 뜻하는 경우이므로, 직접 만든 이름이 아니라면 한정하십시오: `particles.scratch`, `esp32.rtc`. 할당 헤더는 ID만 저장하므로, 디버그 빌드는 해시가 같은 서로 다른 두 이름을 보고합니다.
+**두 패키지가 같은 영역 이름을 쓰면 같은 영역을 뜻합니다.** 두 디바이스 패키지가 서로 조율하지 않고도 `"rtc"`에 합의하는 방식이 이것이며, 두 패키지가 모두 `spi` 케이퍼빌리티를 요구하는 것과 똑같습니다. 이 방식이 감당하지 못하는 것은 두 패키지가 한 단어로 *서로 다른* 것을 뜻하는 경우이므로, 직접 만든 이름이 아니라면 한정하십시오: `particles.scratch`, `esp32.rtc`. 할당 헤더는 ID만 저장하므로, 디버그 빌드는 해시가 같은 서로 다른 두 이름을 보고합니다.
 
-### 영역을 제공하는 것은 보드의 일입니다
+### 영역을 제공하는 것은 디바이스의 일입니다
 
-패키지는 영역에 *이름을 붙일* 수 있지만, 영역을 제공할 수 있는 것은 보드의 `IMemoryProvider`뿐입니다. `esp32.rtc`를 모르는 프로바이더는 nullptr를 반환하며, 실패 메시지에 영역 이름이 나옵니다.
+패키지는 영역에 *이름을 붙일* 수 있지만, 영역을 제공할 수 있는 것은 디바이스의 `IMemoryProvider`뿐입니다. `esp32.rtc`를 모르는 프로바이더는 nullptr를 반환하며, 실패 메시지에 영역 이름이 나옵니다.
 
 ```
 Failed to allocate 64 bytes in 'esp32.rtc' for 'void Battery::Save()'
@@ -92,7 +92,7 @@ at Battery.cpp:88 (0 bytes free there)
 | --- | --- |
 | `memory:internal` | 모든 플랫폼 - 자동으로 도출됨 |
 | `memory:external` | 플랫폼의 `psramSize` - 자동으로 도출됨 |
-| `memory:esp32.rtc` | 보드의 `provides`. 보드만 알기 때문입니다 |
+| `memory:esp32.rtc` | 디바이스의 `provides`. 디바이스만 알기 때문입니다 |
 
 따라서 영역이 필요한 패키지는 이를 선언하고, 빌드는 그것이 없는 타겟을 아무것도 실행하기 전에 이름을 들어 거부합니다.
 
@@ -111,7 +111,7 @@ at Battery.cpp:88 (0 bytes free there)
 
 실패 시에는 무엇이었는지, 크기, 영역, 그리고 대체를 시도하지 않았다는 사실을 로그로 남깁니다. 모든 호출자는 이미 null을 처리해야 합니다.
 
-외부 RAM이 없는 보드는 모든 것을 내부로 결정합니다. 이것은 대체가 아니라, 존재하는 영역이 그것뿐인 것입니다.
+외부 RAM이 없는 디바이스는 모든 것을 내부로 결정합니다. 이것은 대체가 아니라, 존재하는 영역이 그것뿐인 것입니다.
 
 ## 나머지 API
 
@@ -127,7 +127,7 @@ void  Free(void* ptr, const char* context = nullptr);
 - 메모리는 반환되기 전에 **0으로 채워지므로**, 버퍼가 쓰레기 값으로 시작하는 일이 없고 호출자가 직접 지우는 루프를 작성할 필요도 없습니다.
 - `Free`는 사용자 포인터 바로 앞에 놓인 헤더를 읽어 블록이 어느 영역에서 왔는지 알아내므로, 호출자가 고를 일이 없습니다. 이 헤더에는 매직 값도 들어 있어서, 이중 해제나 외부 포인터를 힙 손상 대신 로그에 남는 오류로 바꿉니다.
 - **할당에 이름을 붙이는 것은 선택 사항입니다.** 아래의 `AllocContext`를 참조하십시오.
-- 실패 시에는 시도한 영역에 남은 여유 공간을 보고하므로, "이 에셋이 이 보드에 너무 크다"와 "무언가가 해제했어야 할 메모리를 붙잡고 있다"를 구별할 수 있습니다.
+- 실패 시에는 시도한 영역에 남은 여유 공간을 보고하므로, "이 에셋이 이 디바이스에 너무 크다"와 "무언가가 해제했어야 할 메모리를 붙잡고 있다"를 구별할 수 있습니다.
 - `Memory::Initialize`는 시작할 때 내부 및 외부 RAM의 여유 공간을 한 번 로그로 남기므로, 첫 메모리 부족 메시지가 아니라 실제 숫자를 기준으로 프로젝트 크기를 정할 수 있습니다.
 - `AllocateInternal` / `FreeInternal`은 배치 결정을 우회하며 플랫폼 계층을 위해 존재합니다. 컴포넌트에서 사용하지 마십시오.
 
@@ -141,6 +141,8 @@ Deki::Memory::LogStats("after level load");
 
 - `LogStats(label)`는 "메모리를 얼마나 쓰고 있는가?"에 한 번의 호출로 답합니다. 디버그 빌드에서는 현재 할당 수와 최대 할당 수도 보고합니다. 호출하지 않으면 비용이 들지 않습니다.
 - `GetStats()`는 같은 숫자를 구조체로 반환합니다. `GetAvailableInternal()`과 `GetAvailablePSRAM()`은 여유 공간을 알려 줍니다. `IsPSRAMAvailable()`은 외부 영역이 있는지 여부를 알려 줍니다. 이들 중 어느 것도 메모리를 직접 배치해도 된다는 허가가 아닙니다. 프로젝트 크기를 정하고, 해제했어야 할 메모리를 붙잡고 있는 것을 찾기 위한 것입니다.
+
+![디바이스의 씬을 추정하는 메모리 패널](../img/memory-panel.png)
 
 ### 씬 바꾸기
 
@@ -193,7 +195,7 @@ Failed to allocate 153600 bytes in internal RAM (126556 bytes free there)
 
 ## `Deki::Vector<T>` - 런타임에 개수가 바뀔 때
 
-`<deki/providers/Vector.h>`. `Buffer<T>`는 할당할 때 알고 있는 개수를 다룹니다. 개수가 바뀌고 고정된 상한이 없을 때, 장치에서 `std::vector`는 잘못된 답입니다. `push_back`은 `operator new`를 호출하는데, 예외가 꺼진 상태에서는 고갈을 알릴 수 없으므로 중단되고 보드가 재부팅됩니다.
+`<deki/providers/Vector.h>`. `Buffer<T>`는 할당할 때 알고 있는 개수를 다룹니다. 개수가 바뀌고 고정된 상한이 없을 때, 장치에서 `std::vector`는 잘못된 답입니다. `push_back`은 `operator new`를 호출하는데, 예외가 꺼진 상태에서는 고갈을 알릴 수 없으므로 중단되고 디바이스가 재부팅됩니다.
 
 `Deki::Vector`는 같은 형태에서 여기서 중요한 한 가지만 바꾼 것입니다. 할당할 수 있는 모든 것이 `bool`을 반환합니다.
 
@@ -224,7 +226,7 @@ if (!enemies.PushBack(spawned))      // and per growth, if it has to grow
 - **할당이 실패하면 그 사실을 알립니다.** 요청한 크기를 로그로 남긴 뒤 중단합니다. 예외가 꺼진 상태에서 throw하는 `operator new`에는 다른 선택지가 없기 때문입니다. "Out of memory asking for 40960 bytes"는 진단이지만, 이것이 대체한 재부팅은 진단이 아니었습니다.
 - **`std::nothrow`가 동작합니다.** `new (std::nothrow) T[n]`은 중단하지 않고 `nullptr`를 반환하므로, 고갈을 직접 처리하려는 코드가 그렇게 할 수 있습니다. 대체가 없으면 중단됩니다. libstdc++는 nothrow 형식을 제거된 `try`/`catch` 안에서 throw 형식을 호출하는 방식으로 구현하기 때문입니다.
 
-이것들도 엔진을 **거칩니다**. `operator new`는 `IMemoryProvider::AllocateRaw`를 호출하므로, 보드는 장치의 모든 할당을 보고 그 전부에 대해 자신의 힙으로 대체할 수 있습니다.
+이것들도 엔진을 **거칩니다**. `operator new`는 `IMemoryProvider::AllocateRaw`를 호출하므로, 디바이스는 장치의 모든 할당을 보고 그 전부에 대해 자신의 힙으로 대체할 수 있습니다.
 
 다만 이것은 `Memory::Allocate`가 *아닙니다*. 그렇게 하면 작은 문자열 버퍼를 넘어서는 모든 `std::string` 앞에 16바이트 헤더가 붙고, 벡터가 곧 덮어쓸 메모리를 memset하고, 작은 블록에도 ESP32 프로바이더의 16바이트 SIMD 정렬 비용을 치르게 됩니다. 게다가 ESP-IDF는 정렬된 할당을 초과 할당으로 구현하므로 헤더보다 낭비가 더 큽니다. `AllocateRaw`에는 그런 것이 전혀 없습니다. 자연 정렬, 헤더 없음, 힙이 반환한 포인터 그대로입니다.
 
@@ -261,11 +263,11 @@ Deki::Memory::Initialize();
 
 중요한 것은 `AllocateDMA`입니다. 이를 `AllocateInternal`로부터 상속할 수 있는 프로바이더는, 둘이 다른 칩이라면 어디서든 디스플레이 주변 장치가 접근할 수 없는 메모리를 넘겨주게 됩니다. 빌드에서 그것을 알려 주는 것은 아무것도 없는 조용한 손상입니다.
 
-`GetAvailableInternalRAM`도 같은 이유로 필수입니다. 의도 없이 0을 답하는 프로바이더는 시작 시 로그가 고갈된 보드를 보고하게 만듭니다.
+`GetAvailableInternalRAM`도 같은 이유로 필수입니다. 의도 없이 0을 답하는 프로바이더는 시작 시 로그가 고갈된 디바이스를 보고하게 만듭니다.
 
 순수 가상 함수는 구현된 가상 함수와 같은 vtable 슬롯을 차지하므로 ABI 버전을 올릴 필요가 없습니다. 프로바이더가 결정할 때까지 컴파일되지 않게 할 뿐입니다.
 
-`AllocateRaw` / `FreeRaw` / `GetRawBlockSize`는 네 번째 쌍과 조회 함수입니다. 전역 `operator new`가 경유하는 일반 자연 정렬 할당자로, 보드의 힙이 엔진이 배치하는 모든 것뿐 아니라 `std::vector`와 스칼라 `new`도 처리하게 합니다. 기본값은 `malloc`/`free`이며, `GetRawBlockSize`는 플랫폼이 답할 수 없으면 0을 반환합니다. 이 경우 `LogStats`의 정확도만 떨어집니다. 쌍은 둘 다 재정의하거나 둘 다 재정의하지 마십시오.
+`AllocateRaw` / `FreeRaw` / `GetRawBlockSize`는 네 번째 쌍과 조회 함수입니다. 전역 `operator new`가 경유하는 일반 자연 정렬 할당자로, 디바이스의 힙이 엔진이 배치하는 모든 것뿐 아니라 `std::vector`와 스칼라 `new`도 처리하게 합니다. 기본값은 `malloc`/`free`이며, `GetRawBlockSize`는 플랫폼이 답할 수 없으면 0을 반환합니다. 이 경우 `LogStats`의 정확도만 떨어집니다. 쌍은 둘 다 재정의하거나 둘 다 재정의하지 마십시오.
 
 `AllocateDMA`가 `AllocateInternal`과 분리되어 있는 이유는, ESP32-S3에서 내부 RAM 대부분은 DMA로 접근할 수 있지만 전부는 아니며, 디스플레이 주변 장치가 접근할 수 없는 프레임버퍼를 읽으면 오류가 아니라 조용한 손상이 일어나기 때문입니다. ESP32 프로바이더는 `MALLOC_CAP_DMA`를 명시적으로 요청합니다. `AllocateInternal`/`FreeInternal` 중 하나를 재정의하는 쪽은 둘 다 재정의해야 합니다. 쌍이 일치해야 하기 때문입니다(ESP32 프로바이더는 16바이트 정렬의 `heap_caps_aligned_alloc`을 사용하며, 이는 블릿 디스패처가 S3 SIMD 커널을 사용할 수 있게 해 주기도 합니다. 그리고 `heap_caps_free`를 사용합니다).
 
@@ -278,7 +280,7 @@ python tools/ci/check_allocations.py            # packages beside the repo
 python tools/ci/check_allocations.py --verbose  # also list files and waivers
 ```
 
-런타임 코드의 `new[]`, `delete[]`, `malloc`/`calloc`/`realloc`, `heap_caps_*`를 실패로 처리합니다. **모든 패키지의 코드뿐 아니라 엔진 자신의 코드도** 대상입니다. 엔진의 할당은 모든 보드의 모든 프로젝트에 영향을 주지만 패키지의 할당은 그 패키지를 설치한 프로젝트에만 영향을 주므로, 오히려 엔진 쪽이 더 중요한 절반입니다. 이 린트의 첫 버전에서 엔진을 제외했더니 즉시 그 점이 증명되었습니다. `ProjectSettings`가 장치용 설정 청크를 맨 `realloc`으로 유지하고 있었던 것입니다.
+런타임 코드의 `new[]`, `delete[]`, `malloc`/`calloc`/`realloc`, `heap_caps_*`를 실패로 처리합니다. **모든 패키지의 코드뿐 아니라 엔진 자신의 코드도** 대상입니다. 엔진의 할당은 모든 디바이스의 모든 프로젝트에 영향을 주지만 패키지의 할당은 그 패키지를 설치한 프로젝트에만 영향을 주므로, 오히려 엔진 쪽이 더 중요한 절반입니다. 이 린트의 첫 버전에서 엔진을 제외했더니 즉시 그 점이 증명되었습니다. `ProjectSettings`가 장치용 설정 청크를 맨 `realloc`으로 유지하고 있었던 것입니다.
 
 제외 대상: `editor/`, `tests/`, `generated/`, `third_party/`, 그리고 엔진의 `platforms/editor`와 `platforms/desktop` 계층입니다. 이들은 모두 예외가 켜져 있고 힙이 데스크톱의 힙인 호스트에서 실행됩니다. 규칙을 어겨도 되는 코드여서가 아니라 스택의 최하단이기 때문에 경로로 면제되는 것: `providers/Memory.cpp`, `providers/IMemoryProvider.h`, 모든 `*MemoryProvider.*`, 그리고 `providers/OperatorNew.cpp`입니다. `providers/OperatorNew.cpp`는 다른 어떤 것도 `operator new[]`를 정의할 필요가 없도록 직접 정의해야 합니다.
 

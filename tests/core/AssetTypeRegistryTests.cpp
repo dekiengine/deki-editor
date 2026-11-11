@@ -459,3 +459,21 @@ TEST_F(AssetTypeRegistryTest, Clear_KeepsBuiltInTypes)
     EXPECT_EQ(registry.GetCategoryForExtension(".scene"), AssetCategory::Scene);
     EXPECT_NE(registry.GetHandlerForExtension(".asset"), nullptr);
 }
+
+// A package that loads after the assets were scanned, or comes back after a
+// reload, brings types whose files were skipped: the pipeline looks at the
+// disk again when this changes. Registering a type again leaves it as it was.
+TEST_F(AssetTypeRegistryTest, OnlyANewExtensionChangesTheRevision)
+{
+    auto& registry = AssetTypeRegistry::Instance();
+    const uint32_t before = registry.ExtensionRevision();
+    registry.Register(CreateTestHandler("RevisionTestType", ".revtest"));
+    const uint32_t afterNew = registry.ExtensionRevision();
+    EXPECT_GT(afterNew, before);
+
+    registry.Register(CreateTestHandler("RevisionTestType", ".revtest"));
+    EXPECT_EQ(registry.ExtensionRevision(), afterNew) << "the same extension again";
+    registry.Register(CreateTestHandler("RevisionTestTypeUpper", ".REVTEST"));
+    EXPECT_EQ(registry.ExtensionRevision(), afterNew) << "extensions are compared in lower case";
+
+}
