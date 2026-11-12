@@ -73,8 +73,9 @@ public:
 
     // How high the ground is at this point, given as if it were on the lower
     // ground: 0 there, 1 on the raised ground and in between on the steps.
-    // -1 where no one can stand.
-    float GroundHeight(float x, float y) const;
+    // -1 where no one can stand. With a clearance, in squares, whatever is in
+    // the way is that much bigger: for planning a walk that is not to graze it.
+    float GroundHeight(float x, float y, float clearance = 0.0f) const;
 
     // Finds the way from one point to the spot nearest another that can be
     // reached, round whatever is in between. False when there is none.
@@ -139,7 +140,7 @@ private:
 
     void ReadMap();
     void FindWays();
-    bool CanWalk(float fromX, float fromY, float toX, float toY) const;
+    bool CanWalk(float fromX, float fromY, float toX, float toY, float clearance = 0.0f) const;
     void Flood(int from);
     void Show(Patch& patch);
     void ShowScore();
@@ -190,6 +191,11 @@ const uint16_t kNoWay = 0xFFFF;
 
 // Two points this close are the same spot, in meters.
 const float kSameSpot = 0.01f;
+
+// A long straight walk keeps this far from whatever is in the way, in
+// squares, and looks this many squares ahead along the way for one.
+const float kClearance = 0.1f;
+const int kLookAhead = 12;
 
 // Tiled stores positions at 16 per square, and the map's grid starts 2 squares
 // before the island.
@@ -357,7 +363,7 @@ void Farm::Update()
     }
 }
 
-float Farm::GroundHeight(float x, float y) const
+float Farm::GroundHeight(float x, float y, float clearance) const
 {
     const float column = ColumnAt(x, y);
     const float row = RowAt(x, y);
@@ -389,8 +395,10 @@ float Farm::GroundHeight(float x, float y) const
         }
         const float columns = thing.column - column;
         const float rows = thing.row - row;
-        const bool inTheWay = thing.kind == Thing::Wall ? thing.Holds(column, row)
-                                                        : columns * columns + rows * rows < kSolidRadius * kSolidRadius;
+        const float radius = kSolidRadius + clearance;
+        const bool inWall = column >= thing.column - clearance && column <= thing.column + thing.columns + clearance &&
+                            row >= thing.row - clearance && row <= thing.row + thing.rows + clearance;
+        const bool inTheWay = thing.kind == Thing::Wall ? inWall : columns * columns + rows * rows < radius * radius;
         if (inTheWay)
         {
             return -1.0f;
@@ -399,16 +407,17 @@ float Farm::GroundHeight(float x, float y) const
     return height;
 }
 
-bool Farm::CanWalk(float fromX, float fromY, float toX, float toY) const
+bool Farm::CanWalk(float fromX, float fromY, float toX, float toY, float clearance) const
 {
     // Looks six times a square: close enough to see a fence, and the cliff as
     // a drop of more than half a level between two looks.
     const int looks = 1 + static_cast<int>(Squares(fromX, fromY, toX, toY) * 6.0f);
+    // Where she stands now is as it is: she may be right up against a fence.
     float height = GroundHeight(fromX, fromY);
     for (int look = 1; look <= looks && height >= 0.0f; ++look)
     {
         const float part = static_cast<float>(look) / looks;
-        const float next = GroundHeight(fromX + (toX - fromX) * part, fromY + (toY - fromY) * part);
+        const float next = GroundHeight(fromX + (toX - fromX) * part, fromY + (toY - fromY) * part, clearance);
         if (next < 0.0f || std::fabs(next - height) >= 0.5f)
         {
             return false;
@@ -514,8 +523,14 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
         return false;
     }
 
-    // Straight to the goal when nothing is in between.
-    if (CanWalk(fromX, fromY, m_GoalX, m_GoalY))
+    const int column = static_cast<int>(std::floor(ColumnAt(fromX, fromY) + 0.5f));
+    const int row = static_cast<int>(std::floor(RowAt(fromX, fromY) + 0.5f));
+
+    // Straight to the goal when the line there is clear, or it is in the
+    // square she is already in.
+    const bool inGoalSquare = IsOnIsland(column, row) && m_Steps[row * kIslandSize + column] == 0;
+    if (CanWalk(fromX, fromY, m_GoalX, m_GoalY, kClearance) ||
+        (inGoalSquare && CanWalk(fromX, fromY, m_GoalX, m_GoalY)))
     {
         outX = m_GoalX;
         outY = m_GoalY;
@@ -524,9 +539,7 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
 
     // Otherwise to the middle of a square: of the one under the point and the
     // eight around it, the nearest the goal that can be walked straight to.
-    const int column = static_cast<int>(std::floor(ColumnAt(fromX, fromY) + 0.5f));
-    const int row = static_cast<int>(std::floor(RowAt(fromX, fromY) + 0.5f));
-    uint16_t fewest = kNoWay;
+    int best = -1;
     for (int nextRow = row - 1; nextRow <= row + 1; ++nextRow)
     {
         for (int nextColumn = column - 1; nextColumn <= column + 1; ++nextColumn)
@@ -535,19 +548,53 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
             {
                 continue;
             }
-            const uint16_t steps = m_Steps[nextRow * kIslandSize + nextColumn];
+            const int square = nextRow * kIslandSize + nextColumn;
             const float middleX = WorldX(nextColumn, nextRow);
             const float middleY = WorldY(nextColumn, nextRow);
-            if (steps < fewest && Squares(fromX, fromY, middleX, middleY) >= kSameSpot &&
-                CanWalk(fromX, fromY, middleX, middleY))
+            if ((best < 0 || m_Steps[square] < m_Steps[best]) && m_Steps[square] != kNoWay &&
+                Squares(fromX, fromY, middleX, middleY) >= kSameSpot && CanWalk(fromX, fromY, middleX, middleY))
             {
-                fewest = steps;
-                outX = middleX;
-                outY = middleY;
+                best = square;
             }
         }
     }
-    return fewest != kNoWay;
+    if (best < 0)
+    {
+        return false;
+    }
+
+    // Then on along the way for as far as the line stays clear: each time to
+    // the square a step nearer the goal, of those the one nearest it. One long
+    // straight walk, where there would be a turn at every square.
+    for (int look = 0; look < kLookAhead; ++look)
+    {
+        int nearer = -1;
+        float nearest = 0.0f;
+        for (int way = 0; way < 8; ++way)
+        {
+            const int next = best + kAround[way][0] + kAround[way][1] * kIslandSize;
+            if (!(m_Ways[best] & (1 << way)) || m_Steps[next] + 1 != m_Steps[best])
+            {
+                continue;
+            }
+            const float distance = Squares(WorldX(next % kIslandSize, next / kIslandSize),
+                                           WorldY(next % kIslandSize, next / kIslandSize), m_GoalX, m_GoalY);
+            if (nearer < 0 || distance < nearest)
+            {
+                nearer = next;
+                nearest = distance;
+            }
+        }
+        if (nearer < 0 || !CanWalk(fromX, fromY, WorldX(nearer % kIslandSize, nearer / kIslandSize),
+                                   WorldY(nearer % kIslandSize, nearer / kIslandSize), kClearance))
+        {
+            break;
+        }
+        best = nearer;
+    }
+    outX = WorldX(best % kIslandSize, best / kIslandSize);
+    outY = WorldY(best % kIslandSize, best / kIslandSize);
+    return true;
 }
 
 bool Farm::IsSoil(float x, float y) const
@@ -636,7 +683,7 @@ The soil and the turnips are pieces of two Sprite Batch components. `Add` places
 
 A column and a row name a square on the island: columns run down and to the right, rows down and to the left. `WorldX` and `WorldY` turn them into a position, and `ColumnAt` and `RowAt` do the reverse. `ReadMap` reads the `scenery` layer once, with `FindProperty` for each object's `level`. `GroundHeight` says how high the ground is at a point: 0 on the lower ground, 1 on the raised ground and in between on the steps. It keeps the farmer on the island and out of everything on her level: a `Wall` over its whole area, anything else around its point, fences included.
 
-A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when nothing is in between, otherwise the middle of the best square beside her.
+A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when the line there is clear, otherwise the middle of a square. It starts from the best square beside her and looks on along the way, a square nearer the goal each time, for as long as she could still walk straight there with a little room to spare. So she walks in long straight lines and turns only where something is in the way.
 
 `UseSoil` plants on an empty patch and picks a ripe turnip, when the farmer says she has room for one more. The count on screen is of turnips sold: `IsAtDoor` says when she stands on the map's `Door` area, and `Sell` counts one.
 
@@ -688,6 +735,15 @@ public:
     void Update() override;
 
 private:
+    // One pair of arrows: which way it steers, and for how long.
+    struct Steer
+    {
+        int way = 0;         // -1, 0 or 1: the last way pressed
+        float held = 0.0f;   // how long that press has lasted
+        float since = 1.0f;  // how long ago it was let go; 0 while pressed
+    };
+
+    static int Steered(Steer& steer, int pressed, float seconds);
     void WalkTo(float x, float y);
     void Use(float x, float ground);
     void CarryTower(bool walking, float seconds, int order);
@@ -699,6 +755,9 @@ private:
     float m_Height = 0.0f;  // how far up she has climbed, in levels
     int m_FacingX = 1;
     int m_FacingY = -1;
+    float m_TurnClock = 0.0f;  // how long she has been going another way than she faces
+    Steer m_SteerX;
+    Steer m_SteerY;
     float m_Clock = 0.0f;  // counts frames of the sheet
     bool m_WasWalking = true;
     bool m_WasUseDown = false;
@@ -779,6 +838,13 @@ int RowFacing(int x, int y)
 // a second while she stands.
 const float kFramesPerMeter = 1.6f;
 const float kIdleFramesPerSecond = 6.0f;
+
+// A turn waits this long, so a step aside does not flick her round.
+const float kTurnSeconds = 0.05f;
+
+// A press shorter than this carries on for as long: a trackball's roll comes
+// as presses of one frame each, and this makes one walk of them.
+const float kTapSeconds = 0.12f;
 }  // namespace
 
 void Farmer::Start()
@@ -794,6 +860,20 @@ void Farmer::Start()
     {
         m_Tower->Add(0.0f, 0.0f, 96, 96, 32, 32, 0);
     }
+}
+
+int Farmer::Steered(Steer& steer, int pressed, float seconds)
+{
+    if (pressed != 0)
+    {
+        // Still held from the last frame, or pressed anew.
+        steer.held = pressed == steer.way && steer.since == 0.0f ? steer.held + seconds : 0.0f;
+        steer.way = pressed;
+        steer.since = 0.0f;
+        return pressed;
+    }
+    steer.since += seconds;
+    return steer.held < kTapSeconds && steer.since < kTapSeconds ? steer.way : 0;
 }
 
 void Farmer::Use(float x, float ground)
@@ -875,10 +955,9 @@ void Farmer::Update()
     using DekiInput::Keys::Space;
     using DekiInput::Keys::Up;
 
-    int x = (Held(Right) ? 1 : 0) - (Held(Left) ? 1 : 0);
-    int y = (Held(Up) ? 1 : 0) - (Held(Down) ? 1 : 0);
-
     const float seconds = Deki::Time::GetDeltaTimeF() * 0.001f;
+    const int x = Steered(m_SteerX, (Held(Right) ? 1 : 0) - (Held(Left) ? 1 : 0), seconds);
+    const int y = Steered(m_SteerY, (Held(Up) ? 1 : 0) - (Held(Down) ? 1 : 0), seconds);
     Deki::Object* me = GetOwner();
     const float ground = me->GetWorldY() - kFeetBelowCentre - m_Height;
 
@@ -915,7 +994,7 @@ void Farmer::Update()
             moveGround = dy * part;
         }
     }
-    const bool walking = moveX != 0.0f || moveGround != 0.0f;
+    bool walking = moveX != 0.0f || moveGround != 0.0f;
 
     if (walking)
     {
@@ -924,22 +1003,33 @@ void Farmer::Update()
         const float nextGround = ground + moveGround;
         const float height = farm.Get()->GroundHeight(nextX, nextGround);
         // The cliff is too high to step up or down: only the steps go between.
-        if (height >= 0.0f && std::fabs(height - m_Height) < 0.5f)
+        const bool free = height >= 0.0f && std::fabs(height - m_Height) < 0.5f;
+        if (free)
         {
             m_Height = height;
             me->SetWorldPosition(nextX, nextGround + kFeetBelowCentre + height);
         }
         else
         {
+            // Something is in the way: she turns to it and stands.
             m_HasTarget = false;
+            walking = false;
         }
+
         // She faces the nearest of the eight ways to the one she is going. A
         // step up the screen counts double, as it is twice as far over the
         // ground, so walking along the island's squares is a diagonal.
         const float across = std::fabs(moveX);
         const float up = std::fabs(moveGround) * 2.0f;
-        m_FacingX = across > up * 0.41f ? (moveX > 0.0f ? 1 : -1) : 0;
-        m_FacingY = up > across * 0.41f ? (moveGround > 0.0f ? 1 : -1) : 0;
+        const int faceX = across > up * 0.41f ? (moveX > 0.0f ? 1 : -1) : 0;
+        const int faceY = up > across * 0.41f ? (moveGround > 0.0f ? 1 : -1) : 0;
+        m_TurnClock = faceX == m_FacingX && faceY == m_FacingY ? 0.0f : m_TurnClock + seconds;
+        if (!m_WasWalking || m_TurnClock >= kTurnSeconds)
+        {
+            m_FacingX = faceX;
+            m_FacingY = faceY;
+            m_TurnClock = 0.0f;
+        }
     }
 
     auto* sprite = me->GetComponent<Deki2D::SpriteComponent>();
@@ -973,13 +1063,13 @@ void Farmer::Update()
 }
 ```
 
-Arrows and Space are the keyboard. A handheld's D-pad arrives as the arrows too, and its A button as Enter, so `Update` takes Enter as well as Space: see [Input](input.md).
+Arrows and Space are the keyboard. A handheld's D-pad arrives as the arrows too, and its A button as Enter, so `Update` takes Enter as well as Space: see [Input](input.md). A trackball, like the LilyGO T-Deck's, arrives as arrows pressed for a single frame at each step of the ball. `Steered` lets a press that short carry on for a moment, so rolling the ball is one walk and not a row of single steps. A key that is held stops when it is let go.
 
 A tap, a click or a touch lands on the **Tap Area**. `Start` adds a listener to its `onPointerDown`, which gets the spot in world meters, and `WalkTo` asks the farm for the way there. `Update` then walks straight to each point the farm hands out, through the gate or up the steps when that is the way, and uses the soil if the tap was on it. A tap on a fence or inside the house takes her as near as she can get.
 
 The farmer remembers how high she has climbed. Ground more than half a level higher or lower than her is refused, so the cliff stops her and only the steps take her up.
 
-The sheet has eight rows and four frames in each: she faces left, right, down and up in the first four rows, and the four diagonals in the rest. `RowFacing` picks the row for the way she is going, and going along the island's squares is a diagonal. The frame comes from a clock that counts with the ground she covers, not with time, so her feet do not slide when **Speed** changes.
+The sheet has eight rows and four frames in each: she faces left, right, down and up in the first four rows, and the four diagonals in the rest. `RowFacing` picks the row for the way she is going, and going along the island's squares is a diagonal. A turn waits a twentieth of a second, so one frame's step aside does not flick her round. The frame comes from a clock that counts with the ground she covers, not with time, so her feet do not slide when **Speed** changes, and she stands when something is in her way.
 
 The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks, and drops it onto the tower from above. `CarryTower` places them above her head every frame. The lean is a spring: it is pulled back from the way she walks, so the tower lags when she sets off, bends further the higher it goes, and swings past upright a few times when she stops. Each turnip also hops with her steps, a little after the one below it. In front of the door `CarryTower` takes one off the top every eighth of a second and sells it.
 
