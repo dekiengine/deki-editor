@@ -1,6 +1,6 @@
 # Your first game
 
-A tiny farm. Walk around the island, climb the steps to the house, plant turnips, watch them grow and pick them when they are ripe. It plays with a keyboard, a handheld's buttons or taps, and shows the controls for whichever the player uses.
+A tiny farm. Walk around the island, plant turnips and watch them grow. Pick the ripe ones into a tower on the farmer's head, then carry it up the steps to the house to sell. It plays with a keyboard, a handheld's buttons or taps, and shows the controls for whichever the player uses.
 
 ![The finished game](img/first-game.webp)
 
@@ -12,7 +12,7 @@ The art is [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) 
 
 The island is a [Tiled](https://www.mapeditor.org) map, ready to use, in <a href="first-game-files.zip">first-game-files.zip</a>. The zip also holds the map's four tilesets, the HUD's icons and panel and the [monogram](https://datagoblin.itch.io/monogram) pixel font. The ground is painted on tile layers, steps included, and everything that stands on it, from the fences to the house, is a tile object on the `scenery` layer.
 
-Two rectangles on that layer are for the game, not to be seen: `Steps` marks where the steps climb, and the house's `Wall` keeps the farmer out of the house and the ground behind it. Tiled has no levels, so whatever stands on the raised ground has a custom property, `level`, set to 1.
+Three rectangles on that layer are for the game, not to be seen: `Steps` marks where the steps climb, the house's `Wall` keeps the farmer out of the house and the ground behind it, and `Door` is the ground in front of the door, where turnips are sold. Tiled has no levels, so whatever stands on the raised ground has a custom property, `level`, set to 1.
 
 1. Open **View → Package Manager** and install **Tiled Map Editor Integration**.
 2. Unpack the zip into your project's `assets` folder. It makes the folders `tilemaps`, `hud` and `fonts` there.
@@ -27,7 +27,7 @@ The island is bigger than the screen, so the camera follows the farmer.
 1. Delete **Sky**.
 2. On **Camera**, set **Clear Color** to `#BDE8F0` and turn on **Pixel Perfect**. The art is then scaled by whole numbers only, so on a screen bigger than the game every pixel of it is the same size.
 3. Make an empty object called **Map** at 0, 8. Add a **Tilemap Component** and set its **Tilemap** to `farm`. Then add a **Tilemap Object Spawner**, set its **Tilemap** to `farm`, **Sort Base** to 1000 and **Sort Per Meter** to 16, one order for each pixel row. The spawner is what turns the `scenery` layer into sprites when the game starts.
-4. Make an empty object called **Tap Area**, drag it onto **Camera** and add an **Input Collider** with **Width** 320 and **Height** 240. It covers the screen, so every tap or click lands on it.
+4. Make an empty object called **Tap Area**, drag it onto **Camera** and add an **Input Collider** with **Width** 640 and **Height** 480. It covers the screen, and a wider one too, so every tap or click lands on it.
 5. Make two empty objects, **Farm** and **Farmer**. Set the Farmer's position to 40, -16 and add a **Sprite Component** to it. Leave its **Sprite** empty: the code sets it.
 
 ## The farm
@@ -52,7 +52,7 @@ The map holds the island, so this script is only the game: where the soil is, ho
 #include "TextComponent.h"
 
 DEKI_CATEGORY("Game")
-DEKI_DESCRIPTION("Grows the turnips, keeps the score and says where the farmer can walk.")
+DEKI_DESCRIPTION("Grows the turnips, counts the ones sold and says where the farmer can walk.")
 class Farm : public Deki::Component
 {
 public:
@@ -83,8 +83,15 @@ public:
     // The next point of that way to walk straight to. False once there.
     bool NextPoint(float fromX, float fromY, float& outX, float& outY) const;
 
-    // Plants on the empty patch nearest this point, or picks a ripe turnip.
-    void UseSoil(float x, float y);
+    // Plants on the empty patch nearest this point. A ripe turnip there is
+    // picked when there is room to carry it: true when one was.
+    bool UseSoil(float x, float y, bool canCarry);
+
+    // Whether this point is in front of the house door, where turnips are sold.
+    bool IsAtDoor(float x, float y) const;
+
+    // Counts a turnip as sold.
+    void Sell();
 
     // Whether this point is on a patch of soil.
     bool IsSoil(float x, float y) const;
@@ -103,6 +110,7 @@ private:
             Solid,  // in the way around its point
             Wall,   // in the way over its whole area
             Steps,  // climbs one level, from its front edge to its back
+            Door,   // where turnips are sold; not in the way
         };
 
         float column = 0.0f;
@@ -251,7 +259,10 @@ void Farm::ReadMap()
         thing.row = object.y / kMapUnitsPerSquare - kMapMargin + thing.level;
         thing.columns = object.width / kMapUnitsPerSquare;
         thing.rows = object.height / kMapUnitsPerSquare;
-        thing.kind = IsA(object, "Steps") ? Thing::Steps : (IsA(object, "Wall") ? Thing::Wall : Thing::Solid);
+        thing.kind = IsA(object, "Steps")  ? Thing::Steps
+                     : IsA(object, "Wall") ? Thing::Wall
+                     : IsA(object, "Door") ? Thing::Door
+                                           : Thing::Solid;
         m_Things[index] = thing;
     }
 }
@@ -372,7 +383,7 @@ float Farm::GroundHeight(float x, float y) const
     for (size_t index = 0; index < m_Things.Count(); ++index)
     {
         const Thing& thing = m_Things[index];
-        if (thing.kind == Thing::Steps || thing.level != level)
+        if (thing.kind == Thing::Steps || thing.kind == Thing::Door || thing.level != level)
         {
             continue;
         }
@@ -551,7 +562,25 @@ bool Farm::IsSoil(float x, float y) const
     return false;
 }
 
-void Farm::UseSoil(float x, float y)
+bool Farm::IsAtDoor(float x, float y) const
+{
+    for (size_t index = 0; index < m_Things.Count(); ++index)
+    {
+        if (m_Things[index].kind == Thing::Door && m_Things[index].Holds(ColumnAt(x, y), RowAt(x, y)))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Farm::Sell()
+{
+    ++m_Score;
+    ShowScore();
+}
+
+bool Farm::UseSoil(float x, float y, bool canCarry)
 {
     Patch* nearest = nullptr;
     float best = 1.4f;
@@ -566,7 +595,7 @@ void Farm::UseSoil(float x, float y)
     }
     if (!nearest)
     {
-        return;
+        return false;
     }
 
     if (nearest->stage < 0)
@@ -574,13 +603,14 @@ void Farm::UseSoil(float x, float y)
         nearest->stage = 0;
         nearest->age = 0.0f;
     }
-    else if (nearest->stage == 3)
+    else if (nearest->stage == 3 && canCarry)
     {
         nearest->stage = -1;
-        ++m_Score;
-        ShowScore();
+        Show(*nearest);
+        return true;
     }
     Show(*nearest);
+    return false;
 }
 
 void Farm::Show(Patch& patch)
@@ -608,6 +638,8 @@ A column and a row name a square on the island: columns run down and to the righ
 
 A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when nothing is in between, otherwise the middle of the best square beside her.
 
+`UseSoil` plants on an empty patch and picks a ripe turnip, when the farmer says she has room for one more. The count on screen is of turnips sold: `IsAtDoor` says when she stands on the map's `Door` area, and `Sell` counts one.
+
 `DrawOrder` is what makes the farmer walk behind the trees and in front of the turnips: lower on the screen draws on top. It matches the spawner's **Sort Base** and **Sort Per Meter**, so the farmer and the scenery sort together. The spawner sorts a tile object by its point. The house's point is the back corner of its floor, and its tileset's **Tile Offset** draws the picture from there, so the farmer draws in front of it at the door.
 
 ## The farmer
@@ -626,10 +658,11 @@ Create a script called `Farmer`.
 #include "CameraComponent.h"
 #include "Farm.h"
 #include "InputCollider.h"
+#include "SpriteBatchComponent.h"
 #include "SpriteComponent.h"
 
 DEKI_CATEGORY("Game")
-DEKI_DESCRIPTION("Walks with the arrow keys or to a tapped spot. Space or Enter plants and picks.")
+DEKI_DESCRIPTION("Walks with the arrow keys or to a tapped spot, and carries the turnips she picks to the house.")
 class Farmer : public Deki::Component
 {
 public:
@@ -656,6 +689,8 @@ public:
 
 private:
     void WalkTo(float x, float y);
+    void Use(float x, float ground);
+    void CarryTower(bool walking, float seconds, int order);
 
     bool m_HasTarget = false;  // walking to a tapped spot
     float m_TargetX = 0.0f;
@@ -667,6 +702,12 @@ private:
     float m_Clock = 0.0f;
     bool m_WasWalking = true;
     bool m_WasUseDown = false;
+
+    // The turnips she carries, one on top of the other.
+    Deki2D::SpriteBatchComponent* m_Tower = nullptr;
+    int m_Carried = 0;
+    float m_Lean = 0.0f;       // how far each turnip sits behind the one below, in pixels
+    float m_SellClock = 0.0f;  // since the last turnip went into the house
 };
 ```
 
@@ -686,6 +727,13 @@ const float kFeetBelowCentre = 1.25f;
 
 // This close to a point of the way, she is there, in meters.
 const float kThere = 0.01f;
+
+// The tower: how many turnips she can carry, where the first sits above her
+// middle and how far apart they are, in pixels.
+const int kMostCarried = 8;
+const float kTowerBase = 25.0f;
+const float kTowerStep = 8.0f;
+const float kSecondsPerSale = 0.12f;
 
 bool Held(uint32_t key)
 {
@@ -707,6 +755,50 @@ void Farmer::Start()
 {
     // A tap or a click anywhere on the screen sends her there.
     tapArea.Get()->onPointerDown.push_back([this](float x, float y) { WalkTo(x, y); });
+
+    // The tower is one batch of ripe turnips off the farm's sheet, at world
+    // (0, 0), with only the ones she carries shown.
+    m_Tower = GetOwner()->GetOwnerScene()->CreateDekiObject("Tower")->AddComponent<Deki2D::SpriteBatchComponent>();
+    m_Tower->sprite = farm.Get()->farmSheet.Get();
+    for (int index = 0; index < kMostCarried; ++index)
+    {
+        m_Tower->Add(0.0f, 0.0f, 96, 96, 32, 32, 0);
+    }
+}
+
+void Farmer::Use(float x, float ground)
+{
+    if (farm.Get()->UseSoil(x, ground, m_Carried < kMostCarried))
+    {
+        ++m_Carried;
+    }
+}
+
+void Farmer::CarryTower(bool walking, float seconds, int order)
+{
+    Deki::Object* me = GetOwner();
+
+    // In front of the door the tower goes into the house, a turnip at a time
+    // from the top.
+    m_SellClock += seconds;
+    const float ground = me->GetWorldY() - kFeetBelowCentre - m_Height;
+    if (m_Carried > 0 && m_SellClock >= kSecondsPerSale && farm.Get()->IsAtDoor(me->GetWorldX(), ground))
+    {
+        --m_Carried;
+        m_SellClock = 0.0f;
+        farm.Get()->Sell();
+    }
+
+    // It leans back while she walks and straightens when she stops.
+    const float lean = walking ? -0.6f * m_FacingX : 0.0f;
+    m_Lean += (lean - m_Lean) * std::fmin(1.0f, seconds * 8.0f);
+    for (int index = 0; index < kMostCarried; ++index)
+    {
+        const float x = me->GetWorldX() + std::round(index * m_Lean) / 16.0f;
+        const float y = me->GetWorldY() + (kTowerBase + index * kTowerStep) / 16.0f;
+        m_Tower->SetPlace(index, x, y, order + 1 + index);
+        m_Tower->SetVisible(index, index < m_Carried);
+    }
 }
 
 void Farmer::WalkTo(float x, float y)
@@ -765,7 +857,7 @@ void Farmer::Update()
             m_HasTarget = farm.Get()->NextPoint(me->GetWorldX(), ground, m_TargetX, m_TargetGround);
             if (!m_HasTarget && m_UseWhenThere)
             {
-                farm.Get()->UseSoil(me->GetWorldX(), ground);
+                Use(me->GetWorldX(), ground);
             }
             dx = m_TargetX - me->GetWorldX();
             dy = m_TargetGround - ground;
@@ -824,9 +916,11 @@ void Farmer::Update()
     const bool useDown = Held(Space) || Held(Enter);
     if (useDown && !m_WasUseDown)
     {
-        farm.Get()->UseSoil(me->GetWorldX(), feet - m_Height);
+        Use(me->GetWorldX(), feet - m_Height);
     }
     m_WasUseDown = useDown;
+
+    CarryTower(walking, seconds, sprite->sortingOrder);
 
     // The camera stays on her, on whole pixels so the map doesn't shimmer.
     camera.GetObject()->SetWorldPosition(std::round(me->GetWorldX() * 16.0f) / 16.0f,
@@ -842,25 +936,33 @@ The farmer remembers how high she has climbed. Ground more than half a level hig
 
 The sheet has eight rows and four frames in each. This game uses the four diagonal rows, which suit the island's angle. `SetFrameRect` picks the frame from the clock and the row from the way the farmer is facing.
 
+The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks. `CarryTower` places them above her head every frame, each a little behind the one below while she walks, so the tower leans and then straightens when she stops. In front of the door it takes one off the top every eighth of a second and sells it.
+
 ## The HUD
 
-The HUD goes under the camera, so it stays on screen. Every panel is the same small picture, `raised-panel`, from the zip. It is a Procedural Sprite: the editor draws it from the numbers in its Inspector, here a face with an outline and a darker band along the bottom, which gives it the raised look of the keys. A Sprite Component in **Nine Slice** mode stretches its middle to any size and keeps its corners.
+The HUD goes under the camera, and a **Screen Anchor** keeps each part of it at a corner of the screen, whatever the screen's size. Every panel is the same small picture, `raised-panel`, from the zip. It is a Procedural Sprite: the editor draws it from the numbers in its Inspector, here a face with an outline and a darker band along the bottom, which gives it the raised look of the keys. A Sprite Component in **Nine Slice** mode stretches its middle to any size and keeps its corners.
 
 Positions and sizes are in pixels, as the Inspector shows them. Set every Text Component's **Font** to `monogram`, **Align** to **Left**, **Vertical Align** to **Cap Center** and **Color** to `#6B4024`. The score uses **Pixel Scale** 2, which doubles every pixel of the font and keeps it crisp. "Order" is the **Sorting Order**.
 
-The turnip counter, each object under **Camera**. **Score** is the Hello text: rename it and drag it onto **Camera**.
+The turnip counter sits in the top left corner. Make an empty object called **Counter** under **Camera**. Its position is set by the anchor.
+
+| Object | Add |
+| --- | --- |
+| **Counter** | Screen Anchor: **Anchor** **Top Left**, **Offset** 38, -22 |
+| | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 60 × 28, order 1989 |
+
+Under it. **Score** is the Hello text: rename it and drag it onto **Counter**.
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Counter** | -122, 98 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 60 × 28, order 1989 |
-| **Turnip Icon** | -138, 101 | Sprite Component: `turnip`, order 1992 |
-| **Score** (Hello, renamed) | -109, 98 | Text Component: `0`, **Font Size** 16, **Pixel Scale** 2, 32 × 28, order 1992 |
+| **Turnip Icon** | -16, 3 | Sprite Component: `turnip`, order 1992 |
+| **Score** (Hello, renamed) | 13, 0 | Text Component: `0`, **Font Size** 16, **Pixel Scale** 2, 32 × 28, order 1992 |
 
-The controls go in three panels, one for each way to play, and a script shows the one that matches. Make an empty object called **Controls** under **Camera**, at 0, 0. Each panel goes under it, with its icons and labels under the panel.
+The controls go in three panels, one for each way to play, and a script shows the one that matches. Make an empty object called **Controls** under **Camera** and add a **Screen Anchor** with **Anchor** **Bottom Left** and **Offset** 0, 0. Each panel goes under it, placed from that corner, with its icons and labels under the panel.
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Keys Hint** | -48, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 208 × 40, order 1989 |
+| **Keys Hint** | 112, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 208 × 40, order 1989 |
 
 Under it:
 
@@ -873,7 +975,7 @@ Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Buttons Hint** | -71, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 162 × 40, order 1989 |
+| **Buttons Hint** | 89, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 162 × 40, order 1989 |
 
 Under it:
 
@@ -886,7 +988,7 @@ Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Tap Hint** | -74, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 156 × 40, order 1989 |
+| **Tap Hint** | 86, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 156 × 40, order 1989 |
 
 Under it:
 
@@ -1012,7 +1114,7 @@ Save with Ctrl+S and press **Run**.
 
 ## Take it further
 
-**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow.
+**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow, and `kMostCarried` in `Farmer.cpp` is how tall the tower gets.
 
 **Rearrange the island.** Open `farm.tmj` in [Tiled](https://www.mapeditor.org) to paint the ground or move things on the `scenery` layer. Deki picks up the map when you save it.
 
