@@ -528,6 +528,7 @@ set(DEKI_3D_TEST_SOURCES Raster3D.cpp Mesh3DBackend.cpp MeshAsset.cpp editor/Obj
     GLMesh3DBackend.cpp editor/MeshShaderUse.cpp editor/Mesh3DSettingsMigration.cpp
     ../deki-rendering/GLApi.cpp ../deki-rendering/GLPresenter.cpp ../deki-rendering/GLBlitSink.cpp
     ../deki-rendering/ScreenEffect.cpp ../deki-rendering/ShaderAsset.cpp ../deki-rendering/QuadBlit.cpp
+    ../deki-rendering/WholeScaleRows.cpp
     ../deki-rendering/RenderProfiler.cpp ../deki-rendering/editor/ShaderUses.cpp
     ../deki-rendering/editor/EffectShaderUse.cpp)
 set(DEKI_3D_TEST_DEFINES DEKI_CAPABILITY_OPENGL DEKI_RENDERING_EXPORTS
@@ -587,7 +588,7 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        DatePickerComponent.cpp RollerComponent.cpp SpriteComponent.cpp SpriteBatchComponent.cpp TextareaComponent.cpp
                        KeyboardComponent.cpp ChartComponent.cpp TextComponent.cpp BitmapFont.cpp
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
-                       ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
+                       ../deki-rendering/QuadBlit.cpp ../deki-rendering/WholeScaleRows.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
                        ../deki-rendering/PackedPixels.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
