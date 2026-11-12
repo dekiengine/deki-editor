@@ -38,7 +38,7 @@ enum class PackageType
 /// One package as the package manager sees it.
 struct DEKI_EDITOR_API PackageEntry
 {
-    std::string id;                // Unique ID: "github:owner/repo"
+    std::string id;                // Unique ID: the repo's name, "deki-2d"
     std::string name;              // "owner/repo"
     std::string displayName;       // "repo"
     std::string description;       // "JSON library for embedded systems"

@@ -322,7 +322,7 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
                 }
             }
 
-            // No id: derive "github:owner/repo" from the URL
+            // No id: the repo's name, from the URL (as GitHubPackageSource names it)
             if (pkg.id.empty() && !pkg.url.empty())
             {
                 size_t ghPos = pkg.url.find("github.com/");
@@ -337,7 +337,7 @@ std::vector<PackageEntry> DekiPackageInstaller::GetInstalledPackages(const std::
                     {
                         ownerRepo.pop_back();
                     }
-                    pkg.id = "github:" + ownerRepo;
+                    pkg.id = ownerRepo.substr(ownerRepo.find_last_of('/') + 1);
                 }
             }
 
@@ -632,8 +632,8 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         {
             std::string discarded;
             RunGit({ "-C", dirArg, "checkout", "--", "." }, discarded);
-            DEKI_LOG_INFO("'%s': discarded the upgrade's renames (desktop-os, SIMULATOR); %s has them", repoName.c_str(),
-                          gitRef.c_str());
+            DEKI_LOG_INFO("'%s': discarded the upgrade's renames (desktop-os, SIMULATOR); %s has them",
+                          repoName.c_str(), gitRef.c_str());
             status.clear();
             RunGit({ "-C", dirArg, "status", "--porcelain" }, status);
         }
@@ -681,8 +681,7 @@ void DekiPackageInstaller::Install(const std::string& projectPath, const Package
         // was made: brought up to the commits just fetched, so "branch:master"
         // is master as it is now. Fast-forward only: a local branch with
         // commits of its own is left as it is, and the install says so.
-        if (isBranch &&
-            RunGit({ "-C", dirArg, "merge", "--ff-only", "origin/" + gitRef }, output) != 0)
+        if (isBranch && RunGit({ "-C", dirArg, "merge", "--ff-only", "origin/" + gitRef }, output) != 0)
         {
             callback(false, "'" + repoName + "': the local branch " + gitRef + " has commits origin/" + gitRef +
                                 " does not; it was left as it is (" + output + ")");

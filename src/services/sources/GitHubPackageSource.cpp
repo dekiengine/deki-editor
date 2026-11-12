@@ -38,7 +38,11 @@ bool GitHubPackageSource::ParseUrl(const std::string& url, PackageEntry& outInfo
         return false;
     }
 
-    outInfo.id = "github:" + owner + "/" + repo;
+    // The repo's name, as the registry names packages and the installer names
+    // their folders: an id with a ":" or a "/" is not a plain name, so the
+    // manifest leaves it out and the package could not be declared or marked
+    // editable.
+    outInfo.id = repo;
     outInfo.name = owner + "/" + repo;
     outInfo.displayName = repo;  // replaced by the name from the API later
     outInfo.url = "https://github.com/" + owner + "/" + repo;

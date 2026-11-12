@@ -725,6 +725,16 @@ deki_add_package_tests(deki-miyoo-boards TARGET DekiMiyooBoardsTests NEEDS_EDITO
                        DEFINES "DEKI_MIYOO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-miyoo-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
+# deki-anbernic-boards' builder off an Anbernic: the toolchain file and CMake
+# it writes for the shipped platform, the stock firmware app it packs, and
+# installing it on SD cards that are fake folders; the display's row
+# widening; and which key each button and axis presses.
+deki_add_package_tests(deki-anbernic-boards TARGET DekiAnbernicBoardsTests NEEDS_EDITOR
+                       SOURCES editor/AnbernicBuilder.cpp editor/AnbernicToolchain.cpp editor/StockApp.cpp
+                               AnbernicRows.cpp AnbernicInput.cpp
+                       DEFINES "DEKI_ANBERNIC_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-anbernic-boards\""
+                       LIBS nlohmann_json::nlohmann_json)
+
 # The state machine interpreter. The action library is left out: its actions
 # reach into objects, scenes, deki-2d and deki-tween, which would make this a
 # project-shaped build. The tests register their own behaviour for two of the
