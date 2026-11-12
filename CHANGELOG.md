@@ -24,6 +24,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 - A Getting started guide, from downloading the editor to code running on a
   board. The documentation's front page and sidebar group the guides and
   packages by what they are for.
+- **Your first game**, a guide that builds a tiny farm on a Tiled island step
+  by step: walking with keys, buttons or taps, planting and picking turnips,
+  and a HUD. Its soil and turnips are sprite batches and its panels one raised
+  procedural sprite, which is what keeps it fast on a small board. **Your first
+  app** builds a countdown timer the same way.
 - **A checklist of breaking changes when an older project opens.** Each
   breaking change since 0.22 that the editor cannot convert has an entry saying
   what to do, and most scan the project and name what is affected, such as the

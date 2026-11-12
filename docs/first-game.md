@@ -10,7 +10,7 @@ It starts from a new project: see [Getting started](getting-started.md). The Ins
 
 The art is [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) by Aibyzz. Download the free version and unpack it. Deki does not include it, because its licence does not allow sharing the files. You can use it in your own games, commercial ones too.
 
-The island is a [Tiled](https://www.mapeditor.org) map, ready to use, in <a href="first-game-files.zip">first-game-files.zip</a>. The zip also holds the map's four tilesets, the HUD's icons and the [monogram](https://datagoblin.itch.io/monogram) pixel font. The ground is painted on tile layers, steps included, and everything that stands on it, from the fences to the house, is a tile object on the `scenery` layer.
+The island is a [Tiled](https://www.mapeditor.org) map, ready to use, in <a href="first-game-files.zip">first-game-files.zip</a>. The zip also holds the map's four tilesets, the HUD's icons and panel and the [monogram](https://datagoblin.itch.io/monogram) pixel font. The ground is painted on tile layers, steps included, and everything that stands on it, from the fences to the house, is a tile object on the `scenery` layer.
 
 Two rectangles on that layer are for the game, not to be seen: `Steps` marks where the steps climb, and the house's `Wall` keeps the farmer out of the house and the ground behind it. Tiled has no levels, so whatever stands on the raised ground has a custom property, `level`, set to 1.
 
@@ -45,6 +45,7 @@ The map holds the island, so this script is only the game: where the soil is, ho
 
 #include <cmath>
 
+#include "SpriteBatchComponent.h"
 #include "SpriteComponent.h"
 #include "Tilemap.h"
 #include "TextComponent.h"
@@ -89,18 +90,20 @@ private:
     {
         float x = 0.0f;
         float y = 0.0f;
-        Deki2D::SpriteComponent* soil = nullptr;
-        Deki2D::SpriteComponent* crop = nullptr;
+        // Pieces of the soil and crop batches.
+        uint32_t soil = 0;
+        uint32_t crop = 0;
         int stage = -1;  // -1: nothing planted
         float age = 0.0f;
     };
 
-    Deki2D::SpriteComponent* Place(Deki2D::Sprite* sheet, int left, int top, int width, int height, float x, float y,
-                                   int order);
     void Show(Patch& patch);
     void ShowScore();
 
     Patch m_Patches[20];
+    // Every patch's soil, and every patch's turnip, each one batch.
+    Deki2D::SpriteBatchComponent* m_Soil = nullptr;
+    Deki2D::SpriteBatchComponent* m_Crops = nullptr;
     int m_Score = 0;
 };
 ```
@@ -176,22 +179,18 @@ MapPlace PlaceOf(const DekiTiledMap::Tilemap& tilemap, const DekiTiledMap::DTile
 }
 }  // namespace
 
-Deki2D::SpriteComponent* Farm::Place(Deki2D::Sprite* sheet, int left, int top, int width, int height, float x, float y,
-                                     int order)
-{
-    Deki::Object* object = GetOwner()->GetOwnerScene()->CreateDekiObject("Piece");
-    object->SetWorldPosition(x, y);
-
-    auto* sprite = object->AddComponent<Deki2D::SpriteComponent>();
-    sprite->sprite = sheet;
-    sprite->SetFrameRect(left, top, width, height);
-    sprite->sortingOrder = order;
-    return sprite;
-}
-
 void Farm::Start()
 {
     Deki2D::Sprite* farm = farmSheet.Get();
+
+    // Every patch's soil in one batch, and every turnip in another, each
+    // piece sorted on its own, at world (0, 0).
+    Deki::Object* beds = GetOwner()->GetOwnerScene()->CreateDekiObject("Beds");
+    beds->SetWorldPosition(0.0f, 0.0f);
+    m_Soil = beds->AddComponent<Deki2D::SpriteBatchComponent>();
+    m_Soil->sprite = farm;
+    m_Crops = beds->GetOwnerScene()->CreateDekiObject("Crops")->AddComponent<Deki2D::SpriteBatchComponent>();
+    m_Crops->sprite = farm;
 
     // Two long beds of soil, with a path to the gate between them.
     int next = 0;
@@ -202,9 +201,10 @@ void Farm::Start()
             Patch& patch = m_Patches[next++];
             patch.x = WorldX(column, row);
             patch.y = WorldY(column, row);
-            patch.soil = Place(farm, 128, 0, 32, 32, patch.x, patch.y + 0.5f, 100);
-            patch.crop = Place(farm, 0, 96, 32, 32, patch.x, patch.y + 0.5f, DrawOrder(patch.y - 0.5f));
-            patch.crop->GetOwner()->SetActive(false);
+            patch.soil = static_cast<uint32_t>(m_Soil->Add(patch.x, patch.y + 0.5f, 128, 0, 32, 32, 100));
+            patch.crop =
+                static_cast<uint32_t>(m_Crops->Add(patch.x, patch.y + 0.5f, 0, 96, 32, 32, DrawOrder(patch.y - 0.5f)));
+            m_Crops->SetVisible(patch.crop, false);
         }
     }
 
@@ -324,11 +324,11 @@ void Farm::UseSoil(float x, float y)
 void Farm::Show(Patch& patch)
 {
     // The dark soil is the watered one, just below the light one on the sheet.
-    patch.soil->SetFrameRect(128, patch.stage < 0 ? 0 : 32, 32, 32);
-    patch.crop->GetOwner()->SetActive(patch.stage >= 0);
+    m_Soil->SetFrameRect(patch.soil, 128, patch.stage < 0 ? 0 : 32, 32, 32);
+    m_Crops->SetVisible(patch.crop, patch.stage >= 0);
     if (patch.stage >= 0)
     {
-        patch.crop->SetFrameRect(patch.stage * 32, 96, 32, 32);
+        m_Crops->SetFrameRect(patch.crop, patch.stage * 32, 96, 32, 32);
     }
 }
 
@@ -340,7 +340,7 @@ void Farm::ShowScore()
 }
 ```
 
-Each `Place` call makes one object that shows a rectangle of a sheet, chosen with `SetFrameRect`, so nothing needs cutting up first.
+The soil and the turnips are pieces of two Sprite Batch components. `Add` places a rectangle of the sheet, so nothing needs cutting up first, and returns the piece's number. `SetFrameRect` and `SetVisible` change that piece later. Twenty patches are two objects where they would be forty, which a small device feels, and each piece still sorts on its own: the farmer walks in front of one turnip and behind the next.
 
 A column and a row name a square on the island: columns run down and to the right, rows down and to the left. `WorldX` and `WorldY` turn them into a position, and `GroundHeight` does the reverse. It says how high the ground is there: 0 on the lower ground, 1 on the raised ground and in between on the steps. It keeps the farmer on the island and out of everything on the `scenery` layer that stands on her level: a `Wall` over its whole area, anything else around its point. `PlaceOf` reads where a map object is, with `FindProperty` for its `level`.
 
@@ -554,30 +554,28 @@ The sheet has eight rows and four frames in each. This game uses the four diagon
 
 ## The HUD
 
-The HUD goes under the camera, so it stays on screen. The panels are Shape Components: a darker side, a face on top of it and a thin edge, which gives them the raised look of the keys. Positions and sizes are in pixels, as the Inspector shows them. Set every Text Component's **Font** to `monogram`, **Align** to **Left**, **Vertical Align** to **Cap Center** and **Color** to `#6B4024`. The score uses **Pixel Scale** 2, which doubles every pixel of the font and keeps it crisp. "Order" is the **Sorting Order**.
+The HUD goes under the camera, so it stays on screen. Every panel is the same small picture, `raised-panel`, from the zip. It is a Procedural Sprite: the editor draws it from the numbers in its Inspector, here a face with an outline and a darker band along the bottom, which gives it the raised look of the keys. A Sprite Component in **Nine Slice** mode stretches its middle to any size and keeps its corners.
+
+Positions and sizes are in pixels, as the Inspector shows them. Set every Text Component's **Font** to `monogram`, **Align** to **Left**, **Vertical Align** to **Cap Center** and **Color** to `#6B4024`. The score uses **Pixel Scale** 2, which doubles every pixel of the font and keeps it crisp. "Order" is the **Sorting Order**.
 
 The turnip counter, each object under **Camera**. **Score** is the Hello text: rename it and drag it onto **Camera**.
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Counter Side** | -122, 98 | Shape Component: 60 × 28, **Corner Radius** 6, `#E2C69C`, order 1989 |
-| **Counter** | -122, 100 | Shape Component: 60 × 24, **Corner Radius** 6, `#FFEFD0`, order 1990 |
-| **Counter Edge** | -122, 98 | Shape Component: 60 × 28, **Corner Radius** 6, **Line Width** 1, `#6B4024`, order 1991 |
+| **Counter** | -122, 98 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 60 × 28, order 1989 |
 | **Turnip Icon** | -138, 101 | Sprite Component: `turnip`, order 1992 |
 | **Score** (Hello, renamed) | -109, 98 | Text Component: `0`, **Font Size** 16, **Pixel Scale** 2, 32 × 28, order 1992 |
 
-The controls go in three panels, one for each way to play, and a script shows the one that matches. Make an empty object called **Controls** under **Camera**, at 0, 0. Build the first panel under it, then duplicate the panel twice and change the copies.
+The controls go in three panels, one for each way to play, and a script shows the one that matches. Make an empty object called **Controls** under **Camera**, at 0, 0. Each panel goes under it, with its icons and labels under the panel.
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Keys Hint** | -48, -92 | Shape Component: 208 × 40, **Corner Radius** 6, `#E2C69C`, order 1989 |
+| **Keys Hint** | -48, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 208 × 40, order 1989 |
 
 Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Face** | 0, 2 | Shape Component: 208 × 36, **Corner Radius** 6, `#FFEFD0`, order 1990 |
-| **Edge** | 0, 0 | Shape Component: 208 × 40, **Corner Radius** 6, **Line Width** 1, `#6B4024`, order 1991 |
 | **Arrow Keys** | -76, 2 | Sprite Component: `arrow-keys`, order 1992 |
 | **Walk Label** | -37, 2 | Text Component: `Walk`, **Font Size** 16, 26 × 36, order 1992 |
 | **Space Key** | 2, 2 | Sprite Component: `space-key`, order 1992 |
@@ -585,14 +583,12 @@ Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Buttons Hint** | -71, -92 | Shape Component: 162 × 40, **Corner Radius** 6, `#E2C69C`, order 1989 |
+| **Buttons Hint** | -71, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 162 × 40, order 1989 |
 
 Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Face** | 0, 2 | Shape Component: 162 × 36, **Corner Radius** 6, `#FFEFD0`, order 1990 |
-| **Edge** | 0, 0 | Shape Component: 162 × 40, **Corner Radius** 6, **Line Width** 1, `#6B4024`, order 1991 |
 | **D-Pad** | -61, 2 | Sprite Component: `d-pad`, order 1992 |
 | **Walk Label** | -30, 2 | Text Component: `Walk`, **Font Size** 16, 26 × 36, order 1992 |
 | **A Button** | -6, 2 | Sprite Component: `a-button`, order 1992 |
@@ -600,14 +596,12 @@ Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Tap Hint** | -74, -92 | Shape Component: 156 × 40, **Corner Radius** 6, `#E2C69C`, order 1989 |
+| **Tap Hint** | -74, -92 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 156 × 40, order 1989 |
 
 Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Face** | 0, 2 | Shape Component: 156 × 36, **Corner Radius** 6, `#FFEFD0`, order 1990 |
-| **Edge** | 0, 0 | Shape Component: 156 × 40, **Corner Radius** 6, **Line Width** 1, `#6B4024`, order 1991 |
 | **Tap** | -63, 2 | Sprite Component: `tap`, order 1992 |
 | **Tap Label** | 11, 2 | Text Component: `Tap to walk and farm`, **Font Size** 16, 120 × 36, order 1992 |
 
@@ -622,7 +616,7 @@ Create a script called `ControlsHint`, and add the **Controls Hint** component t
 #include <deki/reflection/ObjectRef.h>
 
 #include "InputCollider.h"
-#include "ShapeComponent.h"
+#include "SpriteComponent.h"
 
 DEKI_CATEGORY("Game")
 DEKI_DESCRIPTION("Shows the controls for what the player last used: the keyboard, a handheld's buttons or taps.")
@@ -630,13 +624,13 @@ class ControlsHint : public Deki::Component
 {
 public:
     DEKI_EXPORT
-    Deki::ObjectRef<Deki2D::ShapeComponent> keysHint;
+    Deki::ObjectRef<Deki2D::SpriteComponent> keysHint;
 
     DEKI_EXPORT
-    Deki::ObjectRef<Deki2D::ShapeComponent> buttonsHint;
+    Deki::ObjectRef<Deki2D::SpriteComponent> buttonsHint;
 
     DEKI_EXPORT
-    Deki::ObjectRef<Deki2D::ShapeComponent> tapHint;
+    Deki::ObjectRef<Deki2D::SpriteComponent> tapHint;
 
     DEKI_EXPORT
     Deki::ObjectRef<DekiInput::InputCollider> tapArea;
@@ -645,7 +639,7 @@ public:
     void Start() override;
 
 private:
-    void Show(Deki::ObjectRef<Deki2D::ShapeComponent>& hint);
+    void Show(Deki::ObjectRef<Deki2D::SpriteComponent>& hint);
 
     size_t m_Listener = 0;
 };
@@ -697,9 +691,9 @@ ControlsHint::~ControlsHint()
     DekiInput::DekiInput::UnregisterEventCallback(m_Listener);
 }
 
-void ControlsHint::Show(Deki::ObjectRef<Deki2D::ShapeComponent>& hint)
+void ControlsHint::Show(Deki::ObjectRef<Deki2D::SpriteComponent>& hint)
 {
-    for (Deki::ObjectRef<Deki2D::ShapeComponent>* each : { &keysHint, &buttonsHint, &tapHint })
+    for (Deki::ObjectRef<Deki2D::SpriteComponent>* each : { &keysHint, &buttonsHint, &tapHint })
     {
         each->GetObject()->SetActive(each == &hint);
     }
@@ -731,6 +725,8 @@ Save with Ctrl+S and press **Run**.
 **Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow.
 
 **Rearrange the island.** Open `farm.tmj` in [Tiled](https://www.mapeditor.org) to paint the ground or move things on the `scenery` layer. Deki picks up the map when you save it.
+
+**Restyle the HUD.** Select `raised-panel` in the Asset Browser and change its colors, **Border Radius** or **Depth**. Every panel follows.
 
 **Change the farmer.** The pack also has `MPlayer 1 idle` and `MPlayer 1 walking`, with the same layout.
 
