@@ -682,7 +682,7 @@ public:
     Deki::AssetRef<Deki2D::Sprite> walkSheet;
 
     DEKI_EXPORT
-    float speed = 5.0f;
+    float speed = 7.0f;
 
     void Start() override;
     void Update() override;
@@ -699,7 +699,7 @@ private:
     float m_Height = 0.0f;  // how far up she has climbed, in levels
     int m_FacingX = 1;
     int m_FacingY = -1;
-    float m_Clock = 0.0f;
+    float m_Clock = 0.0f;  // counts frames of the sheet
     bool m_WasWalking = true;
     bool m_WasUseDown = false;
 
@@ -707,6 +707,9 @@ private:
     Deki2D::SpriteBatchComponent* m_Tower = nullptr;
     int m_Carried = 0;
     float m_Lean = 0.0f;       // how far each turnip sits behind the one below, in pixels
+    float m_LeanSpeed = 0.0f;  // how fast the lean is changing
+    float m_Hop = 0.0f;        // how much the turnips hop with her steps, 0 to 1
+    float m_Drop = 0.0f;       // how far the last turnip picked still has to fall, 1 to 0
     float m_SellClock = 0.0f;  // since the last turnip went into the house
 };
 ```
@@ -735,20 +738,47 @@ const float kTowerBase = 25.0f;
 const float kTowerStep = 8.0f;
 const float kSecondsPerSale = 0.12f;
 
+// The tower is a spring: it is pulled to lean back from the way she walks,
+// overshoots and swings before it settles. Stiffer swings faster, and more
+// damping settles sooner.
+const float kLeanWalking = 1.4f;  // pixels each turnip sits behind the one below
+const float kLeanStiffness = 110.0f;
+const float kLeanDamping = 6.0f;
+// Each turnip hops with her steps, a little after the one below it, and a
+// picked turnip drops onto the tower from above.
+const float kHopHeight = 2.0f;
+const float kDropHeight = 14.0f;
+const float kDropSeconds = 0.18f;
+
 bool Held(uint32_t key)
 {
     return DekiInput::DekiInput::IsKeyPressed(key);
 }
 
-// The sheet's four diagonal rows. Each is -1 or 1; up is +1.
+// The sheet's row for a way to face: x and y are each -1, 0 or 1, and up is
+// +1. The first four rows face left, right, down and up, and the next four
+// the diagonals.
 int RowFacing(int x, int y)
 {
+    if (y == 0)
+    {
+        return x < 0 ? 0 : 1;
+    }
+    if (x == 0)
+    {
+        return y < 0 ? 2 : 3;
+    }
     if (y < 0)
     {
         return x < 0 ? 4 : 5;
     }
     return x < 0 ? 6 : 7;
 }
+
+// How many frames of the walk she steps through for each meter, and how many
+// a second while she stands.
+const float kFramesPerMeter = 1.6f;
+const float kIdleFramesPerSecond = 6.0f;
 }  // namespace
 
 void Farmer::Start()
@@ -770,7 +800,10 @@ void Farmer::Use(float x, float ground)
 {
     if (farm.Get()->UseSoil(x, ground, m_Carried < kMostCarried))
     {
+        // The new turnip drops onto the tower, which rocks under it.
         ++m_Carried;
+        m_Drop = 1.0f;
+        m_LeanSpeed += 14.0f * (m_FacingX != 0 ? m_FacingX : 1);
     }
 }
 
@@ -789,13 +822,26 @@ void Farmer::CarryTower(bool walking, float seconds, int order)
         farm.Get()->Sell();
     }
 
-    // It leans back while she walks and straightens when she stops.
-    const float lean = walking ? -0.6f * m_FacingX : 0.0f;
-    m_Lean += (lean - m_Lean) * std::fmin(1.0f, seconds * 8.0f);
+    // The lean is a spring pulled back from the way she walks: it lags when
+    // she sets off, and swings past upright when she stops.
+    const float step = std::fmin(seconds, 0.05f);
+    const float lean = walking ? -kLeanWalking * m_FacingX : 0.0f;
+    m_LeanSpeed += ((lean - m_Lean) * kLeanStiffness - m_LeanSpeed * kLeanDamping) * step;
+    m_Lean += m_LeanSpeed * step;
+
+    // The hop fades in as she walks and out as she stops, and the drop runs out.
+    m_Hop += ((walking ? 1.0f : 0.0f) - m_Hop) * std::fmin(1.0f, seconds * 10.0f);
+    m_Drop = std::fmax(0.0f, m_Drop - seconds / kDropSeconds);
+
     for (int index = 0; index < kMostCarried; ++index)
     {
-        const float x = me->GetWorldX() + std::round(index * m_Lean) / 16.0f;
-        const float y = me->GetWorldY() + (kTowerBase + index * kTowerStep) / 16.0f;
+        // Higher turnips lean further, so the tower bends like a stalk.
+        const float across = m_Lean * index * (1.0f + index * 0.15f);
+        // Two steps to a turn of the walk's four frames.
+        const float hop = std::fabs(std::sin(m_Clock * 1.5708f - index * 0.6f)) * kHopHeight * m_Hop;
+        const float drop = index == m_Carried - 1 ? m_Drop * kDropHeight : 0.0f;
+        const float x = me->GetWorldX() + std::round(across) / 16.0f;
+        const float y = me->GetWorldY() + std::round(kTowerBase + index * kTowerStep + hop + drop) / 16.0f;
         m_Tower->SetPlace(index, x, y, order + 1 + index);
         m_Tower->SetVisible(index, index < m_Carried);
     }
@@ -887,15 +933,13 @@ void Farmer::Update()
         {
             m_HasTarget = false;
         }
-        // Going straight keeps the other half of the diagonal she last faced.
-        if (std::fabs(moveX) > std::fabs(moveGround) * 0.5f)
-        {
-            m_FacingX = moveX > 0.0f ? 1 : -1;
-        }
-        if (std::fabs(moveGround) > std::fabs(moveX) * 0.125f)
-        {
-            m_FacingY = moveGround > 0.0f ? 1 : -1;
-        }
+        // She faces the nearest of the eight ways to the one she is going. A
+        // step up the screen counts double, as it is twice as far over the
+        // ground, so walking along the island's squares is a diagonal.
+        const float across = std::fabs(moveX);
+        const float up = std::fabs(moveGround) * 2.0f;
+        m_FacingX = across > up * 0.41f ? (moveX > 0.0f ? 1 : -1) : 0;
+        m_FacingY = up > across * 0.41f ? (moveGround > 0.0f ? 1 : -1) : 0;
     }
 
     auto* sprite = me->GetComponent<Deki2D::SpriteComponent>();
@@ -905,8 +949,9 @@ void Farmer::Update()
         m_WasWalking = walking;
     }
 
-    m_Clock += seconds;
-    const int frame = static_cast<int>(m_Clock * 8.0f) % 4;
+    // The walk steps with the ground she covers, so her feet do not slide.
+    m_Clock += seconds * (walking ? speed * kFramesPerMeter : kIdleFramesPerSecond);
+    const int frame = static_cast<int>(m_Clock) % 4;
     sprite->SetFrameRect(frame * 48, RowFacing(m_FacingX, m_FacingY) * 48, 48, 48);
 
     const float feet = me->GetWorldY() - kFeetBelowCentre;
@@ -934,9 +979,9 @@ A tap, a click or a touch lands on the **Tap Area**. `Start` adds a listener to 
 
 The farmer remembers how high she has climbed. Ground more than half a level higher or lower than her is refused, so the cliff stops her and only the steps take her up.
 
-The sheet has eight rows and four frames in each. This game uses the four diagonal rows, which suit the island's angle. `SetFrameRect` picks the frame from the clock and the row from the way the farmer is facing.
+The sheet has eight rows and four frames in each: she faces left, right, down and up in the first four rows, and the four diagonals in the rest. `RowFacing` picks the row for the way she is going, and going along the island's squares is a diagonal. The frame comes from a clock that counts with the ground she covers, not with time, so her feet do not slide when **Speed** changes.
 
-The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks. `CarryTower` places them above her head every frame, each a little behind the one below while she walks, so the tower leans and then straightens when she stops. In front of the door it takes one off the top every eighth of a second and sells it.
+The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks, and drops it onto the tower from above. `CarryTower` places them above her head every frame. The lean is a spring: it is pulled back from the way she walks, so the tower lags when she sets off, bends further the higher it goes, and swings past upright a few times when she stops. Each turnip also hops with her steps, a little after the one below it. In front of the door `CarryTower` takes one off the top every eighth of a second and sells it.
 
 ## The HUD
 
@@ -1213,7 +1258,7 @@ Save with Ctrl+S and press **Run**.
 
 ## Take it further
 
-**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow, and `kMostCarried` in `Farmer.cpp` is how tall the tower gets.
+**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow, **Speed** on the Farmer is how fast she walks, and `kMostCarried` in `Farmer.cpp` is how tall the tower gets. The constants beside it set how much the tower leans, swings and hops.
 
 **Rearrange the island.** Open `farm.tmj` in [Tiled](https://www.mapeditor.org) to paint the ground or move things on the `scenery` layer. Deki picks up the map when you save it.
 
