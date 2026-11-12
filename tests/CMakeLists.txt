@@ -589,6 +589,7 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        ../deki-input/InputCollider.cpp ../deki-input/InputDispatch.cpp ../deki-input/DekiInput.cpp
                        ../deki-rendering/QuadBlit.cpp ../deki-rendering/DirtyRegion.cpp
                        ../deki-rendering/RendererComponent.cpp ../deki-rendering/Standard2DRenderer.cpp
+                       ../deki-rendering/PackedPixels.cpp
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
                        ../deki-rendering/RenderProfiler.cpp ../deki-rendering/Light.cpp
                        ../deki-rendering/Lighting2D.cpp editor/FontCompiler.cpp editor/ProceduralSpriteRaised.cpp)
