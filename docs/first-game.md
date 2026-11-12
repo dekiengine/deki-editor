@@ -1,6 +1,6 @@
 # Your first game
 
-A tiny farm. Walk around the island, plant turnips and watch them grow. Pick the ripe ones into a tower on the farmer's head, then carry it up the steps to the house to sell. It plays with a keyboard, a handheld's buttons or taps, and shows the controls for whichever the player uses.
+A tiny farm. Walk around the island, plant turnips and watch them grow. Pick the ripe ones into a tower on the farmer's head, then carry it up the steps to the house to sell. It plays with a keyboard, a handheld's buttons or taps, and a help button says what to do and shows the controls for whichever the player uses.
 
 ![The finished game](img/first-game.webp)
 
@@ -958,46 +958,147 @@ Under it. **Score** is the Hello text: rename it and drag it onto **Counter**.
 | **Turnip Icon** | -16, 3 | Sprite Component: `turnip`, order 1992 |
 | **Score** (Hello, renamed) | 13, 0 | Text Component: `0`, **Font Size** 16, **Pixel Scale** 2, 32 × 28, order 1992 |
 
-The controls go in three panels, one for each way to play, and a script shows the one that matches. Make an empty object called **Controls** under **Camera** and add a **Screen Anchor** with **Anchor** **Bottom Left** and **Offset** 0, 0. Each panel goes under it, placed from that corner, with its icons and labels under the panel.
+The help sits behind a button in the top right corner. Make an empty object called **Help Button** under **Tap Area**: an object under another gets a tap before it, so a tap on the button does not also send the farmer there.
 
-| Object | Position | Add |
-| --- | --- | --- |
-| **Keys Hint** | 112, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 208 × 40, order 1989 |
-
-Under it:
-
-| Object | Position | Add |
-| --- | --- | --- |
-| **Arrow Keys** | -76, 2 | Sprite Component: `arrow-keys`, order 1992 |
-| **Walk Label** | -37, 2 | Text Component: `Walk`, **Font Size** 16, 26 × 36, order 1992 |
-| **Space Key** | 2, 2 | Sprite Component: `space-key`, order 1992 |
-| **Use Label** | 63, 2 | Text Component: `Plant, pick`, **Font Size** 16, 66 × 36, order 1992 |
-
-| Object | Position | Add |
-| --- | --- | --- |
-| **Buttons Hint** | 89, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 162 × 40, order 1989 |
+| Object | Add |
+| --- | --- |
+| **Help Button** | Screen Anchor: **Anchor** **Top Right**, **Offset** -22, -22 |
+| | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 28 × 28, order 1989 |
+| | Input Collider: 28 × 28 |
 
 Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **D-Pad** | -61, 2 | Sprite Component: `d-pad`, order 1992 |
-| **Walk Label** | -30, 2 | Text Component: `Walk`, **Font Size** 16, 26 × 36, order 1992 |
-| **A Button** | -6, 2 | Sprite Component: `a-button`, order 1992 |
-| **Use Label** | 40, 2 | Text Component: `Plant, pick`, **Font Size** 16, 66 × 36, order 1992 |
+| **Mark** | 1, 0 | Text Component: `?`, **Align** **Center**, **Font Size** 16, **Pixel Scale** 2, 28 × 28, order 1992 |
+
+The popup goes under the button too, for the same reason: while it is open it gets every tap first. Make an empty object called **Help** under **Help Button**.
+
+| Object | Add |
+| --- | --- |
+| **Help** | Screen Anchor: **Anchor** **Center**, **Offset** 0, 0 |
+| | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 256 × 152, order 1993 |
+| | Input Collider: 640 × 480 |
+
+Under it, every one with order 1994. Set **Align** to **Center** on these Text Components:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Tap Hint** | 86, 28 | Sprite Component: `raised-panel`, **Render Mode** **Nine Slice**, 156 × 40, order 1989 |
+| **Title** | 0, 54 | Text Component: `How to play`, **Font Size** 16, **Pixel Scale** 2, 232 × 28 |
+| **Plant Line** | 0, 30 | Text Component: `Plant turnips on the soil.`, **Font Size** 16, 232 × 14 |
+| **Pick Line** | 0, 16 | Text Component: `Pick the ripe ones: they stack up.`, **Font Size** 16, 232 × 14 |
+| **Sell Line** | 0, 2 | Text Component: `Sell the tower at the house door.`, **Font Size** 16, 232 × 14 |
+| **Close Line** | 0, -58 | Text Component: `Tab, Y or a tap closes this.`, **Font Size** 16, 232 × 14 |
+
+The controls are three rows in the same place, one for each way to play, and a script shows the one that matches. Each row is its first icon, with the rest under it. These labels keep **Align** **Left**.
+
+| Object | Position | Add |
+| --- | --- | --- |
+| **Keys Hint** | -82, -30 | Sprite Component: `arrow-keys` |
 
 Under it:
 
 | Object | Position | Add |
 | --- | --- | --- |
-| **Tap** | -63, 2 | Sprite Component: `tap`, order 1992 |
-| **Tap Label** | 11, 2 | Text Component: `Tap to walk and farm`, **Font Size** 16, 120 × 36, order 1992 |
+| **Walk Label** | 39, 0 | Text Component: `Walk`, **Font Size** 16, 26 × 36 |
+| **Space Key** | 78, 0 | Sprite Component: `space-key` |
+| **Use Label** | 139, 0 | Text Component: `Plant, pick`, **Font Size** 16, 66 × 36 |
 
-Create a script called `ControlsHint`, and add the **Controls Hint** component to **Controls**.
+| Object | Position | Add |
+| --- | --- | --- |
+| **Buttons Hint** | -68, -30 | Sprite Component: `d-pad` |
+
+Under it:
+
+| Object | Position | Add |
+| --- | --- | --- |
+| **Walk Label** | 31, 0 | Text Component: `Walk`, **Font Size** 16, 26 × 36 |
+| **A Button** | 55, 0 | Sprite Component: `a-button` |
+| **Use Label** | 101, 0 | Text Component: `Plant, pick`, **Font Size** 16, 66 × 36 |
+
+| Object | Position | Add |
+| --- | --- | --- |
+| **Tap Hint** | -63, -30 | Sprite Component: `tap` |
+
+Under it:
+
+| Object | Position | Add |
+| --- | --- | --- |
+| **Tap Label** | 74, 0 | Text Component: `Tap to walk and farm`, **Font Size** 16, 120 × 36 |
+
+Create a script called `Help`, and add the **Help** component to **Help Button**.
+
+`src/Help.h`:
+
+```cpp
+#pragma once
+
+#include <deki/Engine.h>
+#include <deki/reflection/ObjectRef.h>
+
+#include "InputCollider.h"
+
+DEKI_CATEGORY("Game")
+DEKI_DESCRIPTION("Opens the help when its button is tapped or Tab is pressed. A tap or Tab closes it.")
+class Help : public Deki::Component
+{
+public:
+    DEKI_EXPORT
+    Deki::ObjectRef<DekiInput::InputCollider> popup;
+
+    ~Help() override;
+    void Start() override;
+
+private:
+    void Show(bool shown);
+
+    size_t m_Listener = 0;
+};
+```
+
+`src/Help.cpp`:
+
+```cpp
+#include "Help.h"
+
+#include "DekiInput.h"
+#include "Keys.h"
+
+void Help::Start()
+{
+    Show(false);
+
+    // A tap on the button opens the help. Its collider covers the screen and
+    // it is under the button, so while it is open it gets every tap first:
+    // any tap closes it, and none reaches the farm behind.
+    GetOwner()->GetComponent<DekiInput::InputCollider>()->onPointerDown.push_back([this](float, float) { Show(true); });
+    popup.Get()->onPointerDown.push_back([this](float, float) { Show(false); });
+
+    // Tab opens and closes it without a touchscreen. It is a handheld's Y button.
+    m_Listener = DekiInput::DekiInput::RegisterEventCallback(
+        [this](const DekiInput::InputEvent& event)
+        {
+            if (event.type == DekiInput::InputEventType::KeyDown && event.key == DekiInput::Keys::Tab)
+            {
+                Show(!popup.GetObject()->IsActive());
+            }
+        });
+}
+
+Help::~Help()
+{
+    DekiInput::DekiInput::UnregisterEventCallback(m_Listener);
+}
+
+void Help::Show(bool shown)
+{
+    popup.GetObject()->SetActive(shown);
+}
+```
+
+`Start` hides the popup and listens to the two colliders: a tap on the button opens the help, and any tap while it is open closes it. Tab does both from a keyboard, and from a handheld, where it is the Y button. The destructor stops listening to the keys, or the callback would be called on a component that is gone.
+
+Create a script called `ControlsHint`, and add the **Controls Hint** component to **Help Button** as well: the button is always there, so it hears every key and tap, also while the popup is closed.
 
 `src/ControlsHint.h`:
 
@@ -1007,7 +1108,6 @@ Create a script called `ControlsHint`, and add the **Controls Hint** component t
 #include <deki/Engine.h>
 #include <deki/reflection/ObjectRef.h>
 
-#include "InputCollider.h"
 #include "SpriteComponent.h"
 
 DEKI_CATEGORY("Game")
@@ -1023,9 +1123,6 @@ public:
 
     DEKI_EXPORT
     Deki::ObjectRef<Deki2D::SpriteComponent> tapHint;
-
-    DEKI_EXPORT
-    Deki::ObjectRef<DekiInput::InputCollider> tapArea;
 
     ~ControlsHint() override;
     void Start() override;
@@ -1063,7 +1160,7 @@ void ControlsHint::Start()
     }
 
     // Then follow the player. A key says which input sent it: the Miyoo's
-    // buttons arrive as keys too.
+    // buttons arrive as keys too. A tap or a click is a pointer going down.
     m_Listener = DekiInput::DekiInput::RegisterEventCallback(
         [this](const DekiInput::InputEvent& event)
         {
@@ -1072,10 +1169,12 @@ void ControlsHint::Start()
                 const bool handheld = event.source && std::strcmp(event.source, "Miyoo") == 0;
                 Show(handheld ? buttonsHint : keysHint);
             }
+            else if (event.type == DekiInput::InputEventType::MouseButtonDown ||
+                     event.type == DekiInput::InputEventType::TouchDown)
+            {
+                Show(tapHint);
+            }
         });
-
-    // A tap or a click lands on the Tap Area, which the Farmer listens to as well.
-    tapArea.Get()->onPointerDown.push_back([this](float, float) { Show(tapHint); });
 }
 
 ControlsHint::~ControlsHint()
@@ -1092,7 +1191,7 @@ void ControlsHint::Show(Deki::ObjectRef<Deki2D::SpriteComponent>& hint)
 }
 ```
 
-`Start` picks the panel from the inputs the device has: `GetInput("Miyoo")` finds the Miyoo Mini's buttons, and `DekiDisplayTouch` is a touchscreen. After that it follows the player. Every key event names the input that sent it, so a key from the `Miyoo` shows the buttons and any other key shows the keyboard. A tap reaches it through the same **Tap Area** the farmer listens to: a collider can have any number of listeners.
+`Start` picks the row from the inputs the device has: `GetInput("Miyoo")` finds the Miyoo Mini's buttons, and `DekiDisplayTouch` is a touchscreen. After that it follows the player. Every input event names what sent it, so a key from the `Miyoo` shows the buttons, any other key shows the keyboard, and a pointer going down, which is a tap or a click, shows the tap row.
 
 ## Connect it
 
@@ -1108,7 +1207,7 @@ Add the **Farm** component to the Farm object and fill in its fields.
 
 Add the **Farmer** component to the Farmer object. Set **Farm** to the Farm object, **Camera** to the Camera object, **Tap Area** to the Tap Area object, **Idle Sheet** to `FPlayer 1 idle` and **Walk Sheet** to `FPlayer 1 walking`.
 
-On **Controls**, set **Keys Hint**, **Buttons Hint** and **Tap Hint** to the three panels, and **Tap Area** to the Tap Area object.
+On **Help Button**, set the Help's **Popup** to the Help object, and the Controls Hint's **Keys Hint**, **Buttons Hint** and **Tap Hint** to the three rows.
 
 Save with Ctrl+S and press **Run**.
 

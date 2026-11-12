@@ -25,8 +25,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   board. The documentation's front page and sidebar group the guides and
   packages by what they are for.
 - **Your first game**, a guide that builds a tiny farm on a Tiled island step
-  by step: walking with keys, buttons or taps, planting and picking turnips,
-  and a HUD. Its soil and turnips are sprite batches and its panels one raised
+  by step: walking with keys, buttons or taps that find their way round the
+  fences, a tower of picked turnips carried to the house to sell, and a HUD
+  with a help popup that stays in its corners on any screen. Its soil and turnips are sprite batches and its panels one raised
   procedural sprite, which is what keeps it fast on a small board. **Your first
   app** builds a countdown timer the same way.
 - **A checklist of breaking changes when an older project opens.** Each
