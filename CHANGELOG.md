@@ -54,6 +54,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   and source line, filtered by level and text.
 
 ### Fixed
+- **`--render-scenes` gives the engine its screen size in every mode.** In
+  the default buffer mode the engine said 0x0, so game code that asks for it,
+  such as a camera's pixels per meter, got 0 and moved objects to NaN.
 - A project opened in a rebuilt editor while its code had a build error now
   gets its packages back once the error is fixed. The failed rebuild at open
   removes the package libraries built for the previous editor, and later

@@ -14,18 +14,18 @@
 #   DekiEditor --render-scenes --platform <board> <deki-demo> > render.txt
 #   python tools/ci/check_golden.py render.txt tools/ci/golden-demo.txt \
 #       --record --reason "what changed and why"
-# recorded: 2026-10-31 - every scene with text: deki-2d bakes each oversampled glyph on the pixel grid, so letters sit where FreeType puts them
+# recorded: 2026-11-13 - 0.40: a scaled sprite reads the source pixel under each drawn pixel's middle; the widgets scene is drawn at 4x here
 
 # config: renderer=standard2d mode=buffer size=1280x720 format=RGB565 frames=60
-a9aa175626be3a1c  scenes/effects.scene
-76d61c79f37c9217  scenes/gps.scene
-11224a23ca2b4f0b  scenes/keyboard.scene
-afcb698610018d37  scenes/logic.scene
-a18fc33968895740  scenes/lora.scene
-6e7eebcedcb00683  scenes/meadow.scene
-615d2ea45733b6df  scenes/menu.scene
-5d8a6dcdad7dd6f3  scenes/trackball.scene
-0fbe6c5aa97c118c  scenes/widgets.scene
+1ed68466ab4b7a2a  scenes/effects.scene
+bb1455baf19dc3c4  scenes/gps.scene
+fcf35d52e10eb718  scenes/keyboard.scene
+deef2d9e7e76826a  scenes/logic.scene
+08e8053baeb2bf7a  scenes/lora.scene
+7faf7cefa2cea89f  scenes/meadow.scene
+29f92e27298de197  scenes/menu.scene
+3effdb11027fa503  scenes/trackball.scene
+537a4cbe18c5a96e  scenes/widgets.scene
 
 # config: renderer=standard2d mode=buffer size=320x240 format=RGB565 frames=60
 36eaad6dbffdb62e  scenes/effects.scene

@@ -1797,7 +1797,10 @@ int CmdRenderScenes(EditorApp& editor, const char* platformId)
                DekiEditor::ColorFormatName(format), frames, mode.c_str());
     }
 
-    if (useSystem && !rs->Setup(width, height, format))
+    // Every mode sizes the engine's screen, as a device does: game code asks
+    // the engine for it (Engine::GetScreenWidth), and in buffer mode it was
+    // 0, which made a camera's pixels per meter 0.
+    if (!rs->Setup(width, height, format))
     {
         printf("Error: render system Setup(%dx%d) failed\n", width, height);
         return 1;
