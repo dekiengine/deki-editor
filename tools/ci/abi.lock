@@ -4,7 +4,7 @@
 # A change below is an ABI break: bump kDekiReflectionAbiVersion in
 # deki-engine/include/deki/interop/ReflectionAbi.h in the same commit and
 # say what changed in deki-engine/CHANGELOG.md.
-abi_version: 23
+abi_version: 24
 
 class Deki::Component (11 virtual)
   ~Component()
@@ -69,15 +69,17 @@ class Deki::IRenderSystem (12 virtual)
   void MarkAllDirty()
   const Rect* GetPresentRects(int32_t* count) const
 
-class Deki::IInputSystem (8 virtual)
+class Deki::IInputSystem (10 virtual)
   ~IInputSystem()
   void Initialize()
   void Shutdown()
   void DispatchInput(Scene* scene, float x, float y, bool down, bool move, bool up)
   void DispatchKey(uint32_t key, bool down)
+  bool DispatchPointer(int32_t screenX, int32_t screenY, bool down, bool move, bool up)
   bool IsInitialized() const
   void Update()
   bool ShouldExit() const
+  void DispatchStick(int stick, float x, float y)
 
 class Deki::IFileSystem (15 virtual)
   ~IFileSystem()

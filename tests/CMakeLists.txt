@@ -731,7 +731,7 @@ deki_add_package_tests(deki-miyoo-boards TARGET DekiMiyooBoardsTests NEEDS_EDITO
 # installing it on SD cards that are fake folders; the display's row
 # widening; and which key each button and axis presses.
 deki_add_package_tests(deki-anbernic-boards TARGET DekiAnbernicBoardsTests NEEDS_EDITOR
-                       SOURCES editor/AnbernicBuilder.cpp editor/AnbernicToolchain.cpp editor/StockApp.cpp
+                       SOURCES editor/AnbernicBuilder.cpp editor/AnbernicToolchain.cpp editor/StockApp.cpp editor/SshInstall.cpp
                                AnbernicRows.cpp AnbernicInput.cpp
                        DEFINES "DEKI_ANBERNIC_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-anbernic-boards\""
                        LIBS nlohmann_json::nlohmann_json)

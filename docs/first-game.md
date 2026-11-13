@@ -10,9 +10,9 @@ It starts from a new project: see [Getting started](getting-started.md). The Ins
 
 The art is [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) by Aibyzz. Download the free version and unpack it. Deki does not include it, because its licence does not allow sharing the files. You can use it in your own games, commercial ones too.
 
-The island is a [Tiled](https://www.mapeditor.org) map, ready to use, in <a href="first-game-files.zip">first-game-files.zip</a>. The zip also holds the map's four tilesets, the HUD's icons and panel and the [monogram](https://datagoblin.itch.io/monogram) pixel font. The ground is painted on tile layers, steps included, and everything that stands on it, from the fences to the house, is a tile object on the `scenery` layer.
+The island is a [Tiled](https://www.mapeditor.org) map, ready to use, in <a href="first-game-files.zip">first-game-files.zip</a>. The zip also holds the map's eight tilesets, the HUD's icons and panel and the [monogram](https://datagoblin.itch.io/monogram) pixel font. The ground is painted on tile layers, steps included, and everything that stands on it, from the fences to the house, is a tile object on the `scenery` layer. So is the top of the raised ground's back edge, a second time, so it can be drawn over the farmer and cover her feet when she walks behind it. The tiles are whole blocks whose sides the next tiles hide, so the edge is made of strips 8 pixels tall from the same sheet: the `raised_edge_back` and `raised_edge_front` tilesets cut it that way, each drawing its strip that far above its point, so every strip stands on its tile's front corner. The front corner's cliff is there too, as the left half of its tile, from the `raised_edge_corner` tileset, and the rest of that tile's top as a quarter from `raised_edge_quarter`.
 
-Three rectangles on that layer are for the game, not to be seen: `Steps` marks where the steps climb, the house's `Wall` keeps the farmer out of the house and the ground behind it, and `Door` is the ground in front of the door, where turnips are sold. Tiled has no levels, so whatever stands on the raised ground has a custom property, `level`, set to 1.
+The `collision` layer is for the game, not to be seen. It says what is in the way, drawn over the pictures: an ellipse round the foot of each rock, bush, log and tree, and a line along each fence's posts. Three rectangles there have a class: `Steps` marks where the steps climb, the house's `Wall` keeps the farmer out of the house, and `Door` is the ground in front of the door, where turnips are sold. Tiled has no levels, so whatever stands on the raised ground has a custom property, `level`, set to 1.
 
 1. Open **View → Package Manager** and install **Tiled Map Editor Integration**.
 2. Unpack the zip into your project's `assets` folder. It makes the folders `tilemaps`, `hud` and `fonts` there.
@@ -101,14 +101,20 @@ public:
     // per pixel row, as the map's spawner sorts the scenery.
     static int DrawOrder(float y) { return 1000 - static_cast<int>(std::floor(y * 16.0f)); }
 
+    // The farmer's draw order, with her feet at this point and this high up:
+    // as DrawOrder, but in front of a fence, a log, a rock or a house beside
+    // her or behind it as a whole.
+    int DrawOrderAt(float x, float feet, float height) const;
+
 private:
-    // Something on the map's scenery layer, in columns and rows of the ground
-    // it stands on.
+    // Something on the map's collision layer, in columns and rows of the
+    // ground it stands on.
     struct Thing
     {
         enum Kind : uint8_t
         {
-            Solid,  // in the way around its point
+            Round,  // in the way inside its ellipse: a rock, a bush, a trunk
+            Fence,  // in the way along the line of its posts
             Wall,   // in the way over its whole area
             Steps,  // climbs one level, from its front edge to its back
             Door,   // where turnips are sold; not in the way
@@ -116,10 +122,12 @@ private:
 
         float column = 0.0f;
         float row = 0.0f;
-        float columns = 0.0f;  // an area's size
+        float columns = 0.0f;  // an area's or an ellipse's size
         float rows = 0.0f;
+        uint32_t firstPoint = 0;  // a fence's posts, in m_FencePoints
+        uint32_t points = 0;
         int level = 0;
-        Kind kind = Solid;
+        Kind kind = Wall;
 
         bool Holds(float c, float r) const
         {
@@ -140,7 +148,11 @@ private:
 
     void ReadMap();
     void FindWays();
+    // How high the ground itself is at a column and row, or -1 off the island.
+    float LevelAt(float column, float row) const;
+    bool InTheWay(const Thing& thing, float column, float row, float clearance) const;
     bool CanWalk(float fromX, float fromY, float toX, float toY, float clearance = 0.0f) const;
+    void AlongTheSquares(float fromX, float fromY, float& toX, float& toY) const;
     void Flood(int from);
     void Show(Patch& patch);
     void ShowScore();
@@ -152,6 +164,7 @@ private:
     int m_Score = 0;
 
     Deki::Buffer<Thing> m_Things;
+    Deki::Buffer<float> m_FencePoints;  // each fence post's column and row
     // For each square of the island: which of the eight around it can be
     // walked to, and how many squares away the last flood started.
     Deki::Buffer<uint8_t> m_Ways;
@@ -167,6 +180,7 @@ private:
 ```cpp
 #include "Farm.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -177,12 +191,37 @@ const int kIslandSize = 24;
 const int kSquares = kIslandSize * kIslandSize;
 const float kIslandTop = 12.0f;
 
-// The first column and last row of the raised ground, where the house stands.
-const float kRaisedColumn = 11.6f;
-const float kRaisedRow = 9.6f;
+// Where the raised ground, with the house on it, starts: the back edge of its
+// first column and the front edge of its last row.
+const float kRaisedColumn = 11.5f;
+const float kRaisedRow = 9.5f;
 
-// How close to a fence, rock or tree the farmer can get, in squares.
-const float kSolidRadius = 0.5f;
+// The farmer's feet reach this far to each side across the screen, in
+// squares: this many columns and rows.
+const float kFeetHalfWidth = 0.3f;
+
+// The raised ground's back edge is on the map a second time, as pieces
+// sorted with her. They stand along this column, this far across from their
+// middle, in meters.
+const float kEdgePieces = kRaisedColumn + 1.0f;
+const float kEdgePieceHalfWidth = 1.0f;
+
+// How far from the line of a fence's posts the farmer keeps, in squares: half
+// a post's width.
+const float kFenceHalfWidth = 0.22f;
+
+// Pictures are drawn in front of what stands higher on the screen than their
+// point. In meters: how far the farmer reaches across from her middle, how far
+// a fence's pieces reach across from theirs, how far below the fence's line
+// their points are at most, and how far below the front of its ellipse a
+// rock's or a tree's point is at most.
+const float kFarmerHalfWidth = 0.6f;
+const float kPieceHalfWidth = 1.0f;
+const float kPieceBelowLine = 0.5f;
+const float kPictureBelowFoot = 0.25f;
+
+// How far a roof reaches past its house's walls, across the screen, in meters.
+const float kRoofOverhang = 1.0f;
 
 // The eight squares around one, as columns and rows, and a square the flood
 // did not reach.
@@ -195,12 +234,16 @@ const float kSameSpot = 0.01f;
 // A long straight walk keeps this far from whatever is in the way, in
 // squares, and looks this many squares ahead along the way for one.
 const float kClearance = 0.1f;
+
+// A line this close to one the keys walk is one, in meters.
+const float kAligned = 0.01f;
 const int kLookAhead = 12;
 
-// Tiled stores positions at 16 per square, and the map's grid starts 2 squares
-// before the island.
+// Tiled stores positions at 16 per square, from the corner of the map's grid:
+// the island starts a square in, and a square is named by its middle, half a
+// square further.
 const float kMapUnitsPerSquare = 16.0f;
-const float kMapMargin = 2.0f;
+const float kMapMargin = 1.5f;
 
 // The middle of a square on the lower ground. A square is 2 meters wide and
 // 1 tall, and the raised ground is 1 meter higher.
@@ -241,20 +284,98 @@ bool IsA(const DekiTiledMap::DTilemapObject& object, const char* type)
 {
     return std::strncmp(object.type, type, sizeof(object.type)) == 0;
 }
+
+// How far a point is from the nearest point of the line between two others.
+float DistanceToLine(float x, float y, float fromX, float fromY, float toX, float toY)
+{
+    const float alongX = toX - fromX;
+    const float alongY = toY - fromY;
+    const float length = alongX * alongX + alongY * alongY;
+    float part = length > 0.0f ? ((x - fromX) * alongX + (y - fromY) * alongY) / length : 0.0f;
+    part = std::fmin(1.0f, std::fmax(0.0f, part));
+    return std::hypot(x - fromX - alongX * part, y - fromY - alongY * part);
+}
+
+// How high up the screen the line between two points is at a point across,
+// or at its nearer end past either end.
+float HeightAlong(float fromX, float fromY, float toX, float toY, float x)
+{
+    if (toX == fromX)
+    {
+        return std::fmax(fromY, toY);
+    }
+    const float part = std::fmin(1.0f, std::fmax(0.0f, (x - fromX) / (toX - fromX)));
+    return fromY + (toY - fromY) * part;
+}
+
+// The draw orders the farmer may have: over all she stands in front of, and
+// under all she stands behind.
+struct Between
+{
+    int over = 0;
+    int under = 0x7FFFFFFF;
+};
+
+// Puts the farmer in front of all that is drawn along a line on the ground,
+// or behind all of it. What is drawn reaches this far across from her middle,
+// and has its points no further than this below the line.
+void SortBySide(float x, float fromX, float fromY, float toX, float toY, float reach, float below, bool inFront,
+                Between& order)
+{
+    if (std::fmax(fromX, toX) < x - reach || std::fmin(fromX, toX) > x + reach)
+    {
+        return;
+    }
+    const float left = HeightAlong(fromX, fromY, toX, toY, x - reach);
+    const float right = HeightAlong(fromX, fromY, toX, toY, x + reach);
+    if (inFront)
+    {
+        order.over = std::max(order.over, Farm::DrawOrder(std::fmin(left, right) - below) + 1);
+    }
+    else
+    {
+        order.under = std::min(order.under, Farm::DrawOrder(std::fmax(left, right)) - 1);
+    }
+}
+
+// The same, by which side of the line her feet are on.
+void SortAgainstLine(float x, float feet, float fromX, float fromY, float toX, float toY, float reach, float below,
+                     Between& order)
+{
+    const float here = HeightAlong(fromX, fromY, toX, toY, x);
+    if (feet < here || feet < here + reach)
+    {
+        SortBySide(x, fromX, fromY, toX, toY, reach, below, feet < here, order);
+    }
+}
 }  // namespace
 
 void Farm::ReadMap()
 {
+    // The map's tile objects are only pictures. What is in the way is drawn
+    // on its collision layer as shapes: an ellipse round the foot of a rock or
+    // a tree, a line along a fence's posts, a rectangle for a wall.
     const DekiTiledMap::Tilemap& tilemap = *map.Get();
     const auto& objects = tilemap.Objects();
-    if (!m_Things.Allocate(objects.size(), Deki::Memory::External))
+    const auto& points = tilemap.PolygonPoints();
+    size_t count = 0;
+    for (const DekiTiledMap::DTilemapObject& object : objects)
+    {
+        count += object.gid == 0 ? 1 : 0;
+    }
+    if (!m_Things.Allocate(count, Deki::Memory::External) ||
+        !m_FencePoints.Allocate(points.size(), Deki::Memory::External))
     {
         return;
     }
 
-    for (size_t index = 0; index < objects.size(); ++index)
+    size_t next = 0;
+    for (const DekiTiledMap::DTilemapObject& object : objects)
     {
-        const DekiTiledMap::DTilemapObject& object = objects[index];
+        if (object.gid != 0)
+        {
+            continue;
+        }
         // Tiled has no levels, so whatever stands on the raised ground has a
         // "level" property of 1. Tiled shows it where it would be on the
         // lower ground: a square further up and to the left.
@@ -265,11 +386,23 @@ void Farm::ReadMap()
         thing.row = object.y / kMapUnitsPerSquare - kMapMargin + thing.level;
         thing.columns = object.width / kMapUnitsPerSquare;
         thing.rows = object.height / kMapUnitsPerSquare;
-        thing.kind = IsA(object, "Steps")  ? Thing::Steps
-                     : IsA(object, "Wall") ? Thing::Wall
-                     : IsA(object, "Door") ? Thing::Door
-                                           : Thing::Solid;
-        m_Things[index] = thing;
+        const auto shape = static_cast<DekiTiledMap::DObjectShape>(object.shape);
+        thing.kind = IsA(object, "Steps")                            ? Thing::Steps
+                     : IsA(object, "Door")                           ? Thing::Door
+                     : shape == DekiTiledMap::DObjectShape::Ellipse  ? Thing::Round
+                     : shape == DekiTiledMap::DObjectShape::Polyline ? Thing::Fence
+                                                                     : Thing::Wall;
+
+        // A fence's posts, as columns and rows. Tiled keeps them from the
+        // object's own point.
+        thing.firstPoint = object.pointOffset;
+        thing.points = object.pointCount;
+        for (uint32_t point = object.pointOffset; point < object.pointOffset + object.pointCount; ++point)
+        {
+            m_FencePoints[point * 2] = thing.column + points[point * 2] / kMapUnitsPerSquare;
+            m_FencePoints[point * 2 + 1] = thing.row + points[point * 2 + 1] / kMapUnitsPerSquare;
+        }
+        m_Things[next++] = thing;
     }
 }
 
@@ -363,13 +496,12 @@ void Farm::Update()
     }
 }
 
-float Farm::GroundHeight(float x, float y, float clearance) const
+float Farm::LevelAt(float column, float row) const
 {
-    const float column = ColumnAt(x, y);
-    const float row = RowAt(x, y);
-
-    const float last = kIslandSize - 1;
-    if (column < -0.3f || row < -0.3f || column > last + 0.3f || row > last + 0.3f)
+    // The island's squares are named by their middles, so its ground reaches
+    // half a square past the first and the last.
+    const float last = kIslandSize - 0.5f;
+    if (column < -0.5f || row < -0.5f || column > last || row > last)
     {
         return -1.0f;
     }
@@ -383,28 +515,170 @@ float Farm::GroundHeight(float x, float y, float clearance) const
             height = (thing.row + thing.rows - row) / thing.rows;
         }
     }
+    return height;
+}
+
+float Farm::GroundHeight(float x, float y, float clearance) const
+{
+    const float column = ColumnAt(x, y);
+    const float row = RowAt(x, y);
+    const float height = LevelAt(column, row);
+    if (height < 0.0f)
+    {
+        return -1.0f;
+    }
+
+    // Her feet have a width, and all of it stands on the same ground: no
+    // part of her is inside the cliff, or past the raised ground's edge.
+    // Across the screen is a column further for a row less.
+    for (float side : { -kFeetHalfWidth, kFeetHalfWidth })
+    {
+        const float there = LevelAt(column + side, row - side);
+        if (there < 0.0f || std::fabs(there - height) >= 0.5f)
+        {
+            return -1.0f;
+        }
+    }
 
     // Everything else on the map is in the way of whoever is on its level.
     const int level = height < 0.5f ? 0 : 1;
     for (size_t index = 0; index < m_Things.Count(); ++index)
     {
         const Thing& thing = m_Things[index];
-        if (thing.kind == Thing::Steps || thing.kind == Thing::Door || thing.level != level)
-        {
-            continue;
-        }
-        const float columns = thing.column - column;
-        const float rows = thing.row - row;
-        const float radius = kSolidRadius + clearance;
-        const bool inWall = column >= thing.column - clearance && column <= thing.column + thing.columns + clearance &&
-                            row >= thing.row - clearance && row <= thing.row + thing.rows + clearance;
-        const bool inTheWay = thing.kind == Thing::Wall ? inWall : columns * columns + rows * rows < radius * radius;
-        if (inTheWay)
+        if (thing.level == level && InTheWay(thing, column, row, clearance))
         {
             return -1.0f;
         }
     }
     return height;
+}
+
+bool Farm::InTheWay(const Thing& thing, float column, float row, float clearance) const
+{
+    switch (thing.kind)
+    {
+        case Thing::Wall:
+            // No part of her feet's width is inside a wall.
+            for (float side : { -kFeetHalfWidth, 0.0f, kFeetHalfWidth })
+            {
+                if (column + side >= thing.column - clearance &&
+                    column + side <= thing.column + thing.columns + clearance && row - side >= thing.row - clearance &&
+                    row - side <= thing.row + thing.rows + clearance)
+                {
+                    return true;
+                }
+            }
+            return false;
+        case Thing::Round:
+        {
+            const float across = thing.columns * 0.5f + clearance;
+            const float down = thing.rows * 0.5f + clearance;
+            const float columns = (column - thing.column - thing.columns * 0.5f) / across;
+            const float rows = (row - thing.row - thing.rows * 0.5f) / down;
+            return columns * columns + rows * rows < 1.0f;
+        }
+        case Thing::Fence:
+            for (uint32_t point = thing.firstPoint + 1; point < thing.firstPoint + thing.points; ++point)
+            {
+                const float* from = &m_FencePoints[(point - 1) * 2];
+                if (DistanceToLine(column, row, from[0], from[1], from[2], from[3]) < kFenceHalfWidth + clearance)
+                {
+                    return true;
+                }
+            }
+            return false;
+        default: return false;
+    }
+}
+
+int Farm::DrawOrderAt(float x, float feet, float height) const
+{
+    // A fence, a log or a house beside her is wider than one point on the
+    // screen, so part of it can be lower or higher on the screen than her feet
+    // while she is on the other side of it. She draws in front of all of it or
+    // behind all of it, by which side of it she is on.
+    Between order;
+    const int level = height < 0.5f ? 0 : 1;
+    for (size_t index = 0; index < m_Things.Count(); ++index)
+    {
+        const Thing& thing = m_Things[index];
+        if (thing.level != level)
+        {
+            continue;
+        }
+        if (thing.kind == Thing::Round)
+        {
+            // The line along its length: just its middle, for a round rock.
+            const float across = thing.columns * 0.5f;
+            const float down = thing.rows * 0.5f;
+            const float shorter = std::fmin(across, down);
+            const float middleColumn = thing.column + across;
+            const float middleRow = thing.row + down;
+            const float fromColumn = middleColumn - (across - shorter);
+            const float fromRow = middleRow - (down - shorter);
+            const float toColumn = middleColumn + (across - shorter);
+            const float toRow = middleRow + (down - shorter);
+            const float size = std::hypot(across, down);
+            SortAgainstLine(x, feet, WorldX(fromColumn, fromRow), WorldY(fromColumn, fromRow) + thing.level,
+                            WorldX(toColumn, toRow), WorldY(toColumn, toRow) + thing.level, kFarmerHalfWidth + size,
+                            size * 0.5f + kPictureBelowFoot, order);
+        }
+        else if (thing.kind == Thing::Fence)
+        {
+            for (uint32_t point = thing.firstPoint + 1; point < thing.firstPoint + thing.points; ++point)
+            {
+                const float* from = &m_FencePoints[(point - 1) * 2];
+                SortAgainstLine(x, feet, WorldX(from[0], from[1]), WorldY(from[0], from[1]) + thing.level,
+                                WorldX(from[2], from[3]), WorldY(from[2], from[3]) + thing.level,
+                                kFarmerHalfWidth + kPieceHalfWidth, kPieceBelowLine, order);
+            }
+        }
+        else if (thing.kind == Thing::Wall)
+        {
+            // A house is wide and deep. Its picture stands with its point
+            // inside its walls, so she draws in front of all of it once she
+            // is past its front walls, and behind all of it otherwise. Beside
+            // a corner, her side nearer the house is still behind it until
+            // all her width is past.
+            const float left = WorldX(thing.column, thing.row + thing.rows) - kRoofOverhang;
+            const float right = WorldX(thing.column + thing.columns, thing.row) + kRoofOverhang;
+            if (left > x + kFarmerHalfWidth || right < x - kFarmerHalfWidth)
+            {
+                continue;
+            }
+            const float column = ColumnAt(x, feet - thing.level);
+            const float row = RowAt(x, feet - thing.level);
+            const float lastColumn = thing.column + thing.columns;
+            const float lastRow = thing.row + thing.rows;
+            const bool besideLeft = column < thing.column && row < lastRow + kFeetHalfWidth;
+            const bool besideRight = row < thing.row && column < lastColumn + kFeetHalfWidth;
+            if ((column > lastColumn || row > lastRow) && !besideLeft && !besideRight)
+            {
+                const float front = WorldY(thing.column + thing.columns, thing.row + thing.rows) + thing.level;
+                order.over = std::max(order.over, DrawOrder(front) + 1);
+            }
+            else
+            {
+                order.under = std::min(order.under, DrawOrder(WorldY(thing.column, thing.row) + thing.level) - 1);
+            }
+        }
+    }
+
+    // The pieces of the raised ground's back edge cover her only while she
+    // is on the lower ground behind it, where her feet are behind its wall:
+    // there she walks half hidden, which is what shows the ground is higher.
+    // Anywhere else she is on top of it or in front of its cliff. Her right
+    // side comes out from behind the cliff's corner after her feet do.
+    const float column = ColumnAt(x, feet - height);
+    const float row = RowAt(x, feet - height);
+    const bool behind = level == 0 && column < kRaisedColumn && row < kRaisedRow + kFeetHalfWidth;
+    SortBySide(x, WorldX(kEdgePieces, 0.0f), WorldY(kEdgePieces, 0.0f), WorldX(kEdgePieces, kRaisedRow),
+               WorldY(kEdgePieces, kRaisedRow), kFarmerHalfWidth + kEdgePieceHalfWidth, 0.0f, !behind, order);
+
+    // Otherwise as anything else, by how low on the screen her feet are. In
+    // the corner of two fences she is in front of one and behind the other,
+    // and the post they share cannot be both: in front of it wins.
+    return std::max(std::min(DrawOrder(feet - 0.5f), order.under), order.over);
 }
 
 bool Farm::CanWalk(float fromX, float fromY, float toX, float toY, float clearance) const
@@ -534,6 +808,7 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
     {
         outX = m_GoalX;
         outY = m_GoalY;
+        AlongTheSquares(fromX, fromY, outX, outY);
         return true;
     }
 
@@ -594,7 +869,36 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
     }
     outX = WorldX(best % kIslandSize, best / kIslandSize);
     outY = WorldY(best % kIslandSize, best / kIslandSize);
+    AlongTheSquares(fromX, fromY, outX, outY);
     return true;
+}
+
+void Farm::AlongTheSquares(float fromX, float fromY, float& toX, float& toY) const
+{
+    // The keys walk along the squares, two across for one up or down. Any
+    // other line is laid as two that do, one along each way of the squares,
+    // when nothing is in the way of either, so a tapped walk moves in the
+    // same whole-pixel steps as the keys.
+    const float dx = toX - fromX;
+    const float dy = toY - fromY;
+    if (std::fabs(std::fabs(dx) - std::fabs(dy) * 2.0f) < kAligned)
+    {
+        return;
+    }
+    // How far along each way: up-right (2, 1) and down-right (2, -1).
+    const float upRight = (dx * 0.5f + dy) * 0.5f;
+    const float downRight = (dx * 0.5f - dy) * 0.5f;
+    const float corners[2][2] = { { fromX + upRight * 2.0f, fromY + upRight },
+                                  { fromX + downRight * 2.0f, fromY - downRight } };
+    for (const auto& corner : corners)
+    {
+        if (CanWalk(fromX, fromY, corner[0], corner[1]) && CanWalk(corner[0], corner[1], toX, toY))
+        {
+            toX = corner[0];
+            toY = corner[1];
+            return;
+        }
+    }
 }
 
 bool Farm::IsSoil(float x, float y) const
@@ -681,13 +985,13 @@ void Farm::ShowScore()
 
 The soil and the turnips are pieces of two Sprite Batch components. `Add` places a rectangle of the sheet, so nothing needs cutting up first, and returns the piece's number. `SetFrameRect` and `SetVisible` change that piece later. Twenty patches are two objects where they would be forty, which a small device feels, and each piece still sorts on its own: the farmer walks in front of one turnip and behind the next.
 
-A column and a row name a square on the island: columns run down and to the right, rows down and to the left. `WorldX` and `WorldY` turn them into a position, and `ColumnAt` and `RowAt` do the reverse. `ReadMap` reads the `scenery` layer once, with `FindProperty` for each object's `level`. `GroundHeight` says how high the ground is at a point: 0 on the lower ground, 1 on the raised ground and in between on the steps. It keeps the farmer on the island and out of everything on her level: a `Wall` over its whole area, anything else around its point, fences included.
+A column and a row name a square on the island: columns run down and to the right, rows down and to the left. `WorldX` and `WorldY` turn them into a position, and `ColumnAt` and `RowAt` do the reverse. `ReadMap` reads the `collision` layer's shapes once, with `FindProperty` for each one's `level`, and leaves the tile objects, the pictures, to the spawner. `GroundHeight` says how high the ground is at a point: 0 on the lower ground, 1 on the raised ground and in between on the steps. It keeps the farmer on the island and out of everything on her level: a `Wall` over its whole area, a rock or a tree inside its ellipse, a fence along its line. Her feet have a width, `kFeetHalfWidth` to each side across the screen, and all of it has to stand on the same ground: so no part of her is inside the cliff or a wall, and on the raised ground she stops before her feet hang over its edge. Behind the raised ground she walks right up to its back wall, where its edge covers her feet, so she looks to stand below it.
 
-A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when the line there is clear, otherwise the middle of a square. It starts from the best square beside her and looks on along the way, a square nearer the goal each time, for as long as she could still walk straight there with a little room to spare. So she walks in long straight lines and turns only where something is in the way.
+A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when the line there is clear, otherwise the middle of a square. It starts from the best square beside her and looks on along the way, a square nearer the goal each time, for as long as she could still walk straight there with a little room to spare. So she walks in long straight lines and turns only where something is in the way. `AlongTheSquares` then lays a line the keys could not walk as two they can, one along each way of the squares, when nothing is in the way of either, so a tapped walk moves in the same whole-pixel steps as the keys.
 
 `UseSoil` plants on an empty patch and picks a ripe turnip, when the farmer says she has room for one more. The count on screen is of turnips sold: `IsAtDoor` says when she stands on the map's `Door` area, and `Sell` counts one.
 
-`DrawOrder` is what makes the farmer walk behind the trees and in front of the turnips: lower on the screen draws on top. It matches the spawner's **Sort Base** and **Sort Per Meter**, so the farmer and the scenery sort together. The spawner sorts a tile object by its point. The house's point is the back corner of its floor, and its tileset's **Tile Offset** draws the picture from there, so the farmer draws in front of it at the door.
+`DrawOrder` is what makes the farmer walk behind the trees and in front of the turnips: lower on the screen draws on top. It matches the spawner's **Sort Base** and **Sort Per Meter**, so the farmer and the scenery sort together. The spawner sorts a tile object by its point. The house's point is inside its walls, and its tileset's **Tile Offset** draws the picture from there. A fence, a log or the house is wider than one point, though: part of it can be lower on the screen than her feet while she stands behind it. `DrawOrderAt` sorts her against its line, or against the house's walls, instead: in front of all of it or behind all of it, by which side she is on. In the corner of two fences she is in front of one and behind the other, and in front wins for the post they share. The pieces of the raised ground's edge are sorted the same way, by where she is: they cover her only while she is on the lower ground behind it, and anywhere else, on top of it or in front of its cliff, she draws over them. Beside a corner, of the cliff or of the house, she counts as behind it until all her width is past, so her side comes out from behind the corner instead of jumping in front of it.
 
 ## The farmer
 
@@ -709,7 +1013,8 @@ Create a script called `Farmer`.
 #include "SpriteComponent.h"
 
 DEKI_CATEGORY("Game")
-DEKI_DESCRIPTION("Walks with the arrow keys or to a tapped spot, and carries the turnips she picks to the house.")
+DEKI_DESCRIPTION("Walks with the arrow keys or to a tapped spot, runs while B is held, and carries the turnips she "
+                 "picks to the house.")
 class Farmer : public Deki::Component
 {
 public:
@@ -729,7 +1034,10 @@ public:
     Deki::AssetRef<Deki2D::Sprite> walkSheet;
 
     DEKI_EXPORT
-    float speed = 7.0f;
+    float speed = 3.75f;
+
+    DEKI_EXPORT
+    float runSpeed = 7.5f;
 
     void Start() override;
     void Update() override;
@@ -758,15 +1066,21 @@ private:
     float m_TurnClock = 0.0f;  // how long she has been going another way than she faces
     Steer m_SteerX;
     Steer m_SteerY;
-    float m_Clock = 0.0f;  // counts frames of the sheet
+    float m_X = 0.0f;  // where her feet are, as if on the lower ground; she is shown on the nearest pixel
+    float m_Ground = 0.0f;
+    float m_FrameSeconds = 0.0f;  // how long a frame takes, evened out over the last few
+    int m_StickWay = -1;          // which of the four ways the stick is pushed, or -1
+    float m_Clock = 0.0f;         // counts frames of the sheet
     bool m_WasWalking = true;
     bool m_WasUseDown = false;
 
     // The turnips she carries, one on top of the other.
     Deki2D::SpriteBatchComponent* m_Tower = nullptr;
     int m_Carried = 0;
-    float m_Lean = 0.0f;       // how far each turnip sits behind the one below, in pixels
-    float m_LeanSpeed = 0.0f;  // how fast the lean is changing
+    float m_LeanX = 0.0f;  // how far each turnip sits from the one below, across and up, in pixels
+    float m_LeanY = 0.0f;
+    float m_LeanSpeedX = 0.0f;  // how fast the lean is changing
+    float m_LeanSpeedY = 0.0f;
     float m_Hop = 0.0f;        // how much the turnips hop with her steps, 0 to 1
     float m_Drop = 0.0f;       // how far the last turnip picked still has to fall, 1 to 0
     float m_SellClock = 0.0f;  // since the last turnip went into the house
@@ -800,7 +1114,7 @@ const float kSecondsPerSale = 0.12f;
 // The tower is a spring: it is pulled to lean back from the way she walks,
 // overshoots and swings before it settles. Stiffer swings faster, and more
 // damping settles sooner.
-const float kLeanWalking = 1.4f;  // pixels each turnip sits behind the one below
+const float kLeanWalking = 1.4f;  // how far each turnip sits behind the one below, over the ground, in pixels
 const float kLeanStiffness = 110.0f;
 const float kLeanDamping = 6.0f;
 // Each turnip hops with her steps, a little after the one below it, and a
@@ -842,13 +1156,47 @@ const float kIdleFramesPerSecond = 6.0f;
 // A turn waits this long, so a step aside does not flick her round.
 const float kTurnSeconds = 0.05f;
 
+// Walked into a corner, she slips round it when the way is clear this many
+// pixels to one side: half a square.
+const int kSlipPixels = 4;
+
+// A stick counts once it is pushed this far, of 1. Round the circle it has a
+// quarter for each way she walks. Counted in quarter turns: the first quarter
+// starts this far above straight right, and a way is kept until the stick is
+// this far into the next quarter.
+const float kStickDeadZone = 0.4f;
+const float kStickFirstQuarter = 0.19f;
+const float kStickKeep = 0.1f;
+const float kQuarterTurn = 1.5708f;
+
 // A press shorter than this carries on for as long: a trackball's roll comes
 // as presses of one frame each, and this makes one walk of them.
 const float kTapSeconds = 0.12f;
+
+// A frame's length is evened out over about this many frames, and a pace
+// this near a whole number of screen pixels across a frame is taken as that.
+// A frame this much shorter than usual is the new usual at once: the first
+// frame, which the scene loads in, is long. One longer than usual counts for
+// no more than this many times the usual: a hitch is not the pace.
+const float kFramesEvened = 10.0f;
+const float kNearlyEven = 0.05f;
+const float kMuchShorter = 0.75f;
+const float kHitch = 2.0f;
+
+// The screen pixel a position is shown on, on a screen with this many pixels
+// to a meter. Half pixels always go the same way, so a walk of half pixels
+// makes even stairs.
+float WholePixel(float meters, float pixelsPerMeter)
+{
+    return std::floor(meters * pixelsPerMeter + 0.25f) / pixelsPerMeter;
+}
 }  // namespace
 
 void Farmer::Start()
 {
+    m_X = GetOwner()->GetWorldX();
+    m_Ground = GetOwner()->GetWorldY() - kFeetBelowCentre - m_Height;
+
     // A tap or a click anywhere on the screen sends her there.
     tapArea.Get()->onPointerDown.push_back([this](float x, float y) { WalkTo(x, y); });
 
@@ -880,10 +1228,12 @@ void Farmer::Use(float x, float ground)
 {
     if (farm.Get()->UseSoil(x, ground, m_Carried < kMostCarried))
     {
-        // The new turnip drops onto the tower, which rocks under it.
+        // The new turnip drops onto the tower, which rocks under it the way
+        // she faces.
         ++m_Carried;
         m_Drop = 1.0f;
-        m_LeanSpeed += 14.0f * (m_FacingX != 0 ? m_FacingX : 1);
+        m_LeanSpeedX += 14.0f * m_FacingX;
+        m_LeanSpeedY += 7.0f * m_FacingY;
     }
 }
 
@@ -903,11 +1253,25 @@ void Farmer::CarryTower(bool walking, float seconds, int order)
     }
 
     // The lean is a spring pulled back from the way she walks: it lags when
-    // she sets off, and swings past upright when she stops.
+    // she sets off, and swings past upright when she stops. It leans over the
+    // ground, so on the screen a lean up or down is half as long as one
+    // across, as a square is half as tall as it is wide, and it is as long
+    // whichever way she walks.
     const float step = std::fmin(seconds, 0.05f);
-    const float lean = walking ? -kLeanWalking * m_FacingX : 0.0f;
-    m_LeanSpeed += ((lean - m_Lean) * kLeanStiffness - m_LeanSpeed * kLeanDamping) * step;
-    m_Lean += m_LeanSpeed * step;
+    float leanX = 0.0f;
+    float leanY = 0.0f;
+    const float across = static_cast<float>(m_FacingX);
+    const float up = m_FacingY * 0.5f;
+    const float overGround = std::sqrt(across * across * 0.5f + up * up * 2.0f);
+    if (walking && overGround > 0.0f)
+    {
+        leanX = -kLeanWalking * across / overGround;
+        leanY = -kLeanWalking * up / overGround;
+    }
+    m_LeanSpeedX += ((leanX - m_LeanX) * kLeanStiffness - m_LeanSpeedX * kLeanDamping) * step;
+    m_LeanSpeedY += ((leanY - m_LeanY) * kLeanStiffness - m_LeanSpeedY * kLeanDamping) * step;
+    m_LeanX += m_LeanSpeedX * step;
+    m_LeanY += m_LeanSpeedY * step;
 
     // The hop fades in as she walks and out as she stops, and the drop runs out.
     m_Hop += ((walking ? 1.0f : 0.0f) - m_Hop) * std::fmin(1.0f, seconds * 10.0f);
@@ -916,12 +1280,13 @@ void Farmer::CarryTower(bool walking, float seconds, int order)
     for (int index = 0; index < kMostCarried; ++index)
     {
         // Higher turnips lean further, so the tower bends like a stalk.
-        const float across = m_Lean * index * (1.0f + index * 0.15f);
+        const float bend = index * (1.0f + index * 0.15f);
         // Two steps to a turn of the walk's four frames.
         const float hop = std::fabs(std::sin(m_Clock * 1.5708f - index * 0.6f)) * kHopHeight * m_Hop;
         const float drop = index == m_Carried - 1 ? m_Drop * kDropHeight : 0.0f;
-        const float x = me->GetWorldX() + std::round(across) / 16.0f;
-        const float y = me->GetWorldY() + std::round(kTowerBase + index * kTowerStep + hop + drop) / 16.0f;
+        const float x = me->GetWorldX() + std::round(m_LeanX * bend) / 16.0f;
+        const float y =
+            me->GetWorldY() + std::round(kTowerBase + index * kTowerStep + m_LeanY * bend + hop + drop) / 16.0f;
         m_Tower->SetPlace(index, x, y, order + 1 + index);
         m_Tower->SetVisible(index, index < m_Carried);
     }
@@ -938,11 +1303,9 @@ void Farmer::WalkTo(float x, float y)
     // The farm finds the way there, round the fences and up the steps, and
     // hands it out a point at a time. The first is where she stands.
     Deki::Object* me = GetOwner();
-    const float fromX = me->GetWorldX();
-    const float fromGround = me->GetWorldY() - kFeetBelowCentre - m_Height;
-    m_HasTarget = field->FindWay(fromX, fromGround, x, ground);
-    m_TargetX = fromX;
-    m_TargetGround = fromGround;
+    m_HasTarget = field->FindWay(m_X, m_Ground, x, ground);
+    m_TargetX = m_X;
+    m_TargetGround = m_Ground;
     m_UseWhenThere = field->IsSoil(x, ground);
 }
 
@@ -950,64 +1313,190 @@ void Farmer::Update()
 {
     using DekiInput::Keys::Down;
     using DekiInput::Keys::Enter;
+    using DekiInput::Keys::Esc;
     using DekiInput::Keys::Left;
     using DekiInput::Keys::Right;
     using DekiInput::Keys::Space;
     using DekiInput::Keys::Up;
 
     const float seconds = Deki::Time::GetDeltaTimeF() * 0.001f;
-    const int x = Steered(m_SteerX, (Held(Right) ? 1 : 0) - (Held(Left) ? 1 : 0), seconds);
-    const int y = Steered(m_SteerY, (Held(Up) ? 1 : 0) - (Held(Down) ? 1 : 0), seconds);
-    Deki::Object* me = GetOwner();
-    const float ground = me->GetWorldY() - kFeetBelowCentre - m_Height;
+    int x = Steered(m_SteerX, (Held(Right) ? 1 : 0) - (Held(Left) ? 1 : 0), seconds);
+    int y = Steered(m_SteerY, (Held(Up) ? 1 : 0) - (Held(Down) ? 1 : 0), seconds);
 
-    // This frame's move over the ground. On this view, going up the screen
-    // covers half the distance.
+    // A stick walks the way it is pushed, and the same way as the keys: pushed
+    // up-right or straight up she goes up-right, as with Up; down-right or
+    // straight right, down-right, as with Right; and so on round. So each way
+    // has a quarter of the circle, and the same push always goes the same way.
+    // Near the edge of a quarter it keeps the way it had, so she does not
+    // flick between two.
+    float stickX = 0.0f;
+    float stickY = 0.0f;
+    if (DekiInput::DekiInput::GetStick(0, &stickX, &stickY) && std::hypot(stickX, stickY) > kStickDeadZone)
+    {
+        // In quarter turns from the start of the first quarter, 0 to 4:
+        // up-right, up-left, down-left, down-right.
+        float turns = std::atan2(stickY, stickX) / kQuarterTurn - kStickFirstQuarter;
+        turns = turns < 0.0f ? turns + 4.0f : turns;
+        float fromKept = turns - (m_StickWay + 0.5f);
+        fromKept = fromKept > 2.0f ? fromKept - 4.0f : (fromKept < -2.0f ? fromKept + 4.0f : fromKept);
+        if (m_StickWay < 0 || std::fabs(fromKept) > 0.5f + kStickKeep)
+        {
+            m_StickWay = static_cast<int>(turns) % 4;
+        }
+        const int ways[4][2] = { { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 0 } };
+        x = ways[m_StickWay][0];
+        y = ways[m_StickWay][1];
+    }
+    else
+    {
+        m_StickWay = -1;
+    }
+    Deki::Object* me = GetOwner();
+    const float ground = m_Ground;
+
+    // This frame's move. She walks along the island's squares, as the ground
+    // is laid: Up goes up-right, Right down-right, Down down-left and Left
+    // up-left. Two held together are a corner of the pad, which points one
+    // of those ways on the screen as a stick does: Up and Right go up-right,
+    // Right and Down down-right, and so on round. Each way is two
+    // pixels across for one up or down, the same length every way, so she
+    // walks at one pace. She steps every frame, by as much as Speed says,
+    // and is shown on the nearest pixel of the screen: the steps on the
+    // screen are as even as pixels allow at any Speed, never more than one
+    // apart. A screen that shows the art twice as large has two pixels for
+    // each of the art's, so there every step up or down is a whole one and
+    // the walk is smooth. Frames are not
+    // all as long, which would show as a hitch now and then, so the pace
+    // goes by a frame's usual length, and one that is all but a whole number
+    // of screen pixels across a frame is made exactly that: then every step
+    // is the same.
+    const float pixel = 1.0f / 16.0f;
+    auto& engine = Deki::Engine::GetInstance();
+    const float perMeter = camera.Get()->GetPixelsPerMeter(engine.GetScreenWidth(), engine.GetScreenHeight());
+    if (m_FrameSeconds <= 0.0f || seconds < m_FrameSeconds * kMuchShorter)
+    {
+        m_FrameSeconds = seconds;
+    }
+    else
+    {
+        m_FrameSeconds += (std::fmin(seconds, m_FrameSeconds * kHitch) - m_FrameSeconds) / kFramesEvened;
+    }
+    // She runs while B is held: the B key, or a handheld's B button, which
+    // arrives as Esc.
+    const float pace = Held(DekiInput::Keys::B) || Held(Esc) ? runSpeed : speed;
+    float across = pace * m_FrameSeconds * perMeter;
+    const float even = std::round(across);
+    if (even > 0.0f && std::fabs(across - even) < kNearlyEven * even)
+    {
+        across = even;
+    }
+    const float rise = across * 0.5f / perMeter;
+    const bool alongX = x != 0 && (y == 0 || x == -y);
     float moveX = 0.0f;
     float moveGround = 0.0f;
     if (x != 0 || y != 0)
     {
-        const float step = speed * seconds * (x != 0 && y != 0 ? 0.71f : 1.0f);
-        moveX = x * step;
-        moveGround = y * step * 0.5f;
+        if (alongX)
+        {
+            moveX = x * rise * 2.0f;
+            moveGround = -x * rise;
+        }
+        else
+        {
+            moveX = y * rise * 2.0f;
+            moveGround = y * rise;
+        }
         m_HasTarget = false;
     }
     else if (m_HasTarget)
     {
-        // Walk straight to the next point of the way, at the pace of the keys.
-        float dx = m_TargetX - me->GetWorldX();
+        // Walk to the next point of the way, at the pace of the keys.
+        float dx = m_TargetX - m_X;
         float dy = m_TargetGround - ground;
         if (std::hypot(dx, dy * 2.0f) < kThere)
         {
-            m_HasTarget = farm.Get()->NextPoint(me->GetWorldX(), ground, m_TargetX, m_TargetGround);
+            m_HasTarget = farm.Get()->NextPoint(m_X, ground, m_TargetX, m_TargetGround);
             if (!m_HasTarget && m_UseWhenThere)
             {
-                Use(me->GetWorldX(), ground);
+                Use(m_X, ground);
             }
-            dx = m_TargetX - me->GetWorldX();
+            dx = m_TargetX - m_X;
             dy = m_TargetGround - ground;
         }
         if (m_HasTarget)
         {
-            const float part = std::fmin(1.0f, speed * seconds / std::hypot(dx, dy * 2.0f));
-            moveX = dx * part;
-            moveGround = dy * part;
+            if (std::fabs(std::fabs(dx) - std::fabs(dy) * 2.0f) < kThere)
+            {
+                // The farm laid it along the squares: the keys' steps, the
+                // last one shorter.
+                moveX = std::copysign(std::fmin(std::fabs(dx), rise * 2.0f), dx);
+                moveGround = std::copysign(std::fmin(std::fabs(dy), rise), dy);
+            }
+            else
+            {
+                // A line it could not lay so: walked straight.
+                const float part = std::fmin(1.0f, rise * 2.0f / std::hypot(dx, dy * 2.0f));
+                moveX = dx * part;
+                moveGround = dy * part;
+            }
         }
     }
-    bool walking = moveX != 0.0f || moveGround != 0.0f;
+    const bool stepping = moveX != 0.0f || moveGround != 0.0f;
+    bool walking = stepping;
 
-    if (walking)
+    if (stepping)
     {
-        // Where her feet go, as if on the lower ground: Farm says how high it is there.
-        const float nextX = me->GetWorldX() + moveX;
-        const float nextGround = ground + moveGround;
-        const float height = farm.Get()->GroundHeight(nextX, nextGround);
-        // The cliff is too high to step up or down: only the steps go between.
-        const bool free = height >= 0.0f && std::fabs(height - m_Height) < 0.5f;
+        // Where her feet go, as if on the lower ground: Farm says how high it
+        // is there. The cliff is too high to step up or down: only the steps
+        // go between.
+        Farm* field = farm.Get();
+        auto canStand = [&](float atX, float atGround)
+        {
+            const float there = field->GroundHeight(atX, atGround);
+            return there >= 0.0f && std::fabs(there - m_Height) < 0.5f;
+        };
+        float stepX = moveX;
+        float stepGround = moveGround;
+        bool free = canStand(m_X + stepX, ground + stepGround);
+
+        // Walked into the corner of something, she slips round it: when the
+        // way is clear a little to one side, she glides that way, half her
+        // step forward and half to the side, so she slides straight along a
+        // slanted edge instead of zigzagging. Where even the glide is in the
+        // way, she steps to the side.
+        if (!free && (x != 0 || y != 0))
+        {
+            // The other way: two pixels across for one up or down, as hers.
+            const float upPerAcross = moveX * moveGround < 0.0f ? 0.5f : -0.5f;
+            const float sideX = std::fabs(moveX);
+            const float sideGround = sideX * upPerAcross;
+            for (int pixels = 1; pixels <= kSlipPixels && !free; ++pixels)
+            {
+                for (float side : { 1.0f, -1.0f })
+                {
+                    const float asideX = side * pixels * 2.0f * pixel;
+                    const float asideGround = asideX * upPerAcross;
+                    if (!free && canStand(m_X + asideX + moveX, ground + asideGround + moveGround) &&
+                        canStand(m_X + side * sideX, ground + side * sideGround))
+                    {
+                        const float glideX = (moveX + side * sideX) * 0.5f;
+                        const float glideGround = (moveGround + side * sideGround) * 0.5f;
+                        const bool glides = canStand(m_X + glideX, ground + glideGround);
+                        stepX = glides ? glideX : side * sideX;
+                        stepGround = glides ? glideGround : side * sideGround;
+                        free = true;
+                    }
+                }
+            }
+        }
+
         if (free)
         {
-            m_Height = height;
-            me->SetWorldPosition(nextX, nextGround + kFeetBelowCentre + height);
+            m_X += stepX;
+            m_Ground += stepGround;
+            m_Height = field->GroundHeight(m_X, m_Ground);
+            me->SetWorldPosition(WholePixel(m_X, perMeter),
+                                 WholePixel(m_Ground, perMeter) + kFeetBelowCentre + m_Height);
         }
         else
         {
@@ -1040,12 +1529,12 @@ void Farmer::Update()
     }
 
     // The walk steps with the ground she covers, so her feet do not slide.
-    m_Clock += seconds * (walking ? speed * kFramesPerMeter : kIdleFramesPerSecond);
+    m_Clock += seconds * (walking ? pace * kFramesPerMeter : kIdleFramesPerSecond);
     const int frame = static_cast<int>(m_Clock) % 4;
     sprite->SetFrameRect(frame * 48, RowFacing(m_FacingX, m_FacingY) * 48, 48, 48);
 
     const float feet = me->GetWorldY() - kFeetBelowCentre;
-    sprite->sortingOrder = Farm::DrawOrder(feet - 0.5f);
+    sprite->sortingOrder = farm.Get()->DrawOrderAt(me->GetWorldX(), feet, m_Height);
 
     // Enter is also a handheld's A button.
     const bool useDown = Held(Space) || Held(Enter);
@@ -1057,21 +1546,22 @@ void Farmer::Update()
 
     CarryTower(walking, seconds, sprite->sortingOrder);
 
-    // The camera stays on her, on whole pixels so the map doesn't shimmer.
-    camera.GetObject()->SetWorldPosition(std::round(me->GetWorldX() * 16.0f) / 16.0f,
-                                         std::round(me->GetWorldY() * 16.0f) / 16.0f);
+    // The camera stays on her: she is always in the middle of the screen and
+    // the map moves under her, a step of the map for each step of hers. She
+    // is on a whole pixel of the screen, so the camera is too.
+    camera.GetObject()->SetWorldPosition(me->GetWorldX(), me->GetWorldY());
 }
 ```
 
-Arrows and Space are the keyboard. A handheld's D-pad arrives as the arrows too, and its A button as Enter, so `Update` takes Enter as well as Space: see [Input](input.md). A trackball, like the LilyGO T-Deck's, arrives as arrows pressed for a single frame at each step of the ball. `Steered` lets a press that short carry on for a moment, so rolling the ball is one walk and not a row of single steps. A key that is held stops when it is let go.
+Arrows and Space are the keyboard. A handheld's D-pad arrives as the arrows too, and its A button as Enter, so `Update` takes Enter as well as Space: see [Input](input.md). She runs while B is held: the B key, or a handheld's B button, which arrives as Esc. A trackball, like the LilyGO T-Deck's, arrives as arrows pressed for a single frame at each step of the ball. `Steered` lets a press that short carry on for a moment, so rolling the ball is one walk and not a row of single steps. A key that is held stops when it is let go.
 
 A tap, a click or a touch lands on the **Tap Area**. `Start` adds a listener to its `onPointerDown`, which gets the spot in world meters, and `WalkTo` asks the farm for the way there. `Update` then walks straight to each point the farm hands out, through the gate or up the steps when that is the way, and uses the soil if the tap was on it. A tap on a fence or inside the house takes her as near as she can get.
 
-The farmer remembers how high she has climbed. Ground more than half a level higher or lower than her is refused, so the cliff stops her and only the steps take her up.
+The farmer remembers how high she has climbed. Ground more than half a level higher or lower than her is refused, so the cliff stops her and only the steps take her up. Walked into the corner of something, she slips round it: when the way is clear up to half a square to one side, she glides that way, half a step forward and half to the side, instead of stopping. So a corner by a pixel does not catch her, and she slides straight along a slanted edge rather than zigzagging.
 
-The sheet has eight rows and four frames in each: she faces left, right, down and up in the first four rows, and the four diagonals in the rest. `RowFacing` picks the row for the way she is going, and going along the island's squares is a diagonal. A turn waits a twentieth of a second, so one frame's step aside does not flick her round. The frame comes from a clock that counts with the ground she covers, not with time, so her feet do not slide when **Speed** changes, and she stands when something is in her way.
+The sheet has eight rows and four frames in each: she faces left, right, down and up in the first four rows, and the four diagonals in the rest. `RowFacing` picks the row for the way she is going, and going along the island's squares is a diagonal. A turn waits a twentieth of a second, so one frame's step aside does not flick her round. She walks along the island's squares, the way the ground is laid: Up goes up-right, Right down-right, Down down-left and Left up-left. Two held together are a corner of the pad, and point one of those ways on the screen as a stick does: Up and Right go up-right, Right and Down down-right, Down and Left down-left, Left and Up up-left. Each of those is two pixels across for one up or down, so every way is the same length and she walks at one pace. She steps every frame, by as much as **Speed** says, so the screen moves a little each frame and never a lot every other. `m_X` and `m_Ground` keep exactly where she is, and `WholePixel` picks the pixel she is shown on, so any **Speed** walks as evenly as pixels allow: two frames' steps are never more than a pixel apart. At 3.75 every step is the same, one pixel across every frame and one up or down every other, the stairs a slanted line is drawn in, and at 7.5 two across and one up. Frames are not all as long, so the pace goes by a frame's usual length, and one that is all but a whole number of half pixels a frame is made exactly that. The camera stays on her: she is always in the middle of the screen and the map moves under her, a step of the map for each step of hers. A handheld's stick walks the same ways as the keys: pushed up-right or straight up she goes up-right, down-right or straight right down-right, and so on round, so each way has a quarter of the circle and the same push always goes the same way. Near the edge of a quarter it keeps the way it had. `DekiInput::GetStick` reads it, from the handheld or a gamepad, and the Play view passes a gamepad's on. The frame comes from a clock that counts with the ground she covers, not with time, so her feet do not slide when **Speed** changes, and she stands when something is in her way.
 
-The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks, and drops it onto the tower from above. `CarryTower` places them above her head every frame. The lean is a spring: it is pulled back from the way she walks, so the tower lags when she sets off, bends further the higher it goes, and swings past upright a few times when she stops. Each turnip also hops with her steps, a little after the one below it. In front of the door `CarryTower` takes one off the top every eighth of a second and sells it.
+The tower is one more sprite batch: eight ripe turnips, of which only the ones she carries are shown. `Use` adds one each time `UseSoil` picks, and drops it onto the tower from above. `CarryTower` places them above her head every frame. The lean is a spring: it is pulled back from the way she walks, so the tower lags when she sets off, bends further the higher it goes, and swings past upright a few times when she stops. It leans over the ground, as she walks: walking up the island it tips towards you, down it tips away, and on the screen a lean up or down is half as long as one across, as the squares are. Each turnip also hops with her steps, a little after the one below it. In front of the door `CarryTower` takes one off the top every eighth of a second and sells it.
 
 ## The HUD
 
@@ -1348,9 +1838,9 @@ Save with Ctrl+S and press **Run**.
 
 ## Take it further
 
-**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow, **Speed** on the Farmer is how fast she walks, and `kMostCarried` in `Farmer.cpp` is how tall the tower gets. The constants beside it set how much the tower leans, swings and hops.
+**Change the pace.** **Seconds Per Stage** on the Farm is how fast turnips grow, **Speed** on the Farmer is how fast she walks and **Run Speed** how fast she runs, and `kMostCarried` in `Farmer.cpp` is how tall the tower gets. The constants beside it set how much the tower leans, swings and hops.
 
-**Rearrange the island.** Open `farm.tmj` in [Tiled](https://www.mapeditor.org) to paint the ground or move things on the `scenery` layer. Deki picks up the map when you save it.
+**Rearrange the island.** Open `farm.tmj` in [Tiled](https://www.mapeditor.org) to paint the ground or move things on the `scenery` layer, and their shapes on the `collision` layer with them. Deki picks up the map when you save it.
 
 **Restyle the HUD.** Select `raised-panel` in the Asset Browser and change its colors, **Border Radius** or **Depth**. Every panel follows.
 

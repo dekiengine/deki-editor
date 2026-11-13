@@ -13,6 +13,10 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   converted; the checklist below lists what to look at.
 
 ### Added
+- **A gamepad's sticks in the Play view.** Besides the arrow keys, its
+  sticks reach the game as sticks (`DekiInput::GetStick`), so a game that
+  walks the way a stick points plays the same in the editor as on a
+  handheld.
 - **What each object in the scene costs to draw.** The `device_profile` MCP
   tool measures a board for a few seconds and returns its `DEKI:PROFILE`
   report as JSON: the frame's stages, each kind of component, the drawing

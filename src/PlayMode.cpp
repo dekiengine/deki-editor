@@ -1057,4 +1057,17 @@ void EditorApp::HandlePlayModeKey(uint32_t key, bool down)
     }
 }
 
+void EditorApp::HandlePlayModeStick(int stick, float x, float y)
+{
+    if (m_PlayModeState != PlayModeState::Playing)
+    {
+        x = 0.0f;
+        y = 0.0f;
+    }
+    if (auto* inputSystem = Deki::Engine::GetInstance().GetInputSystem())
+    {
+        inputSystem->DispatchStick(stick, x, y);
+    }
+}
+
 }  // namespace DekiEditor

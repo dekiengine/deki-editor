@@ -97,10 +97,14 @@ namespace
 // same table as deki-sdl3-integration's SDL3Gamepad, so a game plays the same
 // in the Play view as in a desktop build.
 // The keys the pads hold this frame: at most one of each of the 13 a pad sends.
+// And their sticks, as sticks: the one pushed furthest on any pad, x and y
+// from -1 to 1 with up positive, for games that read them (DekiInput::GetStick).
 struct PadKeys
 {
     uint32_t keys[16];
     int count = 0;
+    float stickX[2] = {};
+    float stickY[2] = {};
     void Add(uint32_t key)
     {
         if (count < 16 && !Has(key))
@@ -138,7 +142,8 @@ PadKeys GamepadKeys()
     SDL_JoystickID* ids = SDL_GetGamepads(&count);
     for (int i = 0; ids && i < count; ++i)
     {
-        if (std::none_of(s_Pads.begin(), s_Pads.end(), [&](SDL_Gamepad* pad) { return SDL_GetGamepadID(pad) == ids[i]; }))
+        if (std::none_of(s_Pads.begin(), s_Pads.end(),
+                         [&](SDL_Gamepad* pad) { return SDL_GetGamepadID(pad) == ids[i]; }))
         {
             if (SDL_Gamepad* pad = SDL_OpenGamepad(ids[i]))
             {
@@ -174,6 +179,18 @@ PadKeys GamepadKeys()
         add(button(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER), Deki::InputKeys::A + ('e' - 'a'));
         add(axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) > kThreshold, Deki::InputKeys::A + ('z' - 'a'));
         add(axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER) > kThreshold, Deki::InputKeys::A + ('c' - 'a'));
+        const SDL_GamepadAxis sticks[2][2] = { { SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY },
+                                               { SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY } };
+        for (int stick = 0; stick < 2; ++stick)
+        {
+            const float x = std::clamp(axis(sticks[stick][0]) / 32767.0f, -1.0f, 1.0f);
+            const float y = std::clamp(-axis(sticks[stick][1]) / 32767.0f, -1.0f, 1.0f);
+            if (x * x + y * y > keys.stickX[stick] * keys.stickX[stick] + keys.stickY[stick] * keys.stickY[stick])
+            {
+                keys.stickX[stick] = x;
+                keys.stickY[stick] = y;
+            }
+        }
     }
     return keys;
 }
@@ -212,6 +229,13 @@ void PlayViewPanel::Draw()
         const bool acceptKeys = m_App->IsPlaying() && ImGui::IsWindowFocused();
         // A key is down while the keyboard or a gamepad holds it.
         const PadKeys padKeys = m_App->IsPlaying() ? GamepadKeys() : PadKeys{};
+        // The sticks while the game has the keys; at rest otherwise, so one
+        // held when focus leaves does not keep walking.
+        for (int stick = 0; stick < 2; ++stick)
+        {
+            m_App->HandlePlayModeStick(stick, acceptKeys ? padKeys.stickX[stick] : 0.0f,
+                                       acceptKeys ? padKeys.stickY[stick] : 0.0f);
+        }
         int slot = 0;
         auto forward = [&](ImGuiKey imguiKey, uint32_t dekiKey)
         {

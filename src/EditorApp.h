@@ -311,6 +311,8 @@ public:
     // while playing; key-ups always pass so no key sticks pressed across a
     // focus change or stop.
     void HandlePlayModeKey(uint32_t key, bool down);
+    /// Where a gamepad's stick points, for the game (DekiInput::GetStick).
+    void HandlePlayModeStick(int stick, float x, float y);
 
     // File drop handling
     void HandleFileDrop(const std::string& path);
@@ -545,9 +547,9 @@ private:
     std::vector<OutdatedPackage> m_OutdatedPackages;
     void UpdateOutdatedPackages();
 
-    std::string m_UpgradeApprovedFor;   // the path an upgrade was agreed for
-    bool m_UpgradingProject = false;    // the open under way is an approved upgrade
-    std::string m_PendingUpgradePath;   // a project waiting for the answer
+    std::string m_UpgradeApprovedFor;  // the path an upgrade was agreed for
+    bool m_UpgradingProject = false;   // the open under way is an approved upgrade
+    std::string m_PendingUpgradePath;  // a project waiting for the answer
     ProjectUpgrade m_PendingUpgrade;
     int m_UpgradeAnswer = 0;  // 1 upgrade, 2 cancel, from AnswerUpgradeDialog
     void DrawUpgradeDialog();
