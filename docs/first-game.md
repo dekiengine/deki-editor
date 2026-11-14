@@ -83,7 +83,8 @@ public:
     // reached, round whatever is in between. False when there is none.
     bool FindWay(float fromX, float fromY, float x, float y);
 
-    // The next point of that way to walk straight to. False once there.
+    // The next point of that way to walk straight to, always along the
+    // squares as the keys walk. False once there.
     bool NextPoint(float fromX, float fromY, float& outX, float& outY) const;
 
     // Plants on the empty patch nearest this point. A ripe turnip there is
@@ -154,7 +155,13 @@ private:
     float LevelAt(float column, float row) const;
     bool InTheWay(const Thing& thing, float column, float row, float clearance) const;
     bool CanWalk(float fromX, float fromY, float toX, float toY, float clearance = 0.0f) const;
-    void AlongTheSquares(float fromX, float fromY, float& toX, float& toY) const;
+    // Whether she can walk from one point to another along the squares, and
+    // where to first: the point itself, or the corner of two walks.
+    bool AlongTheSquares(float fromX, float fromY, float& toX, float& toY, float clearance = 0.0f) const;
+    bool CanWalkAlongTheSquares(float fromX, float fromY, float toX, float toY, float clearance = 0.0f) const
+    {
+        return AlongTheSquares(fromX, fromY, toX, toY, clearance);
+    }
     void Flood(int from);
     void Show(Patch& patch);
     void ShowScore();
@@ -167,7 +174,7 @@ private:
 
     Deki::Buffer<Thing> m_Things;
     Deki::Buffer<float> m_FencePoints;  // each fence post's column and row
-    // For each square of the island: which of the eight around it can be
+    // For each square of the island: which of the four beside it can be
     // walked to, and how many squares away the last flood started.
     Deki::Buffer<uint8_t> m_Ways;
     Deki::Buffer<uint16_t> m_Steps;
@@ -225,9 +232,11 @@ const float kPictureBelowFoot = 0.25f;
 // How far a roof reaches past its house's walls, across the screen, in meters.
 const float kRoofOverhang = 1.0f;
 
-// The eight squares around one, as columns and rows, and a square the flood
-// did not reach.
-const int kAround[8][2] = { { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } };
+// The four squares beside one, as columns and rows, and a square the flood
+// did not reach. Only these: a square that meets one at a corner is straight
+// up, down, left or right of it on the screen, and she walks along the
+// squares, as the keys do.
+const int kAround[4][2] = { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } };
 const uint16_t kNoWay = 0xFFFF;
 
 // Two points this close are the same spot, in meters.
@@ -418,14 +427,14 @@ void Farm::FindWays()
     }
 
     // Which squares can be walked between never changes, so it is worked out
-    // once: from the middle of each to the middle of each one around it. A
+    // once: from the middle of each to the middle of each one beside it. A
     // way that can be walked one way can be walked back.
     std::memset(m_Ways.Data(), 0, kSquares);
     for (int row = 0; row < kIslandSize; ++row)
     {
         for (int column = 0; column < kIslandSize; ++column)
         {
-            for (int way = 0; way < 4; ++way)
+            for (int way = 0; way < 2; ++way)
             {
                 const int nextColumn = column + kAround[way][0];
                 const int nextRow = row + kAround[way][1];
@@ -436,7 +445,7 @@ void Farm::FindWays()
                     uint8_t& there = m_Ways[row * kIslandSize + column];
                     uint8_t& back = m_Ways[nextRow * kIslandSize + nextColumn];
                     there = static_cast<uint8_t>(there | (1 << way));
-                    back = static_cast<uint8_t>(back | (1 << (way + 4)));
+                    back = static_cast<uint8_t>(back | (1 << (way + 2)));
                 }
             }
         }
@@ -718,7 +727,7 @@ void Farm::Flood(int from)
     while (first < count)
     {
         const int square = m_Queue[first++];
-        for (int way = 0; way < 8; ++way)
+        for (int way = 0; way < 4; ++way)
         {
             const int next = square + kAround[way][0] + kAround[way][1] * kIslandSize;
             if ((m_Ways[square] & (1 << way)) && m_Steps[next] == kNoWay)
@@ -737,8 +746,8 @@ bool Farm::FindWay(float fromX, float fromY, float x, float y)
         return false;
     }
 
-    // Starts from the nearest square whose middle can be walked straight to:
-    // the one under the point, or one beside it.
+    // Starts from the nearest square whose middle can be walked to: the one
+    // under the point, or one around it.
     const int column = static_cast<int>(std::floor(ColumnAt(fromX, fromY) + 0.5f));
     const int row = static_cast<int>(std::floor(RowAt(fromX, fromY) + 0.5f));
     int start = -1;
@@ -751,7 +760,7 @@ bool Farm::FindWay(float fromX, float fromY, float x, float y)
             const float middleY = WorldY(nextColumn, nextRow);
             const float distance = Squares(fromX, fromY, middleX, middleY);
             if (IsOnIsland(nextColumn, nextRow) && (start < 0 || distance < nearest) &&
-                CanWalk(fromX, fromY, middleX, middleY))
+                CanWalkAlongTheSquares(fromX, fromY, middleX, middleY))
             {
                 start = nextRow * kIslandSize + nextColumn;
                 nearest = distance;
@@ -784,7 +793,7 @@ bool Farm::FindWay(float fromX, float fromY, float x, float y)
     Flood(goal);
     m_GoalX = WorldX(goal % kIslandSize, goal / kIslandSize);
     m_GoalY = WorldY(goal % kIslandSize, goal / kIslandSize);
-    if (CanWalk(m_GoalX, m_GoalY, x, y))
+    if (CanWalkAlongTheSquares(m_GoalX, m_GoalY, x, y))
     {
         m_GoalX = x;
         m_GoalY = y;
@@ -802,20 +811,19 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
     const int column = static_cast<int>(std::floor(ColumnAt(fromX, fromY) + 0.5f));
     const int row = static_cast<int>(std::floor(RowAt(fromX, fromY) + 0.5f));
 
-    // Straight to the goal when the line there is clear, or it is in the
-    // square she is already in.
+    // Right to the goal when the way there is clear, or it is in the square
+    // she is already in.
     const bool inGoalSquare = IsOnIsland(column, row) && m_Steps[row * kIslandSize + column] == 0;
-    if (CanWalk(fromX, fromY, m_GoalX, m_GoalY, kClearance) ||
-        (inGoalSquare && CanWalk(fromX, fromY, m_GoalX, m_GoalY)))
+    outX = m_GoalX;
+    outY = m_GoalY;
+    if (AlongTheSquares(fromX, fromY, outX, outY, kClearance) ||
+        (inGoalSquare && AlongTheSquares(fromX, fromY, outX, outY)))
     {
-        outX = m_GoalX;
-        outY = m_GoalY;
-        AlongTheSquares(fromX, fromY, outX, outY);
         return true;
     }
 
     // Otherwise to the middle of a square: of the one under the point and the
-    // eight around it, the nearest the goal that can be walked straight to.
+    // eight around it, the nearest the goal that can be walked to.
     int best = -1;
     for (int nextRow = row - 1; nextRow <= row + 1; ++nextRow)
     {
@@ -829,7 +837,8 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
             const float middleX = WorldX(nextColumn, nextRow);
             const float middleY = WorldY(nextColumn, nextRow);
             if ((best < 0 || m_Steps[square] < m_Steps[best]) && m_Steps[square] != kNoWay &&
-                Squares(fromX, fromY, middleX, middleY) >= kSameSpot && CanWalk(fromX, fromY, middleX, middleY))
+                Squares(fromX, fromY, middleX, middleY) >= kSameSpot &&
+                CanWalkAlongTheSquares(fromX, fromY, middleX, middleY))
             {
                 best = square;
             }
@@ -840,14 +849,14 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
         return false;
     }
 
-    // Then on along the way for as far as the line stays clear: each time to
-    // the square a step nearer the goal, of those the one nearest it. One long
-    // straight walk, where there would be a turn at every square.
+    // Then on along the way for as far as it stays clear: each time to the
+    // square a step nearer the goal, of those the one nearest it. One long
+    // walk, where there would be a turn at every square.
     for (int look = 0; look < kLookAhead; ++look)
     {
         int nearer = -1;
         float nearest = 0.0f;
-        for (int way = 0; way < 8; ++way)
+        for (int way = 0; way < 4; ++way)
         {
             const int next = best + kAround[way][0] + kAround[way][1] * kIslandSize;
             if (!(m_Ways[best] & (1 << way)) || m_Steps[next] + 1 != m_Steps[best])
@@ -862,8 +871,8 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
                 nearest = distance;
             }
         }
-        if (nearer < 0 || !CanWalk(fromX, fromY, WorldX(nearer % kIslandSize, nearer / kIslandSize),
-                                   WorldY(nearer % kIslandSize, nearer / kIslandSize), kClearance))
+        if (nearer < 0 || !CanWalkAlongTheSquares(fromX, fromY, WorldX(nearer % kIslandSize, nearer / kIslandSize),
+                                                  WorldY(nearer % kIslandSize, nearer / kIslandSize), kClearance))
         {
             break;
         }
@@ -875,17 +884,17 @@ bool Farm::NextPoint(float fromX, float fromY, float& outX, float& outY) const
     return true;
 }
 
-void Farm::AlongTheSquares(float fromX, float fromY, float& toX, float& toY) const
+bool Farm::AlongTheSquares(float fromX, float fromY, float& toX, float& toY, float clearance) const
 {
-    // The keys walk along the squares, two across for one up or down. Any
-    // other line is laid as two that do, one along each way of the squares,
-    // when nothing is in the way of either, so a tapped walk moves in the
-    // same whole-pixel steps as the keys.
+    // The keys walk along the squares, two across for one up or down, and so
+    // does a tapped walk: any other line is two that do, one along each way
+    // of the squares, with nothing in the way of either. So she moves in the
+    // same whole-pixel steps and faces the same four ways as with the keys.
     const float dx = toX - fromX;
     const float dy = toY - fromY;
     if (std::fabs(std::fabs(dx) - std::fabs(dy) * 2.0f) < kAligned)
     {
-        return;
+        return CanWalk(fromX, fromY, toX, toY, clearance);
     }
     // How far along each way: up-right (2, 1) and down-right (2, -1).
     const float upRight = (dx * 0.5f + dy) * 0.5f;
@@ -894,13 +903,15 @@ void Farm::AlongTheSquares(float fromX, float fromY, float& toX, float& toY) con
                                   { fromX + downRight * 2.0f, fromY - downRight } };
     for (const auto& corner : corners)
     {
-        if (CanWalk(fromX, fromY, corner[0], corner[1]) && CanWalk(corner[0], corner[1], toX, toY))
+        if (CanWalk(fromX, fromY, corner[0], corner[1], clearance) &&
+            CanWalk(corner[0], corner[1], toX, toY, clearance))
         {
             toX = corner[0];
             toY = corner[1];
-            return;
+            return true;
         }
     }
+    return false;
 }
 
 bool Farm::IsSoil(float x, float y) const
@@ -989,7 +1000,7 @@ The soil and the turnips are pieces of two Sprite Batch components. `Add` places
 
 A column and a row name a square on the island: columns run down and to the right, rows down and to the left. `WorldX` and `WorldY` turn them into a position, and `ColumnAt` and `RowAt` do the reverse. `ReadMap` reads the `collision` layer's shapes once, with `FindProperty` for each one's `level`, and leaves the tile objects, the pictures, to the spawner. `GroundHeight` says how high the ground is at a point: 0 on the lower ground, 1 on the raised ground and in between on the steps. It keeps the farmer on the island and out of everything on her level: a `Wall` over its whole area, a rock or a tree inside its ellipse, a fence along its line. Her feet have a width, `kFeetHalfWidth` to each side across the screen, and all of it has to stand on the same ground: so no part of her is inside the cliff or a wall, and on the raised ground she stops before her feet hang over its edge. Behind the raised ground she walks right up to its back wall, where its edge covers her feet, so she looks to stand below it.
 
-A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. `NextPoint` hands the way out a point at a time: the goal itself when the line there is clear, otherwise the middle of a square. It starts from the best square beside her and looks on along the way, a square nearer the goal each time, for as long as she could still walk straight there with a little room to spare. So she walks in long straight lines and turns only where something is in the way. `AlongTheSquares` then lays a line the keys could not walk as two they can, one along each way of the squares, when nothing is in the way of either, so a tapped walk moves in the same whole-pixel steps as the keys.
+A tap can be on the other side of a fence, so the farm finds the way round. `FindWays` works out once, at the start, which squares can be walked between: `CanWalk` tries the straight line from the middle of one to the middle of the next with `GroundHeight`, so whatever stops the farmer stops the way too, and the steps are the only way up. `Flood` then spreads from one square to all it can reach, a square further each round, and every square learns how many squares away it is. `FindWay` floods twice: from the farmer, to find the square nearest the tap that she can reach at all, and from that square, so that walking to any square with a smaller number leads there. Squares are joined only to the four beside them: one that meets a square at a corner is straight up, down, left or right of it on the screen, and she never walks that way. `NextPoint` hands the way out a point at a time: the goal itself when the way there is clear, otherwise the middle of a square. It starts from the best square around her and looks on along the way, a square nearer the goal each time, for as long as she could still get there with a little room to spare. So she walks in long lines and turns only where something is in the way. Every point goes through `AlongTheSquares`, which lays a line the keys could not walk as two they can, one along each way of the squares, and only counts the way clear when nothing is in the way of either. So a tapped walk, with a mouse or a finger, moves in the same whole-pixel steps and faces the same four ways as the keys.
 
 `UseSoil` plants on an empty patch and picks a ripe turnip, when the farmer says she has room for one more. The count on screen is of turnips sold: `IsAtDoor` says when she stands on the map's `Door` area, and `Sell` counts one.
 
