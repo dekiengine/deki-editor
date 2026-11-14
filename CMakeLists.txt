@@ -47,7 +47,7 @@ endif()
 # The release number. The engine (deki-engine/CMakeLists.txt) carries the same
 # one, packages name it as minEngine, and the git tag equals it; see
 # COMPATIBILITY.md. tools/ci/check_version.py fails when the two drift.
-project(DekiEditor VERSION 0.30.3 LANGUAGES CXX)
+project(DekiEditor VERSION 0.40.0 LANGUAGES CXX)
 
 # Room in each binary's header for tools/macos_relocate.py to rewrite its
 # library paths when the macOS archive is made.
