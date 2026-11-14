@@ -29,7 +29,9 @@ five rules:
    with nothing naming the cause. An editor that is too old refuses the
    package with "needs engine X or newer" instead.
 5. **The editor goes out before the packages that need it**, and the
-   registry last, so that message always has a download to point at.
+   registry after them, so that message always has a download to point at.
+   A release that moves `DEKI_OLDEST_SUPPORTED_PACKAGE` cannot keep this
+   fully; see 4.3.
 
 And one for whoever adds a package:
 
@@ -194,12 +196,23 @@ publishes (4.3), and users see nothing until the tags and the registry
 4. `python tools/ci/check_version.py --tag X.Y.Z` must pass.
 5. Commit `X.Y.Z`, tag `X.Y.Z`, then push master and then the tag.
 
-The tag starts `.github/workflows/release.yml`. It builds the Windows and
-Linux archives and publishes the GitHub release **Deki Editor X.Y.Z**.
+The tag starts `.github/workflows/release.yml`. It builds the Windows, Linux
+and macOS archives, builds a new project with each, and publishes the GitHub
+release **Deki Editor X.Y.Z**.
+
+**When `DEKI_OLDEST_SUPPORTED_PACKAGE` moved (rule 3), the new-project jobs
+fail until the registry is pushed.** `--new-project` installs the starter's
+packages from the public registry, which still lists the last release's, and
+the new editor refuses every one ("this editor needs X.Y.Z or newer"). So for
+such a release, do not wait here: go on with 4.4 and 4.5, then run the failed
+jobs again (`gh run rerun <run id> --failed`), and the release publishes. For
+those minutes the registry offers packages that need an editor nobody can
+download yet, so keep them short: have the package commits and the registry
+entries ready before tagging the editor. 0.40.0 went out this way.
 
 - [ ] **Wait for it to go green** before going on: `gh run watch` or the
-  Actions tab.
-- [ ] **Check the release** has both archives and their `.sha256` files.
+  Actions tab. When rule 3 applies, it goes green only after 4.5.
+- [ ] **Check the release** has all three archives and their `.sha256` files.
 
 If it fails, fix on master and run the workflow again for the same tag
 (`workflow_dispatch`, input `tag`). Never move a published tag; release a
@@ -226,7 +239,8 @@ release is the current `X.Y.Z`.
 ### 4.5 The registry
 
 The registry is what users see, and a push to its master publishes at once,
-so it comes last.
+so it comes after the editor and the packages. When rule 3 applies, it comes
+before the editor's release is published (4.3).
 
 1. **For each releasing package, `deki-registry/packages/<id>.json`:**
    - append `X.Y.Z` to `versions`
