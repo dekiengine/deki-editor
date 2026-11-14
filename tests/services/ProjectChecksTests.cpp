@@ -214,6 +214,7 @@ TEST(ProjectChecks, TheOlderChangesFindWhatTheyAreAbout)
     EXPECT_EQ(findings("mesh-tint"), (List{ "assets/scenes/mesh.scene: M" }));
     EXPECT_EQ(findings("model-texture-settings"), (List{ "assets/ship.obj.data" }));
     EXPECT_EQ(findings("old-editable-packages"), (List{ "mine (made for 0.18.0)" }));
+    EXPECT_EQ(findings("editable-packages-0-40"), (List{ "mine (made for 0.18.0)" }));
     EXPECT_EQ(findings("editor-opengl"), (List{ "packages/mine/editor/Draw.cpp:1" }));
     EXPECT_EQ(findings("capability-defines"), (List{ "mine" }));
     EXPECT_EQ(findings("translation-keys"), (List{ "packages/mine/editor/lang" }));

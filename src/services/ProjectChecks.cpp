@@ -255,7 +255,9 @@ std::vector<std::string> FindTintedMeshes(const std::string& projectPath)
     return FindObjects(projectPath, HasTintedMesh);
 }
 
-std::vector<std::string> FindOldEditablePackages(const std::string& projectPath)
+// Editable packages whose minEngine is below `oldest`: the editor refuses them
+// once its oldest supported package is that release.
+std::vector<std::string> FindEditablePackagesBelow(const std::string& projectPath, const char* oldest)
 {
     std::vector<std::string> found;
     for (const fs::path& package : EditablePackages(projectPath))
@@ -266,12 +268,22 @@ std::vector<std::string> FindOldEditablePackages(const std::string& projectPath)
             continue;
         }
         const std::string minEngine = manifest["minEngine"];
-        if (CompareVersions(minEngine, "0.22.0") < 0)
+        if (CompareVersions(minEngine, oldest) < 0)
         {
             found.push_back(package.filename().string() + " (made for " + minEngine + ")");
         }
     }
     return found;
+}
+
+std::vector<std::string> FindOldEditablePackages(const std::string& projectPath)
+{
+    return FindEditablePackagesBelow(projectPath, "0.22.0");
+}
+
+std::vector<std::string> FindEditablePackagesBefore040(const std::string& projectPath)
+{
+    return FindEditablePackagesBelow(projectPath, "0.40.0");
 }
 
 std::vector<std::string> FindEditorOpenGl(const std::string& projectPath)
@@ -472,6 +484,10 @@ const std::vector<ProjectCheckDefinition> kChecks = {
       TrMark("From a component's Awake, Start or Update these now free the object or component when that phase ends, "
              "not at once. Check that nothing here relies on its destructor having run by the next line."),
       nullptr, { "DestroyDekiObject", "RemoveComponent" } },
+    { "editable-packages-0-40", "0.40.0", TrMark("Editable packages made before 0.40"),
+      TrMark("The reflection ABI changed, so packages made for an engine older than 0.40 are refused, and upgrading "
+             "leaves editable ones alone. Rebuild each one against 0.40 and raise its minEngine to 0.40.0."),
+      FindEditablePackagesBefore040 },
 };
 
 nlohmann::json ReadProjectFile(const std::string& projectPath)

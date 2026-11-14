@@ -69,5 +69,7 @@
     "Tinted meshes": "着色的网格",
     "Translations in your own packages": "你自己的包中的翻译",
     "Try Again": "重试",
-    "and %d more": "以及另外 %d 项"
+    "and %d more": "以及另外 %d 项",
+    "Editable packages made before 0.40": "0.40 之前制作的可编辑包",
+    "The reflection ABI changed, so packages made for an engine older than 0.40 are refused, and upgrading leaves editable ones alone. Rebuild each one against 0.40 and raise its minEngine to 0.40.0.": "反射 ABI 变了，所以为 0.40 之前的引擎制作的包会被拒绝，升级时也不会改动可编辑的包。请用 0.40 逐个重新构建，并把其 minEngine 提高到 0.40.0。"
 }

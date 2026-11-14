@@ -69,5 +69,7 @@
     "Tinted meshes": "ティントしたメッシュ",
     "Translations in your own packages": "自作パッケージの翻訳",
     "Try Again": "再試行",
-    "and %d more": "他 %d 個"
+    "and %d more": "他 %d 個",
+    "Editable packages made before 0.40": "0.40 より前に作られた編集可能なパッケージ",
+    "The reflection ABI changed, so packages made for an engine older than 0.40 are refused, and upgrading leaves editable ones alone. Rebuild each one against 0.40 and raise its minEngine to 0.40.0.": "リフレクション ABI が変わったため、0.40 より古いエンジン向けのパッケージは読み込まれず、アップグレードでも編集可能なパッケージはそのままです。それぞれを 0.40 でビルドし直し、minEngine を 0.40.0 に上げてください。"
 }

@@ -69,5 +69,7 @@
     "Tinted meshes": "틴트를 적용한 메시",
     "Translations in your own packages": "직접 만든 패키지의 번역",
     "Try Again": "다시 시도",
-    "and %d more": "외 %d개"
+    "and %d more": "외 %d개",
+    "Editable packages made before 0.40": "0.40 이전에 만든 편집 가능한 패키지",
+    "The reflection ABI changed, so packages made for an engine older than 0.40 are refused, and upgrading leaves editable ones alone. Rebuild each one against 0.40 and raise its minEngine to 0.40.0.": "리플렉션 ABI가 바뀌어서 0.40보다 오래된 엔진용으로 만든 패키지는 거부되며, 업그레이드해도 편집 가능한 패키지는 그대로 둡니다. 각 패키지를 0.40으로 다시 빌드하고 minEngine을 0.40.0으로 올리세요."
 }
