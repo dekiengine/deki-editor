@@ -6,6 +6,22 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 
 ## Unreleased
 
+### In the packages
+Released with this editor; each package's changelog has the details.
+- **The Web platform** (`deki-desktop-integration`): **Build & Open in
+  Browser** builds a project with Emscripten into a web page, which the Build
+  panel installs the first time.
+- **`deki-physics-2d`**, new: rigid bodies, box, circle, capsule and polygon
+  colliders, triggers, raycasts, hinges and ropes, on a fixed step.
+- **`deki-anbernic-boards`**, new: the Anbernic RG40XX H as a build target,
+  installed on its SD card or over Wi-Fi.
+- **Tiled maps** (`deki-tiledmapeditor-integration`) come in as drawn:
+  isometric, hexagonal and staggered maps, tile objects, animated tiles,
+  image and group layers, parallax and blend modes.
+- **glTF models** (`deki-3d`), gamepad sticks (`deki-input`,
+  `deki-sdl3-integration`), sprite batches (`deki-2d`) and **Pixel Grid** on
+  the camera (`deki-rendering`).
+
 ### Breaking
 - **Positive rotation now draws counter-clockwise** (`deki-rendering`), the
   way children, lights, 3D and physics already turned. A sprite whose rotation

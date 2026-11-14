@@ -752,7 +752,7 @@ def index_page(data, infos, guides=(), api_url="annotated.html"):
 # gets a page by itself, so a new board cannot be left out.
 NOT_BOARDS = {"native", "web", "tactility"}
 BOARD_SUMMARIES = {}
-BUILD_BUTTONS = {"miyoo": "Build & Install"}
+BUILD_BUTTONS = {"miyoo": "Build & Install", "anbernic": "Build & Install"}
 
 
 def find_boards(packages_dir):

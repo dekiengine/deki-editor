@@ -141,6 +141,8 @@ Select **Hello**, press **Add Component** and pick **Bob**. Its two fields are i
 The first build for a device takes several minutes. The scene you made runs on it unchanged. To add a
 device Deki does not have yet, see [Use your own device](your-own-device.md).
 
+**Or play it in a browser.** Choose **Web** in the list of platforms and press **Build & Open in Browser**: the game is built into a web page and opens in your browser. The first time, the panel installs Emscripten, the compiler for the web (about 2 GB). It is the same project, so what runs on the device runs there too, and the page's files can go on any website.
+
 ## Where to go next
 
 - [Project layout](project-layout.md): what is in the project folder

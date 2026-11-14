@@ -4,6 +4,8 @@ A tiny farm. Walk around the island, plant turnips and watch them grow. Pick the
 
 ![The finished game](img/first-game.webp)
 
+*Art: [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) by [Aibyzz](https://aibyzz.itch.io).*
+
 It starts from a new project: see [Getting started](getting-started.md). The Inspector shows sizes in pixels and code uses meters, with 16 pixels to the meter by default: see [Units](units.md).
 
 ## Get the art and the island
@@ -1852,4 +1854,4 @@ Save with Ctrl+S and press **Run**.
 
 ## Credits
 
-Art: [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) by Aibyzz. The HUD's icons were drawn for this guide. Font: [monogram](https://datagoblin.itch.io/monogram) by Vinícius Menézio, free under CC0.
+Art: [Simple Cozy - Farm Asset Pack](https://aibyzz.itch.io/sc-farm-pack) by [Aibyzz](https://aibyzz.itch.io). The HUD's icons were drawn for this guide. Font: [monogram](https://datagoblin.itch.io/monogram) by Vinícius Menézio, free under CC0.

@@ -123,6 +123,8 @@ void Bob::Update()
 
 设备的第一次构建需要几分钟。你做的场景无需修改即可运行。如果是 Deki 尚未支持的设备,请参阅 [Platforms](platforms.md)。
 
+**也可以在浏览器里玩。** 在平台列表中选择 **Web** 并按 **Build & Open in Browser**：游戏会构建成一个网页，并在浏览器中打开。第一次时，面板会安装网页用的编译器 Emscripten（约 2 GB）。这是同一个项目，所以在设备上能运行的，在浏览器里也能运行，网页的文件可以放到任何网站上。
+
 ## 接下来
 
 - [Project layout](project-layout.md):项目文件夹里有什么
