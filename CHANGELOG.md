@@ -4,7 +4,7 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.40.1 - 2026-11-15
 
 ### Fixed
 - **The macOS editor no longer crashes now and then as it starts.** Every
@@ -18,9 +18,8 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   older reflection ABI, and stayed in use, so the new build could not replace
   it; restarting did not help. The editor now removes libraries that an
   editor with another reflection ABI built, before anything loads them, and
-  builds them again. If a project shows "built against reflection ABI v23",
-  delete its `generated/runtime` folder, or update the editor once this is
-  released.
+  builds them again. The first time 0.40.1 opens a project, it builds the
+  project's libraries once more for this reason.
 - **Upgrading a project from 0.30 updates its packages again.** The upgrade
   refused every package with "the registry has no release of it for this
   editor yet (needs engine ?)": it read the engine the latest release needs
