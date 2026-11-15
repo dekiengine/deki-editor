@@ -689,7 +689,7 @@ deki_add_package_tests(deki-audio TARGET DekiAudioTests NEEDS_EDITOR
                        SOURCES AudioFile.cpp ImaAdpcm.cpp Audio.cpp AudioReader.cpp Mixer.cpp AudioOutput.cpp
                                DekiAudio.cpp PumpWorker.cpp chips/MAX98357Audio.cpp ../deki-i2s/DekiI2S.cpp
                                editor/AudioDecode.cpp editor/OggDecode.cpp editor/AudioConvert.cpp
-                               editor/AudioSettings.cpp editor/AudioCompile.cpp
+                               editor/AudioSettings.cpp editor/AudioCompile.cpp editor/Mp3Decode.cpp
                        DEFINES DEKI_I2S_EXPORTS FEATURE_REQUIRES deki-i2s)
 
 # SDCardComponent mounting a fake card from the factory.
