@@ -1164,6 +1164,28 @@ void PackageLoader::NotifyPlayModeStop()
     }
 }
 
+void PackageLoader::NotifyPlayModePause(bool paused)
+{
+    const char* name = paused ? "DekiPluginOnPlayModePause" : "DekiPluginOnPlayModeResume";
+    for (const auto& package : m_Packages)
+    {
+        if (!package.handle)
+        {
+            continue;
+        }
+
+#ifdef _WIN32
+        auto func = reinterpret_cast<ShutdownFunc>(GetProcAddress(static_cast<HMODULE>(package.handle), name));
+#else
+        auto func = (ShutdownFunc)dlsym(package.handle, name);
+#endif
+        if (func)
+        {
+            SafeCallVoid(func, "PackageLoader::NotifyPlayModePause");
+        }
+    }
+}
+
 void PackageLoader::ClearPackageRegistries()
 {
     for (const auto& package : m_Packages)

@@ -164,6 +164,11 @@ public:
     /// DekiPluginOnPlayModeStop() on those that export it.
     void NotifyPlayModeStop();
 
+    /// Tells loaded packages that play mode paused or resumed: calls
+    /// DekiPluginOnPlayModePause() or DekiPluginOnPlayModeResume() on those
+    /// that export it, so a package can hold what runs on its own (audio).
+    void NotifyPlayModePause(bool paused);
+
     /// True if any package build failed (at startup or on hot reload).
     bool HasBuildErrors() const { return m_HasBuildErrors; }
 

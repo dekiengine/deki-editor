@@ -4,6 +4,14 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- Packages hear when the Play view pauses and resumes: the editor calls
+  `DekiPluginOnPlayModePause()` and `DekiPluginOnPlayModeResume()` on those
+  that export them, as it calls `DekiPluginOnPlayModeStart` and `Stop`. SDL3
+  Integration pauses the game's sound with it.
+
 ## 0.40.1 - 2026-11-15
 
 ### Fixed

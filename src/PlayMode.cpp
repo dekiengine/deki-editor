@@ -105,6 +105,10 @@ void EditorApp::Play()
     if (m_PlayModeState == PlayModeState::Paused)
     {
         m_PlayModeState = PlayModeState::Playing;
+        if (m_PackageLoader)
+        {
+            m_PackageLoader->NotifyPlayModePause(false);
+        }
         return;
     }
 
@@ -178,6 +182,10 @@ void EditorApp::Pause()
     if (m_PlayModeState == PlayModeState::Playing)
     {
         m_PlayModeState = PlayModeState::Paused;
+        if (m_PackageLoader)
+        {
+            m_PackageLoader->NotifyPlayModePause(true);
+        }
     }
 }
 
