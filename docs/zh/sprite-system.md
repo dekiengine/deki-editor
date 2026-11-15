@@ -307,9 +307,9 @@ AssetManager::Get()->RegisterGuid(subAsset.guid, info.guid);
 |------|---------|
 | `deki-editor/src/TextureImporter.cpp` | PNG -> .tex 转换、SubAsset 生成 |
 | `deki-editor/include/deki-editor/TextureImporter.h` | TextureImporter 接口、SpriteFrameData |
-| `../../modules/deki-2d/Sprite.h` | Sprite 类、SpriteFrame 结构体、FindFrame |
-| `../../modules/deki-2d/Sprite.cpp` | Sprite 加载、FrameList 解析 |
-| `../../modules/deki-2d/SpriteComponent.h` | 带帧矩形字段的 SpriteComponent |
-| `../../modules/deki-2d/generated/Deki2DReflection0.gen.cpp` | 生成的、使用 source 模式的 ResolveObjectRefs（每个包一个文件，而不是每个组件一个） |
+| `../../packages/deki-2d/Sprite.h` | Sprite 类、SpriteFrame 结构体、FindFrame |
+| `../../packages/deki-2d/Sprite.cpp` | Sprite 加载、FrameList 解析 |
+| `../../packages/deki-2d/SpriteComponent.h` | 带帧矩形字段的 SpriteComponent |
+| `../../packages/deki-2d/generated/Deki2DReflection0.gen.cpp` | 生成的、使用 source 模式的 ResolveObjectRefs（每个包一个文件，而不是每个组件一个） |
 | `src/panels/inspector/AssetPropertyEditor.cpp` | 帧指定 UI |
 | `src/services/AssetExporter.cpp` | 导出管线 |

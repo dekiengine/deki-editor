@@ -1,7 +1,7 @@
 {
     ", ": "、",
     "; ": "。",
-    "A modular C++ 2D engine for embedded displays and desktop, with a visual editor.": "組み込みディスプレイとデスクトップのための、ビジュアルエディターを備えたモジュール式の C++ 2D エンジンです。",
+    "A modular C++ engine with a visual editor, for 2D and 3D, on embedded devices and the desktop.": "ビジュアルエディターを備えた、2D と 3D のモジュール式の C++ エンジンです。組み込みデバイスとデスクトップで動きます。",
     "The engine core and its C++ API are here. Packages document themselves, linked below. All of it is generated from the code (engine {version}).": "ここにはエンジンのコアとその C++ API があります。パッケージのドキュメントはそれぞれのパッケージにあり、下にリンクがあります。すべてコードから生成しています (エンジン {version})。",
     "The engine core and its C++ API are here. Packages document themselves, linked below. All of it is generated from the code.": "ここにはエンジンのコアとその C++ API があります。パッケージのドキュメントはそれぞれのパッケージにあり、下にリンクがあります。すべてコードから生成しています。",
     "- [Engine core]({url}): components and settings the engine provides itself": "- [エンジンコア]({url}): エンジン自身が提供するコンポーネントと設定",

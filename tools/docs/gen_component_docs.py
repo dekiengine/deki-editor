@@ -601,7 +601,7 @@ PACKAGE_GROUPS = [
     ("Graphics and sound", ["deki-2d", "deki-3d", "deki-rendering", "deki-particles", "deki-tween",
                             "deki-tiledmapeditor-integration", "deki-audio"]),
     ("Game logic", ["deki-physics-2d", "deki-fsm", "deki-input", "deki-nodegraph", "deki-json"]),
-    ("Devices and platforms", ["deki-lilygo-boards", "deki-miyoo-boards", "deki-esp32-integration",
+    ("Devices and platforms", ["deki-lilygo-boards", "deki-miyoo-boards", "deki-anbernic-boards", "deki-esp32-integration",
                               "deki-desktop-integration", "deki-sdl3-integration", "deki-tactility-integration",
                               "deki-display", "deki-lovyangfx-integration"]),
     ("Pins and buses", ["deki-gpio", "deki-i2c", "deki-i2s", "deki-spi", "deki-uart"]),
@@ -706,7 +706,7 @@ def home_html(data, infos, titles, api_url):
     out = ['<div class="deki-home">', '<div class="deki-hero">', "<div>",
            f'<h1 class="deki-home-title">{html.escape(L.ui("Deki documentation"))}</h1>',
            f'<p class="deki-home-lede">'
-           f'{html.escape(L.ui("A modular C++ 2D engine for embedded displays and desktop, with a visual editor."))}</p>',
+           f'{html.escape(L.ui("A modular C++ engine with a visual editor, for 2D and 3D, on embedded devices and the desktop."))}</p>',
            '<p class="deki-actions">']
     if "getting-started" in titles:
         out.append(f'<a class="deki-action-solid" href="guide-getting-started.html">'

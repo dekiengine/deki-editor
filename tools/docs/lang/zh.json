@@ -1,7 +1,7 @@
 {
     ", ": "、",
     "; ": "；",
-    "A modular C++ 2D engine for embedded displays and desktop, with a visual editor.": "面向嵌入式显示屏和桌面的模块化 C++ 2D 引擎，带有可视化编辑器。",
+    "A modular C++ engine with a visual editor, for 2D and 3D, on embedded devices and the desktop.": "带可视化编辑器的模块化 C++ 引擎，支持 2D 和 3D，运行在嵌入式设备和桌面上。",
     "The engine core and its C++ API are here. Packages document themselves, linked below. All of it is generated from the code (engine {version}).": "这里是引擎核心及其 C++ API。各个包的文档在包自己的站点上，链接见下文。所有内容都由代码生成（引擎 {version}）。",
     "The engine core and its C++ API are here. Packages document themselves, linked below. All of it is generated from the code.": "这里是引擎核心及其 C++ API。各个包的文档在包自己的站点上，链接见下文。所有内容都由代码生成。",
     "- [Engine core]({url}): components and settings the engine provides itself": "- [引擎核心]({url})：引擎自身提供的组件和设置",

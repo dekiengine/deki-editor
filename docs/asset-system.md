@@ -80,8 +80,8 @@ The `"preview:"` prefix prevents collision with real font variant GUIDs.
 ### Where deterministic GUIDs are generated
 
 - `deki-engine/src/Guid.cpp` - Core implementation
-- `../../modules/deki-2d/editor/FontSyncHandler.cpp` - Font baking
-- `../../modules/deki-2d/TextComponent.cpp` - Edit mode font.guid sync
+- `../../packages/deki-2d/editor/FontSyncHandler.cpp` - Font baking
+- `../../packages/deki-2d/TextComponent.cpp` - Edit mode font.guid sync
 - `src/services/AssetExporter.cpp` - Export-time baking
 - `src/PlayMode.cpp` - Play mode font setup
 - `deki-editor/src/AssetPipeline.cpp` - Cache management
