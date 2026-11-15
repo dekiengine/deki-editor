@@ -53,7 +53,7 @@ atlasGuid   = GenerateDeterministicGuid(sourceGuid + ":" + fontSize + ":atlas")
 
 ## 베이크 권한: FontSyncHandler
 
-**파일:** `../../modules/deki-2d/editor/FontSyncHandler.cpp`
+**파일:** `../../packages/deki-2d/editor/FontSyncHandler.cpp`
 
 FontSyncHandler는 폰트 베이크의 **유일한 권한자**입니다. 모든 베이크 요청은 이를 거칩니다.
 
@@ -159,10 +159,10 @@ dfont 안에 저장된 아틀라스 경로는 dfont 파일이 있는 디렉터�
 
 | 파일 | 용도 |
 |------|---------|
-| `../../modules/deki-2d/TextComponent.h` | fontSize, previewEnabled, previewSize 필드 |
-| `../../modules/deki-2d/TextComponent.cpp` | RenderContent의 폰트 로딩, 미리보기 컴파일 |
-| `../../modules/deki-2d/BitmapFont.cpp` | 폰트 로딩, 글리프 렌더링 |
-| `../../modules/deki-2d/editor/FontSyncHandler.cpp` | 베이크 권한자 |
-| `../../modules/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont 컴파일 |
-| `../../modules/deki-2d/editor/TextComponentEditor.cpp` | 인스펙터 UI, 폰트 크기 드롭다운 |
+| `../../packages/deki-2d/TextComponent.h` | fontSize, previewEnabled, previewSize 필드 |
+| `../../packages/deki-2d/TextComponent.cpp` | RenderContent의 폰트 로딩, 미리보기 컴파일 |
+| `../../packages/deki-2d/BitmapFont.cpp` | 폰트 로딩, 글리프 렌더링 |
+| `../../packages/deki-2d/editor/FontSyncHandler.cpp` | 베이크 권한자 |
+| `../../packages/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont 컴파일 |
+| `../../packages/deki-2d/editor/TextComponentEditor.cpp` | 인스펙터 UI, 폰트 크기 드롭다운 |
 | `src/services/AssetExporter.cpp` | 익스포트 시 베이크 및 복사 |

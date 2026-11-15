@@ -53,7 +53,7 @@ atlasGuid   = GenerateDeterministicGuid(sourceGuid + ":" + fontSize + ":atlas")
 
 ## 烘焙的唯一负责者：FontSyncHandler
 
-**文件：** `../../modules/deki-2d/editor/FontSyncHandler.cpp`
+**文件：** `../../packages/deki-2d/editor/FontSyncHandler.cpp`
 
 FontSyncHandler 是字体烘焙的**唯一负责者**。所有烘焙请求都经过它：
 
@@ -159,10 +159,10 @@ dfont 中存储的图集路径是相对于 dfont 文件所在目录的。由于�
 
 | 文件 | 用途 |
 |------|---------|
-| `../../modules/deki-2d/TextComponent.h` | fontSize、previewEnabled、previewSize 字段 |
-| `../../modules/deki-2d/TextComponent.cpp` | RenderContent 中的字体加载、预览编译 |
-| `../../modules/deki-2d/BitmapFont.cpp` | 字体加载、字形渲染 |
-| `../../modules/deki-2d/editor/FontSyncHandler.cpp` | 烘焙的唯一负责者 |
-| `../../modules/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont 编译 |
-| `../../modules/deki-2d/editor/TextComponentEditor.cpp` | 检视器 UI、字号下拉列表 |
+| `../../packages/deki-2d/TextComponent.h` | fontSize、previewEnabled、previewSize 字段 |
+| `../../packages/deki-2d/TextComponent.cpp` | RenderContent 中的字体加载、预览编译 |
+| `../../packages/deki-2d/BitmapFont.cpp` | 字体加载、字形渲染 |
+| `../../packages/deki-2d/editor/FontSyncHandler.cpp` | 烘焙的唯一负责者 |
+| `../../packages/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont 编译 |
+| `../../packages/deki-2d/editor/TextComponentEditor.cpp` | 检视器 UI、字号下拉列表 |
 | `src/services/AssetExporter.cpp` | 导出时的烘焙和复制 |

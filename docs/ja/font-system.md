@@ -53,7 +53,7 @@ atlasGuid   = GenerateDeterministicGuid(sourceGuid + ":" + fontSize + ":atlas")
 
 ## ベイクの担当: FontSyncHandler
 
-**ファイル:** `../../modules/deki-2d/editor/FontSyncHandler.cpp`
+**ファイル:** `../../packages/deki-2d/editor/FontSyncHandler.cpp`
 
 FontSyncHandler はフォントのベイクを担う**唯一の担当**です。ベイクの要求はすべてここを通ります。
 
@@ -159,10 +159,10 @@ dfont 内に格納されるアトラスのパスは、dfont ファイルのデ�
 
 | ファイル | 用途 |
 |------|---------|
-| `../../modules/deki-2d/TextComponent.h` | fontSize、previewEnabled、previewSize のフィールド |
-| `../../modules/deki-2d/TextComponent.cpp` | RenderContent でのフォントの読み込み、プレビューのコンパイル |
-| `../../modules/deki-2d/BitmapFont.cpp` | フォントの読み込み、グリフの描画 |
-| `../../modules/deki-2d/editor/FontSyncHandler.cpp` | ベイクの担当 |
-| `../../modules/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont のコンパイル |
-| `../../modules/deki-2d/editor/TextComponentEditor.cpp` | インスペクターの UI、フォントサイズのドロップダウン |
+| `../../packages/deki-2d/TextComponent.h` | fontSize、previewEnabled、previewSize のフィールド |
+| `../../packages/deki-2d/TextComponent.cpp` | RenderContent でのフォントの読み込み、プレビューのコンパイル |
+| `../../packages/deki-2d/BitmapFont.cpp` | フォントの読み込み、グリフの描画 |
+| `../../packages/deki-2d/editor/FontSyncHandler.cpp` | ベイクの担当 |
+| `../../packages/deki-2d/editor/FontCompiler.cpp` | TTF -> BitmapFont のコンパイル |
+| `../../packages/deki-2d/editor/TextComponentEditor.cpp` | インスペクターの UI、フォントサイズのドロップダウン |
 | `src/services/AssetExporter.cpp` | エクスポート時のベイクとコピー |

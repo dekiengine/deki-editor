@@ -80,8 +80,8 @@ OnAssetRefResolved(propertyName, loadedAsset, _frameGuid);
 ### 決定的な GUID が生成される場所
 
 - `deki-engine/src/Guid.cpp` - コアの実装
-- `../../modules/deki-2d/editor/FontSyncHandler.cpp` - フォントのベイク
-- `../../modules/deki-2d/TextComponent.cpp` - 編集モードでの font.guid の同期
+- `../../packages/deki-2d/editor/FontSyncHandler.cpp` - フォントのベイク
+- `../../packages/deki-2d/TextComponent.cpp` - 編集モードでの font.guid の同期
 - `src/services/AssetExporter.cpp` - エクスポート時のベイク
 - `src/PlayMode.cpp` - プレイモードでのフォントの準備
 - `deki-editor/src/AssetPipeline.cpp` - キャッシュの管理

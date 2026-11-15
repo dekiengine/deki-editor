@@ -277,15 +277,10 @@ html[data-deki-tab="api"] .deki-bar a.deki-tab-api:visited { color: var(--primar
     border-color: var(--primary-color);
     background: rgba(58, 195, 255, 0.12);
 }
-.deki-chip-accent {
-    border-color: rgba(58, 195, 255, 0.45);
-    background: rgba(58, 195, 255, 0.12);
-    color: var(--primary-color) !important;
-}
-.deki-chip-accent:hover {
-    background: var(--primary-color);
-    color: #0a0b0d !important;
-}
+/* A mark with no word beside it: GitHub, Discord and donate. The word stays
+ * in the markup for screen readers. Same as the site's bar. */
+.deki-chip-icon { padding: 6px 8px !important; }
+.deki-chip-icon span { display: none; }
 
 /* The language menu: one entry per language, each in its own script. A
  * <details> opens it without script; the script only points each entry at

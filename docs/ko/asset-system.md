@@ -80,8 +80,8 @@ OnAssetRefResolved(propertyName, loadedAsset, _frameGuid);
 ### 결정적 GUID를 생성하는 곳
 
 - `deki-engine/src/Guid.cpp` - 핵심 구현
-- `../../modules/deki-2d/editor/FontSyncHandler.cpp` - 폰트 베이크
-- `../../modules/deki-2d/TextComponent.cpp` - 편집 모드의 font.guid 동기화
+- `../../packages/deki-2d/editor/FontSyncHandler.cpp` - 폰트 베이크
+- `../../packages/deki-2d/TextComponent.cpp` - 편집 모드의 font.guid 동기화
 - `src/services/AssetExporter.cpp` - 익스포트 시 베이크
 - `src/PlayMode.cpp` - 플레이 모드의 폰트 설정
 - `deki-editor/src/AssetPipeline.cpp` - 캐시 관리

@@ -307,9 +307,9 @@ AssetManager::Get()->RegisterGuid(subAsset.guid, info.guid);
 |------|---------|
 | `deki-editor/src/TextureImporter.cpp` | PNG -> .tex の変換、SubAsset の生成 |
 | `deki-editor/include/deki-editor/TextureImporter.h` | TextureImporter のインターフェース、SpriteFrameData |
-| `../../modules/deki-2d/Sprite.h` | Sprite クラス、SpriteFrame 構造体、FindFrame |
-| `../../modules/deki-2d/Sprite.cpp` | スプライトの読み込み、FrameList の解析 |
-| `../../modules/deki-2d/SpriteComponent.h` | フレームの矩形のフィールドを持つ SpriteComponent |
-| `../../modules/deki-2d/generated/Deki2DReflection0.gen.cpp` | source のパターンを含む生成済みの ResolveObjectRefs (コンポーネントごとではなく、パッケージごとに 1 ファイル) |
+| `../../packages/deki-2d/Sprite.h` | Sprite クラス、SpriteFrame 構造体、FindFrame |
+| `../../packages/deki-2d/Sprite.cpp` | スプライトの読み込み、FrameList の解析 |
+| `../../packages/deki-2d/SpriteComponent.h` | フレームの矩形のフィールドを持つ SpriteComponent |
+| `../../packages/deki-2d/generated/Deki2DReflection0.gen.cpp` | source のパターンを含む生成済みの ResolveObjectRefs (コンポーネントごとではなく、パッケージごとに 1 ファイル) |
 | `src/panels/inspector/AssetPropertyEditor.cpp` | フレームの割り当ての UI |
 | `src/services/AssetExporter.cpp` | エクスポートのパイプライン |

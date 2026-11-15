@@ -307,9 +307,9 @@ AssetManager::Get()->RegisterGuid(subAsset.guid, info.guid);
 |------|---------|
 | `deki-editor/src/TextureImporter.cpp` | PNG -> .tex 변환, SubAsset 생성 |
 | `deki-editor/include/deki-editor/TextureImporter.h` | TextureImporter 인터페이스, SpriteFrameData |
-| `../../modules/deki-2d/Sprite.h` | Sprite 클래스, SpriteFrame 구조체, FindFrame |
-| `../../modules/deki-2d/Sprite.cpp` | 스프라이트 로딩, FrameList 파싱 |
-| `../../modules/deki-2d/SpriteComponent.h` | 프레임 사각형 필드가 있는 SpriteComponent |
-| `../../modules/deki-2d/generated/Deki2DReflection0.gen.cpp` | source 패턴을 사용하는 생성된 ResolveObjectRefs(컴포넌트마다가 아니라 패키지마다 파일 하나) |
+| `../../packages/deki-2d/Sprite.h` | Sprite 클래스, SpriteFrame 구조체, FindFrame |
+| `../../packages/deki-2d/Sprite.cpp` | 스프라이트 로딩, FrameList 파싱 |
+| `../../packages/deki-2d/SpriteComponent.h` | 프레임 사각형 필드가 있는 SpriteComponent |
+| `../../packages/deki-2d/generated/Deki2DReflection0.gen.cpp` | source 패턴을 사용하는 생성된 ResolveObjectRefs(컴포넌트마다가 아니라 패키지마다 파일 하나) |
 | `src/panels/inspector/AssetPropertyEditor.cpp` | 프레임 지정 UI |
 | `src/services/AssetExporter.cpp` | 익스포트 파이프라인 |
