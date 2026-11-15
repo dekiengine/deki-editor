@@ -4,6 +4,32 @@ Notable changes to the Deki Editor. Format-affecting and behaviour-affecting
 changes are listed with what a project has to do, if anything. Engine changes
 are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- **The macOS editor no longer crashes now and then as it starts.** Every
+  command the editor ran set the build's job count in the editor's own
+  environment, and the check for build tools runs commands while SDL starts,
+  which copies that environment. On macOS and Linux the job count now goes
+  into the command itself, so nothing changes the environment while it is
+  read.
+- **A project updated from 0.30 loads its own code again.** The library the
+  older editor built for the project's code was kept, refused because of its
+  older reflection ABI, and stayed in use, so the new build could not replace
+  it; restarting did not help. The editor now removes libraries that an
+  editor with another reflection ABI built, before anything loads them, and
+  builds them again. If a project shows "built against reflection ABI v23",
+  delete its `generated/runtime` folder, or update the editor once this is
+  released.
+- **Upgrading a project from 0.30 updates its packages again.** The upgrade
+  refused every package with "the registry has no release of it for this
+  editor yet (needs engine ?)": it read the engine the latest release needs
+  from the installed package's entry, which the registry's never filled. It
+  now reads it from the registry.
+- **`--build-code` fails when a package could not be installed**, and names
+  it. It said "Build OK" when nothing failed to compile, even with every
+  package missing.
+
 ## 0.40.0 - 2026-11-14
 
 ### In the packages

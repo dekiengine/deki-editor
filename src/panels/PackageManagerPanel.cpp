@@ -1555,9 +1555,11 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
                     if (success)
                     {
                         m_LatestVersions.clear();
+                        m_LatestMinEngines.clear();
                         for (const auto& entry : packages)
                         {
                             m_LatestVersions[entry.id] = entry.latest;
+                            m_LatestMinEngines[entry.id] = entry.minEngine;
 
                             // Each registry package is listed as available
                             PackageEntry pkg;
@@ -1634,9 +1636,11 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
 
     const auto packages = future.get();
     m_LatestVersions.clear();
+    m_LatestMinEngines.clear();
     for (const auto& entry : packages)
     {
         m_LatestVersions[entry.id] = entry.latest;
+        m_LatestMinEngines[entry.id] = entry.minEngine;
 
         PackageEntry pkg;
         pkg.id = entry.id;
@@ -1779,12 +1783,17 @@ bool PackageManagerPanel::UpdateToThisEditorsRelease(const std::string& id, std:
         outMessage = "the registry does not list " + id;
         return false;
     }
-    const std::string version = pkg->availableVersions[0];
-    if (!DekiPackageInstaller::ReleaseFitsThisEditor(pkg->minEngine))
+    // The registry's latest release and what it needs: an installed
+    // package's entry carries the minEngine of the version it has.
+    const auto latest = m_LatestVersions.find(pkg->id);
+    const std::string version = latest != m_LatestVersions.end() ? latest->second : pkg->availableVersions[0];
+    const auto latestMin = m_LatestMinEngines.find(pkg->id);
+    const std::string minEngine = latestMin != m_LatestMinEngines.end() ? latestMin->second : pkg->minEngine;
+    if (!DekiPackageInstaller::ReleaseFitsThisEditor(minEngine))
     {
         outMessage = "the registry has no release of " + id + " for this editor yet (its latest, " + version +
-                     ", needs engine " + (pkg->minEngine.empty() ? std::string("?") : pkg->minEngine) +
-                     "; this editor has " + DEKI_ENGINE_VERSION + ")";
+                     ", needs engine " + (minEngine.empty() ? std::string("?") : minEngine) + "; this editor has " +
+                     DEKI_ENGINE_VERSION + ")";
         return false;
     }
 

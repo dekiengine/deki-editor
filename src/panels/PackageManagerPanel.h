@@ -87,7 +87,6 @@ private:
     void AfterInstall(const std::string& projectPath, bool dekiPackage);
 
 public:
-
 private:
     void DrawToolbar();
     void DrawPackageList();
@@ -135,6 +134,9 @@ private:
 
     // Registry update checking
     std::map<std::string, std::string> m_LatestVersions;  // package id -> registry's latest version
+    // package id -> the engine the registry's latest version needs. Not the
+    // PackageEntry's minEngine: an installed package's entry keeps its own.
+    std::map<std::string, std::string> m_LatestMinEngines;
     bool m_RegistryFetching = false;
 
     void FetchRegistryIndex(bool forceRefresh = false);

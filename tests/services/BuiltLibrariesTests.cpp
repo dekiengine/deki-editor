@@ -10,6 +10,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 namespace fs = std::filesystem;
 namespace BL = DekiEditor::BuiltLibraries;
@@ -85,6 +86,32 @@ TEST(BuiltLibraries, AStagedPluginFromBeforeThisSessionGoes)
     BL::Record({ staged });  // even a record does not keep the staging folder
     EXPECT_TRUE(Has(BL::RemoveUnknown(r.dir.string()), staged));
     EXPECT_FALSE(fs::exists(staged));
+}
+
+// An editor of another release shares the record. A library it built is
+// refused by this editor's loader but stays loaded, so its file cannot be
+// replaced: after an update the project's own code would never load. It goes
+// before anything loads it.
+TEST(BuiltLibraries, ALibraryAnotherEditorBuiltGoes)
+{
+    Runtime r;
+    const fs::path plugin = r.Lib("game-components");
+    BL::Record({ plugin });
+
+    // The record as an editor with another reflection ABI left it.
+    const fs::path store = r.root / "built-libraries.json";
+    nlohmann::json j;
+    std::ifstream(store) >> j;
+    ASSERT_EQ(j.size(), 1u);
+    for (auto& [key, value] : j.items())
+    {
+        std::string identity = value.get<std::string>();
+        value = identity.substr(0, identity.find('#')) + "#abi1";
+    }
+    std::ofstream(store) << j.dump();
+
+    EXPECT_TRUE(Has(BL::RemoveUnknown(r.dir.string()), plugin));
+    EXPECT_FALSE(fs::exists(plugin));
 }
 
 TEST(BuiltLibraries, APromotedPluginIsKept)

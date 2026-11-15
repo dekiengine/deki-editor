@@ -7,10 +7,12 @@
 // from a zip, a copied folder or a shared drive. A library there would run its
 // code the moment the project opened.
 //
-// So every library a build produces is recorded (size and modification time)
-// in the editor's own data folder, which a project cannot write, and opening a
-// project removes every library there the record does not know. The normal
-// build then makes them again, usually as just a relink.
+// So every library a build produces is recorded (size, modification time and
+// the editor's reflection ABI) in the editor's own data folder, which a
+// project cannot write, and opening a project removes every library there the
+// record does not know. A library an editor with another ABI built counts as
+// unknown too. The normal build then makes them again, usually as just a
+// relink.
 
 #include <filesystem>
 #include <string>

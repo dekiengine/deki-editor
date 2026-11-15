@@ -4,6 +4,7 @@
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/FileIO.h>
 #include <deki/LogSystem.h>
+#include <deki/interop/ReflectionAbi.h>
 #include <nlohmann/json.hpp>
 
 #include <fstream>
@@ -37,8 +38,12 @@ std::string Key(const fs::path& file)
     return (ec ? fs::absolute(file) : abs).generic_string();
 }
 
-// What the file is: its size and modification time. Kept outside the
-// project, so a project cannot claim its own libraries were built here.
+// What the file is: its size and modification time, and the reflection ABI of
+// the editor that built it. Kept outside the project, so a project cannot
+// claim its own libraries were built here. Every editor version shares the
+// record, and one with another ABI cannot load what this one built: the
+// loader refuses such a library but keeps it loaded, so its file could not
+// be replaced by the next build.
 std::string Identity(const fs::path& file)
 {
     std::error_code ec;
@@ -52,7 +57,8 @@ std::string Identity(const fs::path& file)
     {
         return "";
     }
-    return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count());
+    return std::to_string(size) + "@" + std::to_string(time.time_since_epoch().count()) + "#abi" +
+           std::to_string(kDekiReflectionAbiVersion);
 }
 
 nlohmann::json Load()

@@ -31,6 +31,18 @@ struct JobVariable
     bool userSet;
 };
 
+// Read once, at the first build. Nothing in the editor writes these on
+// macOS or Linux, so a later read would see the same.
+const JobVariable* JobVariables()
+{
+    static const JobVariable s_Variables[] = {
+        { "CMAKE_BUILD_PARALLEL_LEVEL", std::getenv("CMAKE_BUILD_PARALLEL_LEVEL") != nullptr },
+        { "IDF_PY_BUILD_JOBS", std::getenv("IDF_PY_BUILD_JOBS") != nullptr },
+        { nullptr, false },
+    };
+    return s_Variables;
+}
+
 // Physical memory free to use now, or 0 when it cannot be read.
 uint64_t AvailableMemory()
 {
@@ -53,16 +65,6 @@ uint64_t AvailableMemory()
     return 0;
 #else
     return 0;  // macOS: no cheap figure that means "free to use"; cores alone decide
-#endif
-}
-
-void SetVariable(const char* name, const std::string& value)
-{
-#ifdef _WIN32
-    // The Win32 environment is what CreateProcess passes on.
-    SetEnvironmentVariableA(name, value.c_str());
-#else
-    setenv(name, value.c_str(), 1);
 #endif
 }
 
@@ -101,7 +103,7 @@ std::string AtBuildPriority(const std::string& shellLine)
             quoted += c;
         }
     }
-    return "nice -n 10 /bin/sh -c '" + quoted + "'";
+    return "nice -n 10 /bin/sh -c '" + WithBuildJobs(quoted) + "'";
 #endif
 }
 
@@ -120,20 +122,38 @@ int BuildJobCount()
 
 void PrepareBuildJobs()
 {
+#ifdef _WIN32
+    // The Win32 environment is what CreateProcess passes on, and Windows
+    // locks it for each read and write.
     static std::mutex s_Mutex;
     std::lock_guard<std::mutex> lock(s_Mutex);
-    static JobVariable s_Variables[] = {
-        { "CMAKE_BUILD_PARALLEL_LEVEL", std::getenv("CMAKE_BUILD_PARALLEL_LEVEL") != nullptr },
-        { "IDF_PY_BUILD_JOBS", std::getenv("IDF_PY_BUILD_JOBS") != nullptr },
-    };
     const std::string jobs = std::to_string(BuildJobCount());
-    for (const JobVariable& variable : s_Variables)
+    for (const JobVariable* variable = JobVariables(); variable->name; ++variable)
     {
-        if (!variable.userSet)
+        if (!variable->userSet)
         {
-            SetVariable(variable.name, jobs);
+            SetEnvironmentVariableA(variable->name, jobs.c_str());
         }
     }
+#endif
+}
+
+std::string WithBuildJobs(const std::string& shellLine)
+{
+#ifdef _WIN32
+    return shellLine;
+#else
+    const std::string jobs = std::to_string(BuildJobCount());
+    std::string exports;
+    for (const JobVariable* variable = JobVariables(); variable->name; ++variable)
+    {
+        if (!variable->userSet)
+        {
+            exports += std::string(" ") + variable->name + "=" + jobs;
+        }
+    }
+    return exports.empty() ? shellLine : "export" + exports + "; " + shellLine;
+#endif
 }
 
 }  // namespace DekiEditor

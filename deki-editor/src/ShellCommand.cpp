@@ -208,7 +208,8 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         return -1;
     }
 
-    PrepareBuildJobs();
+    // Built before fork: the child may only exec.
+    const std::string line = WithBuildJobs(commandLine);
     const pid_t pid = fork();
     if (pid < 0)
     {
@@ -229,7 +230,7 @@ int RunShellCommand(const std::string& commandLine, const std::string& workingDi
         {
             _exit(127);
         }
-        execl("/bin/sh", "sh", "-c", commandLine.c_str(), (char*)nullptr);
+        execl("/bin/sh", "sh", "-c", line.c_str(), (char*)nullptr);
         _exit(127);
     }
     close(fds[1]);

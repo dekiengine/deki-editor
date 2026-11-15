@@ -22,17 +22,27 @@ DEKI_EDITOR_API unsigned long BuildPriorityFlag();
 DEKI_EDITOR_API void LowerBuildPriority();
 
 /// A shell line run at build priority where the process cannot be lowered
-/// before it starts (popen): `nice -n 10 /bin/sh -c '<line>'`. The line as
-/// it is on Windows, which uses BuildPriorityFlag instead.
+/// before it starts (popen): `nice -n 10 /bin/sh -c '<line>'`, with the job
+/// count of WithBuildJobs. The line as it is on Windows, which uses
+/// BuildPriorityFlag and PrepareBuildJobs instead.
 DEKI_EDITOR_API std::string AtBuildPriority(const std::string& shellLine);
 
 /// How many compile jobs a build starting now should run: one per core, but
 /// no more than free memory holds, and at least one.
 DEKI_EDITOR_API int BuildJobCount();
 
-/// Sets CMAKE_BUILD_PARALLEL_LEVEL (cmake --build) and IDF_PY_BUILD_JOBS
-/// (idf.py) to BuildJobCount() for the processes this one starts next. A
-/// value the user set before the editor started is left alone.
+/// Windows: sets CMAKE_BUILD_PARALLEL_LEVEL (cmake --build) and
+/// IDF_PY_BUILD_JOBS (idf.py) to BuildJobCount() for the processes this one
+/// starts next. A value the user set before the editor started is left alone.
+///
+/// Does nothing elsewhere. There, setenv while another thread reads the
+/// environment can crash that thread (SDL_Init copies it at startup), so the
+/// count goes into the shell line instead: WithBuildJobs and AtBuildPriority.
 DEKI_EDITOR_API void PrepareBuildJobs();
+
+/// A shell line that runs with the job count of PrepareBuildJobs:
+/// `export CMAKE_BUILD_PARALLEL_LEVEL=<n> IDF_PY_BUILD_JOBS=<n>; <line>`,
+/// leaving out a variable the user set. The line as it is on Windows.
+DEKI_EDITOR_API std::string WithBuildJobs(const std::string& shellLine);
 
 }  // namespace DekiEditor

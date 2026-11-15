@@ -304,7 +304,8 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
         return false;
     }
 
-    PrepareBuildJobs();
+    // Built before fork: the child may only exec.
+    const std::string line = WithBuildJobs(command);
     pid_t pid = fork();
     if (pid < 0)
     {
@@ -321,7 +322,7 @@ bool ProcessRunner::Start(const std::string& command, uint32_t timeoutMs)
         dup2(fds[1], STDERR_FILENO);
         close(fds[0]);
         close(fds[1]);
-        execl("/bin/sh", "sh", "-c", command.c_str(), static_cast<char*>(nullptr));
+        execl("/bin/sh", "sh", "-c", line.c_str(), static_cast<char*>(nullptr));
         _exit(127);
     }
     close(fds[1]);

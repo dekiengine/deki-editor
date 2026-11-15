@@ -301,6 +301,14 @@ void RebuildAfterPackageChange(EditorApp& editor, const std::string& projectPath
     hr->RunPendingBuildNow();
 }
 
+/// A framework component is "declared", not "installed": nothing of it lives
+/// in the project. It is a line in the firmware build's dependency manifest,
+/// fetched by ESP-IDF at build time, so it is never missing.
+bool IsMissing(const PackageEntry& p)
+{
+    return !p.isInstalled && p.packageType != PackageType::FrameworkComponent;
+}
+
 /// Prints one line per package, for --packages-list and for the report
 /// --packages-restore prints. Returns how many are missing.
 int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
@@ -322,16 +330,12 @@ int PrintPackageTable(PackageManager& mgr, const std::string& projectPath)
     printf("%-40s %-12s %s\n", "PACKAGE", "STATE", "VERSION");
     for (const auto& p : pkgs)
     {
-        // A framework component is "declared", not "installed": nothing of it
-        // lives in the project. It is a line in the firmware build's
-        // dependency manifest, fetched by ESP-IDF at build time. It is never
-        // counted as missing, since there is no install step to miss.
         const bool frameworkComponent = (p.packageType == PackageType::FrameworkComponent);
         if (frameworkComponent)
         {
             anyFrameworkComponent = true;
         }
-        if (!p.isInstalled && !frameworkComponent)
+        if (IsMissing(p))
         {
             ++missing;
         }
@@ -481,6 +485,24 @@ int CmdBuildCode(EditorApp& editor)
     if (hr->HasBuildErrors())
     {
         printf("Build failed. See the errors above.\n");
+        return 1;
+    }
+
+    // A package that could not be installed is not built either, and the
+    // build passes without it.
+    PackageManager mgr(&editor);
+    mgr.LoadPackages(project->GetPath());
+    std::string missing;
+    for (const auto& p : mgr.GetPackages())
+    {
+        if (IsMissing(p))
+        {
+            missing += (missing.empty() ? "" : ", ") + p.id;
+        }
+    }
+    if (!missing.empty())
+    {
+        printf("Build failed: these packages could not be installed: %s. The errors above say why.\n", missing.c_str());
         return 1;
     }
 
@@ -2445,8 +2467,9 @@ bool TryRunInNewEditor(const CliOptions& cli, int& outRc)
     const ProjectUpgrade upgrade = PlanProjectUpgrade(cli.projectPath);
     if (upgrade.Needed() && !cli.upgrade)
     {
-        fprintf(stderr, "Error: %s It opens only once it is upgraded: run again with --upgrade, or open it in the "
-                        "editor and choose Upgrade.\n",
+        fprintf(stderr,
+                "Error: %s It opens only once it is upgraded: run again with --upgrade, or open it in the "
+                "editor and choose Upgrade.\n",
                 upgrade.Describe().c_str());
         outRc = 1;
         return true;
