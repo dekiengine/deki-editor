@@ -683,10 +683,13 @@ deki_add_package_tests(deki-display TARGET DekiDisplayTestsBigEndian SOURCES ${_
 deki_add_package_tests(deki-gpio TARGET DekiGPIOTests SOURCES DekiGPIO.cpp GpioPinSetup.cpp)
 
 # The audio core (file header, ADPCM, the mixer, streaming from a fake file
-# system) and the MAX98357 amp over a fake I2S channel from deki-i2s's factory.
-deki_add_package_tests(deki-audio TARGET DekiAudioTests
+# system), the editor's import (WAV, converting, settings, the compile), and
+# the MAX98357 amp over a fake I2S channel from deki-i2s's factory.
+deki_add_package_tests(deki-audio TARGET DekiAudioTests NEEDS_EDITOR
                        SOURCES AudioFile.cpp ImaAdpcm.cpp Audio.cpp AudioReader.cpp Mixer.cpp AudioOutput.cpp
                                DekiAudio.cpp PumpWorker.cpp chips/MAX98357Audio.cpp ../deki-i2s/DekiI2S.cpp
+                               editor/AudioDecode.cpp editor/OggDecode.cpp editor/AudioConvert.cpp
+                               editor/AudioSettings.cpp editor/AudioCompile.cpp
                        DEFINES DEKI_I2S_EXPORTS FEATURE_REQUIRES deki-i2s)
 
 # SDCardComponent mounting a fake card from the factory.
