@@ -736,10 +736,10 @@ deki_add_package_tests(deki-miyoo-boards TARGET DekiMiyooBoardsTests NEEDS_EDITO
 # deki-anbernic-boards' builder off an Anbernic: the toolchain file and CMake
 # it writes for the shipped platform, the stock firmware app it packs, and
 # installing it on SD cards that are fake folders; the display's row
-# widening; and which key each button and axis presses.
+# widening; which key each button and axis presses; and the volume levels.
 deki_add_package_tests(deki-anbernic-boards TARGET DekiAnbernicBoardsTests NEEDS_EDITOR
                        SOURCES editor/AnbernicBuilder.cpp editor/AnbernicToolchain.cpp editor/StockApp.cpp editor/SshInstall.cpp
-                               AnbernicRows.cpp AnbernicInput.cpp
+                               AnbernicRows.cpp AnbernicInput.cpp AnbernicVolume.cpp
                        DEFINES "DEKI_ANBERNIC_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-anbernic-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
