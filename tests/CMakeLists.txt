@@ -343,7 +343,7 @@ endif()
 # with run-pkgtests-<pkg>, so a package's CI checks both byte orders.
 
 function(deki_add_package_tests pkg_id)
-    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR;CODEGEN;BIG_ENDIAN" "TARGET" "SOURCES;DEFINES;LIBS" ${ARGN})
+    cmake_parse_arguments(T "ALL_SOURCES;NEEDS_EDITOR;CODEGEN;BIG_ENDIAN" "TARGET" "SOURCES;DEFINES;LIBS;FEATURE_REQUIRES" ${ARGN})
     set(_pkg "${DEKI_PACKAGES_DIR}/${pkg_id}")
     if(NOT EXISTS "${_pkg}/tests")
         message(STATUS "Deki: ${pkg_id} tests skipped (no checkout at ${_pkg})")
@@ -385,8 +385,10 @@ function(deki_add_package_tests pkg_id)
     # Packages include what they require by bare filename ("IDekiUART.h"
     # from deki-uart), as a project build puts every package root on the
     # include path; here the roots of the requires closure are enough.
+    # FEATURE_REQUIRES names packages a feature requires, which the closure
+    # leaves out because a project gets them only with that feature.
     set(_req_includes "")
-    foreach(_r IN LISTS _pkg_closure)
+    foreach(_r IN LISTS _pkg_closure T_FEATURE_REQUIRES)
         if(NOT _r STREQUAL pkg_id AND IS_DIRECTORY "${DEKI_PACKAGES_DIR}/${_r}")
             list(APPEND _req_includes "${DEKI_PACKAGES_DIR}/${_r}")
         endif()
@@ -680,10 +682,12 @@ deki_add_package_tests(deki-display TARGET DekiDisplayTestsBigEndian SOURCES ${_
 # GpioPinSetup against a fake GPIO backend.
 deki_add_package_tests(deki-gpio TARGET DekiGPIOTests SOURCES DekiGPIO.cpp GpioPinSetup.cpp)
 
-# The MAX98357 amp over a fake I2S channel from deki-i2s's factory.
+# The audio core (file header, ADPCM, the mixer, streaming from a fake file
+# system) and the MAX98357 amp over a fake I2S channel from deki-i2s's factory.
 deki_add_package_tests(deki-audio TARGET DekiAudioTests
-                       SOURCES chips/MAX98357Audio.cpp ../deki-i2s/DekiI2S.cpp
-                       DEFINES DEKI_I2S_EXPORTS)
+                       SOURCES AudioFile.cpp ImaAdpcm.cpp Audio.cpp AudioReader.cpp Mixer.cpp AudioOutput.cpp
+                               DekiAudio.cpp PumpWorker.cpp chips/MAX98357Audio.cpp ../deki-i2s/DekiI2S.cpp
+                       DEFINES DEKI_I2S_EXPORTS FEATURE_REQUIRES deki-i2s)
 
 # SDCardComponent mounting a fake card from the factory.
 deki_add_package_tests(deki-sdcard TARGET DekiSDCardTests SOURCES DekiSDCard.cpp SDCardComponent.cpp)
