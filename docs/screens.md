@@ -41,7 +41,9 @@ there.
 
 A HUD belongs to the screen, not to the world: hearts in the top-left corner,
 a score in the top-right. Add **Screen Anchor** to the object and pick the
-point in its grid: a corner, the middle of an edge, or the centre. Its
+point in its grid: a corner, the middle of an edge, or the centre.
+
+Its
 **Offset** is the distance from that point in meters, with Y up, so hearts
 0.875 m in from the left and 1 m down are Top Left with an offset of
 (0.875, -1).
@@ -160,10 +162,14 @@ the device, and a script reads it from the engine:
 
 The camera does not use it: every screen still shows the camera's ortho
 height. What changes on a small screen is the layout, which is the scene's to
-decide. With the camera's pixels per meter, one meter of world is
+decide.
+
+With the camera's pixels per meter, one meter of world is
 `ppm / ppi * 0.0254` meters of glass, so a script can tell whether a button
 comes out big enough to tap (about 9 mm) and lay the screen out differently
-when it does not. The demo's menu is a 4x2 grid on the T-Deck and on a
+when it does not.
+
+The demo's menu is a 4x2 grid on the T-Deck and on a
 desktop, and a row of tiles twice the size, swiped left and right, on the
 AMOLED.
 

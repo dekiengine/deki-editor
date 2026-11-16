@@ -758,8 +758,7 @@ h1.doxsection .tt, h2.doxsection .tt, h3.doxsection .tt, div.title .tt {
  * of a small window, so a media query here lets the hero overlap itself. */
 #doc-content:has(.deki-home) div.contents { container: deki-home / inline-size; }
 .deki-home { max-width: 1160px; margin: 0 auto; padding: 112px 64px 176px; box-sizing: border-box; }
-.deki-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 88px; align-items: center; }
-.deki-hero img { width: 100%; height: auto; border: 1px solid var(--separator-color); }
+.deki-hero { max-width: 760px; }
 .deki-home-title {
     font-family: var(--font-family-display);
     font-size: 64px;
@@ -789,8 +788,47 @@ h1.doxsection .tt, h2.doxsection .tt, h3.doxsection .tt, div.title .tt {
     color: #0a0b0d !important;
     font-weight: 600;
 }
-.deki-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin-top: 144px; }
-.deki-card { padding: 44px 48px 48px; border: 1px solid var(--separator-color); background: var(--page-background-color); }
+/* The three guides to begin with: a card each, numbered, as the site's own
+ * cards are drawn. */
+.deki-starts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 88px; }
+a.deki-start {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 28px 28px 32px;
+    border: 1px solid var(--separator-color);
+    background: #101113 !important;
+    color: var(--page-foreground-color) !important;
+    transition: border-color 0.15s, transform 0.15s;
+}
+a.deki-start:hover { border-color: var(--primary-color); transform: translateY(-3px); }
+.deki-start-step { font-family: var(--font-family-monospace); font-size: 12px; letter-spacing: 0.16em; color: var(--primary-color); }
+.deki-start-title { font-family: var(--font-family-display); font-size: 25px; font-weight: 500; line-height: 1.2; }
+.deki-start-text { font-size: 16px; line-height: 26px; color: var(--page-secondary-foreground-color); }
+.deki-start-more { margin: 24px 0 0; font-size: 16px; color: var(--page-secondary-foreground-color); }
+.deki-start-more a { color: #cdcbc6 !important; background: none !important; }
+.deki-start-more a:hover { color: var(--primary-color) !important; }
+.deki-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 72px; }
+.deki-card-lede { margin: -14px 0 24px; font-size: 16px; line-height: 26px; color: var(--page-secondary-foreground-color); }
+/* The guide before and the guide after, at the end of a guide. */
+.deki-steps { display: flex; gap: 16px; margin: 96px 0 0; }
+a.deki-step {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 22px 24px;
+    border: 1px solid var(--separator-color);
+    background: #101113 !important;
+    font-family: var(--font-family-display);
+    font-size: 21px;
+    color: var(--page-foreground-color) !important;
+}
+a.deki-step span { font-family: var(--font-family-monospace); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--page-secondary-foreground-color); }
+a.deki-step-on { text-align: right; }
+a.deki-step-on:only-child { margin-left: auto; flex: 0 1 50%; }
+a.deki-step:hover { border-color: var(--primary-color); color: var(--primary-color) !important; }
+.deki-card { padding: 36px 40px 40px; border: 1px solid var(--separator-color); background: #101113; }
 .deki-card:last-child { grid-column: 1 / -1; }
 .deki-card:last-child ul { columns: 3; }
 .deki-home h2 {
@@ -810,9 +848,8 @@ h1.doxsection .tt, h2.doxsection .tt, h3.doxsection .tt, div.title .tt {
 .deki-home li a { color: #cdcbc6 !important; background: none !important; }
 .deki-home li a:hover { color: var(--primary-color) !important; }
 
-@container deki-home (max-width: 1240px) {
-    .deki-hero { grid-template-columns: 1fr; gap: 64px; }
-    .deki-hero img { max-width: 760px; }
+@container deki-home (max-width: 1000px) {
+    .deki-starts { grid-template-columns: 1fr; }
 }
 @container deki-home (max-width: 900px) {
     .deki-home ul, .deki-card:last-child ul { columns: 1; }
@@ -820,7 +857,10 @@ h1.doxsection .tt, h2.doxsection .tt, h3.doxsection .tt, div.title .tt {
 @container deki-home (max-width: 640px) {
     .deki-home { padding: 56px 16px 96px; }
     .deki-home-title { font-size: 44px; }
-    .deki-cards { grid-template-columns: 1fr; gap: 20px; margin-top: 72px; }
+    .deki-cards { grid-template-columns: 1fr; gap: 16px; margin-top: 56px; }
+    .deki-starts { margin-top: 56px; }
+    .deki-steps { flex-direction: column; }
+    a.deki-step-on:only-child { flex-basis: auto; margin-left: 0; }
     .deki-card:last-child { grid-column: auto; }
     .deki-card { padding: 28px 24px 32px; }
 }

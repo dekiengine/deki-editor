@@ -31,12 +31,16 @@ The JSON says what the editor needs to know and nothing about how to build:
 | `bootScene` | Path of the boot scene, relative to the project. |
 | `assetStorage` | Where a build keeps the game's assets: `internal` (the default) or `external`. See below. |
 
-What a capability means is the packages' to say, not the editor's. A package whose code tests one at compile time names it in its `package.json` `capabilityDefines`, and a build for a platform that provides it defines `DEKI_CAPABILITY_<NAME>` (`opengl` is `DEKI_CAPABILITY_OPENGL`, named by deki-rendering, deki-3d and deki-sdl3-integration). A package that draws textures filtered names the capability it does that with in `filtersTexturesWith`, so an image's Filter setting applies on a platform that provides it and is drawn Point elsewhere.
+What a capability means is the packages' to say, not the editor's. A package whose code tests one at compile time names it in its `package.json` `capabilityDefines`, and a build for a platform that provides it defines `DEKI_CAPABILITY_<NAME>` (`opengl` is `DEKI_CAPABILITY_OPENGL`, named by deki-rendering, deki-3d and deki-sdl3-integration).
+
+A package that draws textures filtered names the capability it does that with in `filtersTexturesWith`, so an image's Filter setting applies on a platform that provides it and is drawn Point elsewhere.
 
 The **boot scene** holds a `Deki::PlatformSetupComponent` whose `setupComponents` list names,
 in order, the setup steps that bring the hardware up: a power pin, the display, an I2C bus,
 touch. Each entry is `{id, typeId}`: the id of the child object holding the step, and the
-hash of the step's qualified class name (`Deki::HashString`). A wrong `typeId` does not fail;
+hash of the step's qualified class name (`Deki::HashString`).
+
+A wrong `typeId` does not fail;
 the step silently never runs. `ShippedPlatformTemplates` in the editor's tests checks every
 boot scene the packages ship.
 
@@ -65,8 +69,11 @@ LilyGO T-Deck Plus can choose; it keeps its assets in its flash unless told othe
 
 A game writes its own files, such as saves, under `F:/` too (`F:/save.bin`). On an ESP32 they
 go to the user data partition at the end of the flash (1 MB on a 16 MB device, 512 KB on 8 MB,
-128 KB on 4 MB). Flashing a new build never touches it, so saves survive updates. The game's
+128 KB on 4 MB). Flashing a new build never touches it, so saves survive updates.
+
+The game's
 own data is never written: opening one of its files to write fails, and the log says why.
+
 In the desktop build they go to `userdata/` beside it, and in a Tactility app to `internal/`
 in the app's user data, with the same rule.
 
@@ -82,9 +89,13 @@ DekiEditor --build-firmware --deploy --simulate --platform lilygo_t_deck_plus <p
 
 The simulated build keeps every step of the device's boot scene and adds the simulator's own
 after them (the QEMU screen), in a copy under its build directory
-(`generated/build/<platform>_qemu/simulation/boot.scene`). Where the simulator has to run a
+(`generated/build/<platform>_qemu/simulation/boot.scene`).
+
+Where the simulator has to run a
 step another way, the copy says so: an SD card wired for SPI goes on QEMU's SD host. The build
-log lists each change. The platform's `boot.scene`, its normal build and the firmware flashed
+log lists each change.
+
+The platform's `boot.scene`, its normal build and the firmware flashed
 to the device are not changed, and nothing the simulator needs is compiled into them.
 
 The simulated device has an SD card, made fresh for each build in `simulation/sd_card`: the
