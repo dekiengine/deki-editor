@@ -145,14 +145,14 @@ class Lang:
 
 # The site bar's words, as dekiengine.com's own menu has them.
 BAR = {
-    "ja": {"site": "サイト", "packages": "パッケージ", "blog": "ブログ", "docs": "ドキュメント", "manual": "マニュアル", "api reference": "API リファレンス", "download": "ダウンロード", "donate": "寄付",
-           "brief": "組み込みディスプレイとデスクトップのためのモジュール式 C++ 2D エンジン",
+    "ja": {"engine": "エンジン", "packages": "パッケージ", "blog": "ブログ", "docs": "ドキュメント", "manual": "マニュアル", "api reference": "API リファレンス", "download": "ダウンロード", "donate": "寄付",
+           "brief": "ビジュアルエディターを備えた、2D と 3D のモジュール式 C++ エンジン",
            "package brief": "Deki パッケージリファレンス", "language": "言語"},
-    "zh": {"site": "网站", "packages": "包", "blog": "博客", "docs": "文档", "manual": "手册", "api reference": "API 参考", "download": "下载", "donate": "捐赠",
-           "brief": "面向嵌入式显示屏和桌面的模块化 C++ 2D 引擎",
+    "zh": {"engine": "引擎", "packages": "包", "blog": "博客", "docs": "文档", "manual": "手册", "api reference": "API 参考", "download": "下载", "donate": "捐赠",
+           "brief": "带可视化编辑器的模块化 C++ 引擎，支持 2D 和 3D",
            "package brief": "Deki 包参考", "language": "语言"},
-    "ko": {"site": "사이트", "packages": "패키지", "blog": "블로그", "docs": "문서", "manual": "매뉴얼", "api reference": "API 참조", "download": "다운로드", "donate": "후원",
-           "brief": "임베디드 디스플레이와 데스크톱을 위한 모듈식 C++ 2D 엔진",
+    "ko": {"engine": "엔진", "packages": "패키지", "blog": "블로그", "docs": "문서", "manual": "매뉴얼", "api reference": "API 참조", "download": "다운로드", "donate": "후원",
+           "brief": "비주얼 에디터가 있는 2D·3D 모듈식 C++ 엔진",
            "package brief": "Deki 패키지 레퍼런스", "language": "언어"},
 }
 
@@ -179,11 +179,11 @@ def header(template, code, package=False):
         out = re.sub(r"<!--DEKI_TAB_SCRIPT-->.*?<!--/DEKI_TAB_SCRIPT-->\n", "", out, flags=re.S)
     if code != "en":
         site = f"https://dekiengine.com/{code}/"
-        for path in ("packages/", "blog/", "donate/", "editor/"):
+        for path in ("packages/", "blog/", "donate/", "engine/", "engine/#download"):
             out = out.replace(f'href="https://dekiengine.com/{path}"', f'href="{site}{path}"')
         out = out.replace('href="https://dekiengine.com/discord"', f'href="{site}discord/"')
         out = out.replace('href="https://dekiengine.com/"', f'href="{site}"')
-        for key in ("site", "packages", "blog", "manual", "api reference"):
+        for key in ("engine", "packages", "blog", "manual", "api reference"):
             out = out.replace(f'<span class="deki-nav-label">{key}</span>', f'<span class="deki-nav-label">{bar_word(code, key, key)}</span>')
         out = out.replace('<span class="deki-bar-tag">docs</span>', f'<span class="deki-bar-tag">{bar_word(code, "docs", "docs")}</span>')
         out = out.replace("<span>donate</span>", f"<span>{bar_word(code, 'donate', 'donate')}</span>")

@@ -551,8 +551,8 @@ def settings_page(data, infos):
 # are for. tests/test_gen.py fails when one in the repository is in neither.
 GUIDE_GROUPS = [
     ("Start here", ["getting-started", "first-game", "first-app", "project-layout", "coming-from-lvgl"]),
-    ("Making a game", ["components", "sprites", "animation", "text", "input", "physics", "ui-widgets", "assets",
-                       "screens", "units", "localization"]),
+    ("Guides", ["components", "sprites", "animation", "text", "input", "physics", "ui-widgets", "assets",
+                "screens", "units", "localization"]),
     ("Devices", ["your-own-device", "platforms"]),
     ("Speed", ["performance"]),
     ("Working on Deki", ["memory", "asset-system", "sprite-system", "font-system", "hardware-checklist", "releasing"]),
@@ -592,7 +592,7 @@ SINGLE_PAGE_GROUPS = {"Speed": [("Profiler", "profiler"), ("On a device", "on-a-
                                 ("Memory panel", "memory-panel")]}
 SECTION_LEDES = {
     "Start here": "New to Deki? Begin with these.",
-    "Making a game": "How screens, art, text and interfaces work.",
+    "Guides": "How screens, art, text and interfaces work.",
     "Devices": "Every supported device, and how to add your own.",
     "Working on Deki": "For people changing the engine itself.",
     "Reference": "Every component and setting, generated from the code.",
@@ -693,17 +693,20 @@ def sidebar_sections(titles):
 
 def home_html(data, infos, titles, api_url):
     """The front page. HTML rather than Markdown because it is a layout: a
-    heading and a picture, then cards. deki.css draws it."""
+    heading, the three guides to begin with as large cards, then a card per
+    group with a line on what is in it. deki.css draws it."""
     def link(href, text, title=""):
         tip = f' title="{html.escape(title)}"' if title else ""
         return f'<a href="{href}"{tip}>{html.escape(text)}</a>'
 
     def card(heading, links, cls="deki-card"):
-        return [f'<section class="{cls}"><h2>{html.escape(L.ui(heading))}</h2><ul>']\
+        lede = [f'<p class="deki-card-lede">{html.escape(L.ui(SECTION_LEDES[heading]))}</p>'] \
+            if heading in SECTION_LEDES else []
+        return [f'<section class="{cls}"><h2>{html.escape(L.ui(heading))}</h2>'] + lede + ["<ul>"] \
             + [f"<li>{item}</li>" for item in links] + ["</ul></section>"]
 
     guide = lambda name: link(f"guide-{name}.html", titles[name])
-    out = ['<div class="deki-home">', '<div class="deki-hero">', "<div>",
+    out = ['<div class="deki-home">', '<div class="deki-hero">',
            f'<h1 class="deki-home-title">{html.escape(L.ui("Deki documentation"))}</h1>',
            f'<p class="deki-home-lede">'
            f'{html.escape(L.ui("A modular C++ engine with a visual editor, for 2D and 3D, on embedded devices and the desktop."))}</p>',
@@ -712,11 +715,28 @@ def home_html(data, infos, titles, api_url):
         out.append(f'<a class="deki-action-solid" href="guide-getting-started.html">'
                    f'{html.escape(titles["getting-started"])}</a>')
     out += [link(section_label("Packages") + ".html", L.ui("Packages")),
-            link(api_url, L.ui("API reference")), "</p>",
-            "</div>", f'<img src="editor.png" alt="{html.escape(L.ui("The editor with the demo project open"))}"/>',
-            "</div>", '<div class="deki-cards">']
+            link(api_url, L.ui("API reference")), "</p>", "</div>"]
+
     groups = grouped(guide_groups(titles), titles)
+    # The first three guides of the first group are the way in, so they get a
+    # card each, numbered in the order to read them. The rest of that group
+    # follows as plain links.
+    start = [members for heading, members in groups if heading == "Start here"]
+    start = start[0] if start else []
+    out.append('<div class="deki-starts">')
+    for step, name in enumerate(start[:3], 1):
+        text = L.ui(GUIDE_SUMMARIES[name]) if name in GUIDE_SUMMARIES else ""
+        out.append(f'<a class="deki-start" href="guide-{name}.html"><span class="deki-start-step">{step}</span>'
+                   f'<span class="deki-start-title">{html.escape(titles[name])}</span>'
+                   f'<span class="deki-start-text">{html.escape(text)}</span></a>')
+    out.append("</div>")
+    if start[3:]:
+        out.append('<p class="deki-start-more">' + " &middot; ".join(guide(name) for name in start[3:]) + "</p>")
+
+    out.append('<div class="deki-cards">')
     for heading, members in groups:
+        if heading == "Start here":
+            continue
         if heading in SINGLE_PAGE_GROUPS:
             out += card(heading, [link(f"guide-{members[0]}.html#guide-{members[0]}-{anchor}", L.ui(label))
                                   for label, anchor in SINGLE_PAGE_GROUPS[heading]])
@@ -737,14 +757,13 @@ def index_page(data, infos, guides=(), api_url="annotated.html"):
     out = ["# Deki {#mainpage}", "", "\\htmlonly"]
     out += home_html(data, infos, titles, api_url)
     out += ["\\endhtmlonly", ""]
-    # Not for reading: this puts the groups in the sidebar, in this order, and
-    # has Doxygen copy the picture the HTML above uses.
+    # Not for reading: this puts the groups in the sidebar, in this order.
     out += ['<div style="display:none">', ""]
     single = {heading: members[0] for heading, members in grouped(guide_groups(titles), titles)
               if heading in SINGLE_PAGE_GROUPS}
     out += [f"@subpage guide-{single[heading]}" if heading in single else f"@subpage {section_label(heading)}"
             for heading in sidebar_sections(titles)]
-    out += ["", "![](editor.png)", "", "</div>", ""]
+    out += ["", "</div>", ""]
     return out
 
 
@@ -855,6 +874,7 @@ def guide_pages(guides_dir, out_dir):
     """
     names = sorted(f[:-3] for f in os.listdir(guides_dir) if f.endswith(".md"))
     found = []
+    pages = {}
     for name in names:
         with open(os.path.join(guides_dir, name + ".md"), encoding="utf-8") as f:
             english = f.read()
@@ -867,8 +887,29 @@ def guide_pages(guides_dir, out_dir):
         if not L.english and depth == 0:
             first, _, rest = page.partition("\n")
             page = f"{first}\n\n{L.ui('This guide is not translated yet.')}\n{rest}"
-        write(os.path.join(out_dir, f"guide-{name}.md"), page.splitlines())
+        pages[name] = page
         found.append((name, localize.guide_title(text)))
+
+    # A guide ends with the one before it and the one after, in the order the
+    # groups list them, so a reader goes on without going back to the sidebar.
+    # The engine's own internals are not a sequence and get none.
+    titles = dict(found)
+    order = [n for heading, members in GUIDE_GROUPS if heading != "Working on Deki" for n in members if n in titles]
+    for name, page in pages.items():
+        lines = page.splitlines()
+        if name in order:
+            at = order.index(name)
+            links = []
+            if at > 0:
+                before = order[at - 1]
+                links.append(f'<a class="deki-step deki-step-back" href="guide-{before}.html">'
+                             f'<span>{html.escape(L.ui("Previous"))}</span>{html.escape(titles[before])}</a>')
+            if at + 1 < len(order):
+                after = order[at + 1]
+                links.append(f'<a class="deki-step deki-step-on" href="guide-{after}.html">'
+                             f'<span>{html.escape(L.ui("Next"))}</span>{html.escape(titles[after])}</a>')
+            lines += ["", "\\htmlonly", '<nav class="deki-steps">' + "".join(links) + "</nav>", "\\endhtmlonly", ""]
+        write(os.path.join(out_dir, f"guide-{name}.md"), lines)
     return found
 
 

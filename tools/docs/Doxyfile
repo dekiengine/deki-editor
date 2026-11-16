@@ -8,7 +8,7 @@
 
 PROJECT_NAME           = "Deki"
 PROJECT_NUMBER         = $(DEKI_DOCS_VERSION)
-PROJECT_BRIEF          = "Modular C++ 2D engine for embedded displays and desktop"
+PROJECT_BRIEF          = "Modular C++ engine with a visual editor, for 2D and 3D"
 OUTPUT_DIRECTORY       = $(DEKI_DOCS_OUT)
 HTML_OUTPUT            = html
 GENERATE_LATEX         = NO

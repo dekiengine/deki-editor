@@ -89,9 +89,13 @@ The names the Inspector shows for a package's components come from
 reflection and are translated by the editor: component names ("Sprite
 Component"), categories, descriptions, property names ("tintColor" shows as
 "Tint Color"), tooltips, groups, enum values as written in C++ ("TopLeft"),
-create-menu entries and asset type names. Put them in the package's
+create-menu entries and asset type names.
+
+Put them in the package's
 `editor/lang/<code>.json`; the editor reads every project package's table
-when the project opens. `check_translations.py --package` lists them from the
+when the project opens.
+
+`check_translations.py --package` lists them from the
 package's generated reflection (`generated/*Reflection*.gen.cpp`, written by
 any build of the package).
 
