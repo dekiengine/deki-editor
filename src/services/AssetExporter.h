@@ -7,6 +7,7 @@
 #include <vector>
 #include <set>
 #include <deki-editor/AssetData.h>      // BakedFontGuid
+#include <deki/Guid.h>                  // an Any Size font's GUID, as deki-2d makes it
 #include <deki-editor/AssetPipeline.h>  // AssetExportTarget
 
 namespace Deki
@@ -50,12 +51,18 @@ enum class ExportAssetType : uint8_t
 struct FontUsageInfo
 {
     std::string sourceGuid;  // The font asset's GUID (from AssetRef.source)
-    int fontSize;            // In pixels; 0 for a BDF font
+    int fontSize;            // In pixels; 0 for a BDF font or an Any Size one
     bool bdf = false;
+    bool anySize = false;  // ships as one file of outlines, drawn at any size, with no atlas
 
-    /// The GUIDs of its baked form and that form's atlas.
-    std::string FontGuid() const { return BakedFontGuid(sourceGuid, fontSize, bdf); }
-    std::string AtlasGuid() const { return BakedFontAtlasGuid(sourceGuid, fontSize, bdf); }
+    /// The GUIDs of its baked form and that form's atlas ("" when it has
+    /// none).
+    std::string FontGuid() const
+    {
+        return anySize ? Deki::GenerateDeterministicGuid(sourceGuid + ":outline")
+                       : BakedFontGuid(sourceGuid, fontSize, bdf);
+    }
+    std::string AtlasGuid() const { return anySize ? std::string() : BakedFontAtlasGuid(sourceGuid, fontSize, bdf); }
 
     bool operator<(const FontUsageInfo& other) const
     {
@@ -177,6 +184,10 @@ private:
     // Adds the font and size a font AssetRef on a component (usually a
     // TextComponent) uses.
     void CollectFontUsage(Deki::Component* comp, const Deki::AssetRefBase& assetRef, AssetUsageCollection& collection);
+
+    // True when the TrueType font asset `sourceGuid` is set to Any Size: it
+    // ships as one file of outlines (deki-2d reads the setting).
+    bool IsAnySizeFont(const std::string& sourceGuid) const;
 
     // Adds the sizes each used TrueType font asks builds to always ship, for
     // sizes only code sets (a Roller's selected row), which no scene names.

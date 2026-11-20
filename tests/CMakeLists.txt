@@ -600,6 +600,10 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
 if(EXISTS "${DEKI_PACKAGES_DIR}/deki-2d/PngDecoder.cpp")
     list(APPEND _deki_2d_test_srcs PngDecoder.cpp)
 endif()
+# Fonts kept as outlines, drawn at any size, from deki-2d 0.41 on.
+if(EXISTS "${DEKI_PACKAGES_DIR}/deki-2d/OutlineFont.cpp")
+    list(APPEND _deki_2d_test_srcs OutlineFont.cpp)
+endif()
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
                        DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
                        LIBS freetype)

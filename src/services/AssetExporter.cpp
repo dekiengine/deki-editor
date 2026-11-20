@@ -530,10 +530,11 @@ void AssetExporter::AddFontExtraSizes(AssetUsageCollection& collection)
         return;
     }
 
+    // An Any Size font ships every size already.
     std::set<std::string> fonts;
     for (const auto& usage : collection.fontUsages)
     {
-        if (!usage.bdf)
+        if (!usage.bdf && !usage.anySize)
         {
             fonts.insert(usage.sourceGuid);
         }
@@ -747,10 +748,22 @@ void AssetExporter::CollectFontUsage(Deki::Component* comp, const Deki::AssetRef
     FontUsageInfo fontInfo;
     fontInfo.sourceGuid = assetRef.source;
     fontInfo.bdf = m_Pipeline && m_Pipeline->IsBdfFont(assetRef.source);
-    fontInfo.fontSize = fontInfo.bdf ? 0 : fontSize;  // One baked form per BDF font
+    fontInfo.anySize = !fontInfo.bdf && IsAnySizeFont(assetRef.source);
+    // One baked form per BDF font, and one file of outlines per Any Size font.
+    fontInfo.fontSize = fontInfo.bdf || fontInfo.anySize ? 0 : fontSize;
     collection.fontUsages.insert(fontInfo);
 
     DEKI_LOG_DEBUG("  Found font usage: %s @ %d px", assetRef.source.c_str(), fontSize);
+}
+
+bool AssetExporter::IsAnySizeFont(const std::string& sourceGuid) const
+{
+    using IsAnySizeFunc = bool (*)(const char*);
+    auto isAnySize = m_PackageLoader ? reinterpret_cast<IsAnySizeFunc>(
+                                           m_PackageLoader->GetFunction("Deki 2D Package", "DekiPluginIsFontAnySize"))
+                                     : nullptr;
+    const AssetInfo* info = m_Pipeline ? m_Pipeline->GetAssetInfoByGuid(sourceGuid) : nullptr;
+    return isAnySize && info && isAnySize(m_Pipeline->GetAbsolutePath(info->path).c_str());
 }
 
 // =============================================================================
@@ -777,6 +790,32 @@ AssetExporter::BakeFontsForExport(const std::set<FontUsageInfo>& fontUsages)
         std::string fontCachePath = GetCachePath(projectPath, fontGuid);
         std::string atlasCachePath = GetCachePath(projectPath, atlasGuid);
         std::string key = fontInfo.sourceGuid + ":" + (fontInfo.bdf ? "bdf" : std::to_string(fontInfo.fontSize));
+
+        // An Any Size font: its file of outlines, written by deki-2d when
+        // the cache lacks it. It has no atlas.
+        if (fontInfo.anySize)
+        {
+            key = fontInfo.sourceGuid + ":any";
+            if (!fs::exists(fontCachePath))
+            {
+                using WriteOutlineFunc = bool (*)(const char*, const char*);
+                auto writeOutline = m_PackageLoader ? reinterpret_cast<WriteOutlineFunc>(m_PackageLoader->GetFunction(
+                                                          "Deki 2D Package", "DekiPluginWriteOutlineFont"))
+                                                    : nullptr;
+                const AssetInfo* sourceInfo = m_Pipeline->GetAssetInfoByGuid(fontInfo.sourceGuid);
+                fs::create_directories(cachePath);
+                if (!writeOutline || !sourceInfo ||
+                    !writeOutline(m_Pipeline->GetAbsolutePath(sourceInfo->path).c_str(), fontCachePath.c_str()))
+                {
+                    AddProblem("The outlines of the font " + (sourceInfo ? sourceInfo->path : fontInfo.sourceGuid) +
+                               " (Any Size) could not be written; is the deki-2d package loaded?");
+                    continue;
+                }
+                DEKI_LOG_INFO("  Wrote the outlines of %s (Any Size)", sourceInfo->path.c_str());
+            }
+            bakedFonts[key] = fontGuid;
+            continue;
+        }
 
         if (fs::exists(fontCachePath) && fs::exists(atlasCachePath))
         {

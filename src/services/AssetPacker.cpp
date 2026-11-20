@@ -276,9 +276,9 @@ void AssetPacker::ResolveFontDependencies(const std::string& sourceGuid, const s
             DEKI_LOG_DEBUG("AssetPacker: Auto-included font variant %s @ %dpx", sourceGuid.c_str(), usage.fontSize);
         }
 
-        // Its atlas .dtex.
+        // Its atlas .dtex. An Any Size font's outlines have none.
         std::string atlasPath = cacheDir + "/" + atlasGuid;
-        if (fs::exists(atlasPath))
+        if (!atlasGuid.empty() && fs::exists(atlasPath))
         {
             PackEntry ae;
             ae.guid = atlasGuid;
