@@ -107,9 +107,9 @@ struct DEKI_EDITOR_API AssetExportContext
 /// build still allows, such as a light's shadows on a board without OpenGL.
 /// Each line added to `warnings` is listed in the build's output; the build
 /// goes on. `capabilities` are the target platform's ("opengl", ...).
-using SceneExportCheck = std::function<void(const Deki::Scene& scene, const std::string& scenePath,
-                                            const std::set<std::string>& capabilities,
-                                            std::vector<std::string>& warnings)>;
+using SceneExportCheck =
+    std::function<void(const Deki::Scene& scene, const std::string& scenePath,
+                       const std::set<std::string>& capabilities, std::vector<std::string>& warnings)>;
 
 /// Writes an asset the way a given target stores it.
 ///
@@ -241,6 +241,13 @@ public:
     /// Registers a cache-variant provider for an extension. Consulted during
     /// cache cleanup and validation so derived files are not deleted as orphans.
     void RegisterCacheVariantProvider(const std::string& extension, CacheVariantProvider provider);
+
+    /// Which file a text in a compiled scene loads for its font asset
+    /// `sourceGuid` at `fontSize`, from the package that makes fonts (deki-2d:
+    /// one file of outlines for a font set to Any Size). An empty answer, or
+    /// none set, means the font's bake of that size.
+    using TextFontResolver = std::string (*)(const std::string& sourceGuid, int fontSize);
+    static void SetTextFontResolver(TextFontResolver resolver);
 
     /// An absolute path made project-relative, with forward slashes.
     std::string MakeProjectRelative(const std::string& absolutePath) const;

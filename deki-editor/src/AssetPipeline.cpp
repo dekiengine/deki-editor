@@ -294,8 +294,8 @@ void AssetPipeline::ProcessQueuedDependents()
         {
             continue;  // gone since it was queued
         }
-        DEKI_LOG_INFO("AssetPipeline: rebuilding %s, as %d of the files it is compiled from changed",
-                      dependent.c_str(), changes);
+        DEKI_LOG_INFO("AssetPipeline: rebuilding %s, as %d of the files it is compiled from changed", dependent.c_str(),
+                      changes);
         ProcessAsset(dependent);  // its stamp names the changed files, so it is stale now
         if (onAssetChanged)
         {
@@ -325,6 +325,16 @@ void AssetPipeline::RegisterCacheHandler(const std::string& extension, AssetCach
 void AssetPipeline::SetDefaultCacheHandler(AssetCacheHandler handler)
 {
     m_DefaultCacheHandler = std::move(handler);
+}
+
+namespace
+{
+AssetPipeline::TextFontResolver s_TextFontResolver = nullptr;
+}  // namespace
+
+void AssetPipeline::SetTextFontResolver(TextFontResolver resolver)
+{
+    s_TextFontResolver = resolver;
 }
 
 void AssetPipeline::RegisterCacheVariantProvider(const std::string& extension, CacheVariantProvider provider)
@@ -980,8 +990,8 @@ void AssetPipeline::ResyncWithDisk()
     }
 
     // Scenes after the assets they can refer to, as in ImportAllAssets.
-    std::stable_partition(events.begin(), events.end(), [](const Event& e)
-                          { return fs::path(e.relativePath).extension() != ".scene"; });
+    std::stable_partition(events.begin(), events.end(),
+                          [](const Event& e) { return fs::path(e.relativePath).extension() != ".scene"; });
 
     const std::string assetsPrefix = fs::relative(m_AssetsPath, m_ProjectPath, ec).generic_string() + "/";
     for (const auto& [relativePath, info] : m_Assets)
@@ -1539,7 +1549,13 @@ bool AssetPipeline::CompileSceneFile(const std::string& scenePath, const std::st
 
                 if (!fontRef.source.empty())
                 {
-                    fontRef.guid = BakedFontGuid(fontRef.source, fontSize, IsBdfFont(fontRef.source));
+                    // The font package may name another file (an Any Size
+                    // font's outlines); otherwise the bake of this size.
+                    const std::string resolved =
+                        s_TextFontResolver ? s_TextFontResolver(fontRef.source, fontSize) : std::string();
+                    fontRef.guid = !resolved.empty()
+                                       ? resolved
+                                       : BakedFontGuid(fontRef.source, fontSize, IsBdfFont(fontRef.source));
                     DEKI_LOG_DEBUG("CompileScene: Set font.guid for '%s' fontSize=%d -> guid=%s",
                                    fontRef.source.c_str(), fontSize, fontRef.guid.c_str());
                 }
