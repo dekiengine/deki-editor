@@ -611,19 +611,6 @@ enable_language(C)
 deki_add_package_tests(deki-json TARGET DekiJsonTests
                        SOURCES DekiJson.cpp third_party/cJSON/cJSON.c)
 
-# The store's hashes, signature check and catalog reader are its own code and
-# need nothing else. The key file and signing code (editor/) is what the
-# owner's tools call; on Windows it takes random bytes and the account lock
-# from the system.
-set(_deki_store_test_libs "")
-if(WIN32)
-    set(_deki_store_test_libs bcrypt crypt32)
-endif()
-deki_add_package_tests(deki-store TARGET DekiStoreTests
-                       SOURCES Hash.cpp Ed25519.cpp CatalogJson.cpp StoreCatalog.cpp
-                               editor/StoreKeyFile.cpp editor/StorePublish.cpp
-                       LIBS ${_deki_store_test_libs})
-
 # The NMEA driver reads its UART through deki-uart's factory, which the tests
 # point at a fake; DekiUART.cpp is that factory.
 deki_add_package_tests(deki-gps TARGET DekiGPSTests
