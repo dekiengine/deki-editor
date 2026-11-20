@@ -596,6 +596,10 @@ set(_deki_2d_test_srcs Sprite.cpp ScrollComponent.cpp ClipComponent.cpp Gradient
                        ../deki-rendering/CameraComponent.cpp ../deki-rendering/DekiRendererRegistry.cpp
                        ../deki-rendering/RenderProfiler.cpp ../deki-rendering/Light.cpp
                        ../deki-rendering/Lighting2D.cpp editor/FontCompiler.cpp editor/ProceduralSpriteRaised.cpp)
+# The PNG reader, from deki-2d 0.41 on; a checkout from before has none.
+if(EXISTS "${DEKI_PACKAGES_DIR}/deki-2d/PngDecoder.cpp")
+    list(APPEND _deki_2d_test_srcs PngDecoder.cpp)
+endif()
 deki_add_package_tests(deki-2d TARGET Deki2DTests SOURCES ${_deki_2d_test_srcs}
                        DEFINES DEKI_INPUT_EXPORTS DEKI_RENDERING_EXPORTS "DEKI_TEST_FONT=\"${_deki_2d_test_font}\""
                        LIBS freetype)
