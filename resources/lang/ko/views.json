@@ -2,6 +2,8 @@
     "PLAY VIEW": "플레이 뷰",
     "Simulate touch: on": "터치 시뮬레이션: 켜짐",
     "Simulate touch: off": "터치 시뮬레이션: 꺼짐",
+    "Sound: on": "사운드: 켜짐",
+    "Sound: off": "사운드: 꺼짐",
     "Editor %.0f fps    Game %.0f fps": "에디터 %.0f fps    게임 %.0f fps",
     "Editor %.0f fps": "에디터 %.0f fps",
     "No render pipeline configured": "렌더 파이프라인이 설정되지 않았습니다",

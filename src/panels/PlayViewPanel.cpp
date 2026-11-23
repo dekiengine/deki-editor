@@ -349,6 +349,39 @@ void PlayViewPanel::Draw()
             }
         }
 
+        // Sound cell: a speaker, dim while the game is heard, accent and
+        // crossed out while it is muted.
+        {
+            const char* icon = m_Muted ? ICON_TI_VOLUME_OFF : ICON_TI_VOLUME;
+            const ImVec2 iconSz = ImGui::CalcTextSize(icon);
+            const float w = iconSz.x + 22.0f * dpi;
+            ImGui::SetCursorScreenPos(ImVec2(cursorX, rowMin.y));
+            const bool clicked = ImGui::InvisibleButton("##mute", ImVec2(w, rowH));
+            const bool hovered = ImGui::IsItemHovered();
+            if (hovered)
+            {
+                DekiEditor::Tooltip(m_Muted ? TrMark("Sound: off") : TrMark("Sound: on"));
+            }
+            if (const float hoverT = DekiEditor::Motion::ItemHover(hovered); hoverT > 0.0f)
+            {
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::WithAlpha(colHoverBg, hoverT));
+            }
+            if (const float pressT = DekiEditor::Motion::ItemPress(); pressT > 0.0f)
+            {
+                dl->AddRectFilled(ImVec2(cursorX, rowMin.y), ImVec2(cursorX + w, rowMax.y),
+                                  DekiEditor::Motion::PressShade(pressT));
+            }
+            dl->AddText(ImVec2(cursorX + (w - iconSz.x) * 0.5f, rowMin.y + (rowH - iconSz.y) * 0.5f),
+                        m_Muted ? colAccent : colDim, icon);
+            cursorX += w;
+            drawDivider(cursorX);
+            if (clicked)
+            {
+                SetMuted(!m_Muted);
+            }
+        }
+
         DrawPreviewPicker(cursorX, rowMin, rowH, dpi);
         drawDivider(cursorX);
         DrawFormatPicker(cursorX, rowMin, rowH, dpi);
@@ -660,6 +693,11 @@ struct BuiltInAspect
 constexpr BuiltInAspect kAspects[] = { { 16, 9 }, { 16, 10 }, { 4, 3 }, { 3, 2 }, { 21, 9 }, { 9, 16 } };
 
 constexpr const char* kUserSizesKey = "playView.userScreens";
+constexpr const char* kMutedKey = "playView.muted";
+// The game's sound outputs go through the same SDL as the editor (the SDL3
+// package's sound card outputs): this hint, set, has them play silence. The
+// package reads it by this name.
+constexpr const char* kMutedHint = "DEKI_AUDIO_MUTED";
 
 std::string AspectId(int w, int h)
 {
@@ -685,6 +723,18 @@ bool ParseResolution(const std::string& id, int& w, int& h)
 std::string PlayViewPanel::UserScreen::Id() const
 {
     return aspect ? AspectId(w, h) : ResolutionId(w, h);
+}
+
+void PlayViewPanel::SetMuted(bool muted)
+{
+    m_Muted = muted;
+    EditorSettings::SetString(kMutedKey, m_Muted ? "1" : "0");
+    ApplyMuted();
+}
+
+void PlayViewPanel::ApplyMuted() const
+{
+    SDL_SetHint(kMutedHint, m_Muted ? "1" : "0");
 }
 
 void PlayViewPanel::LoadUserScreens()
@@ -790,6 +840,8 @@ void PlayViewPanel::LoadPreview(const std::string& projectPath)
     {
         LoadUserScreens();
         m_UserScreensLoaded = true;
+        m_Muted = EditorSettings::GetString(kMutedKey, "0") == "1";
+        ApplyMuted();
     }
 
     SelectPreview(EditorSettings::GetString("playView.screen:" + projectPath));

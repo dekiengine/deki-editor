@@ -2,6 +2,8 @@
     "PLAY VIEW": "プレイビュー",
     "Simulate touch: on": "タッチをシミュレート: オン",
     "Simulate touch: off": "タッチをシミュレート: オフ",
+    "Sound: on": "サウンド: オン",
+    "Sound: off": "サウンド: オフ",
     "Editor %.0f fps    Game %.0f fps": "エディター %.0f fps    ゲーム %.0f fps",
     "Editor %.0f fps": "エディター %.0f fps",
     "No render pipeline configured": "レンダーパイプラインが設定されていません",

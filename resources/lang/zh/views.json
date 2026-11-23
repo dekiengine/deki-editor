@@ -2,6 +2,8 @@
     "PLAY VIEW": "运行视图",
     "Simulate touch: on": "模拟触摸：开启",
     "Simulate touch: off": "模拟触摸：关闭",
+    "Sound: on": "声音：开启",
+    "Sound: off": "声音：关闭",
     "Editor %.0f fps    Game %.0f fps": "编辑器 %.0f fps    游戏 %.0f fps",
     "Editor %.0f fps": "编辑器 %.0f fps",
     "No render pipeline configured": "未配置渲染管线",

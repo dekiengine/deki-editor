@@ -7,6 +7,9 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
 ## Unreleased
 
 ### Added
+- The Play view's toolbar has a sound switch: the speaker beside the touch
+  cell mutes the game's sound, and the choice is kept. It sets the SDL hint
+  `DEKI_AUDIO_MUTED`, which SDL3 Integration's sound outputs obey.
 - Packages hear when the Play view pauses and resumes: the editor calls
   `DekiPluginOnPlayModePause()` and `DekiPluginOnPlayModeResume()` on those
   that export them, as it calls `DekiPluginOnPlayModeStart` and `Stop`. SDL3

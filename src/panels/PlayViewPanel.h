@@ -53,6 +53,11 @@ private:
     // touchscreen.
     bool m_TouchInputMode = true;
 
+    // The game's sound, switched off from the toolbar: kept over sessions.
+    bool m_Muted = false;
+    void SetMuted(bool muted);
+    void ApplyMuted() const;
+
     // Last key state forwarded to the game, one slot per entry of the
     // forward() table in Draw (55 today, with room to grow).
     bool m_PlayKeyDown[64] = {};
