@@ -26,6 +26,7 @@ const char* FeatureStateName(FeatureState state)
         case FeatureState::DefaultOn: return "on";
         case FeatureState::ForcedOff: return "forced off";
         case FeatureState::Stripped: return "stripped";
+        case FeatureState::DefaultOff: return "off";
     }
     return "?";
 }
@@ -268,6 +269,12 @@ StripPlan ResolveStripPlan(const std::vector<CMakeGen::PackageEntry>& allPackage
                 d.on = false;
                 d.state = FeatureState::ForcedOff;
                 d.reason = "forced off in settings/build.json";
+            }
+            else if (!feat.defaultEnabled)
+            {
+                d.on = false;
+                d.state = FeatureState::DefaultOff;
+                d.reason = "off until the project turns it on";
             }
             else if (feat.componentTypes.empty())
             {

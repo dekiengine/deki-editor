@@ -77,6 +77,7 @@
     "on": "켜짐",
     "forced off": "강제 꺼짐",
     "stripped": "제외됨",
+    "off": "꺼짐",
     "PACKAGE MANAGER": "패키지 관리자",
     "Open a project to manage packages.": "패키지를 관리하려면 프로젝트를 여십시오.",
     "All": "전체",

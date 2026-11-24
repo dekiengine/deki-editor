@@ -14,6 +14,12 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   `DekiPluginOnPlayModePause()` and `DekiPluginOnPlayModeResume()` on those
   that export them, as it calls `DekiPluginOnPlayModeStart` and `Stop`. SDL3
   Integration pauses the game's sound with it.
+- A package feature can be off until a project turns it on:
+  `"defaultEnabled": false` in its package.json. The Package Manager shows it
+  as "off" under Auto. deki-rendering's splash screen is one.
+- The `set_build_feature` tool turns a package feature on, off or back to
+  Auto for a project's device builds (settings/build.json), as the Package
+  Manager's switch does.
 
 ### Changed
 - The new Deki logo replaces the pixel cat: the app icon, the window's icon on

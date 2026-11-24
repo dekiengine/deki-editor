@@ -132,6 +132,26 @@ TEST(FeatureResolver, AFeatureWithNoComponentsIsNotAutoStripped)
     EXPECT_TRUE(Has(plan.defines, "DEKI_PACKAGE_WIFI"));
 }
 
+TEST(FeatureResolver, AFeatureOffByDefaultStaysOffUntilTurnedOn)
+{
+    CMakeGen::FeatureEntry splash = Feat("splash", "DEKI_FEATURE_SPLASH", {});
+    splash.defaultEnabled = false;
+    const std::vector<CMakeGen::PackageEntry> pkgs = {
+        Pkg("deki-rendering", "DEKI_PACKAGE_RENDERING", { splash }),
+    };
+    BuildStripSettings s;
+    s.stripUnusedComponents = false;  // stripping off does not turn it on either
+    StripPlan plan = ResolveStripPlan(pkgs, Using({}), s, "");
+    EXPECT_FALSE(plan.Find("deki-rendering", "splash")->on);
+    EXPECT_EQ(plan.Find("deki-rendering", "splash")->state, FeatureState::DefaultOff);
+    EXPECT_FALSE(Has(plan.defines, "DEKI_FEATURE_SPLASH"));
+
+    s.SetOverride("deki-rendering", "splash", "on");
+    plan = ResolveStripPlan(pkgs, Using({}), s, "");
+    EXPECT_TRUE(plan.Find("deki-rendering", "splash")->on);
+    EXPECT_TRUE(Has(plan.defines, "DEKI_FEATURE_SPLASH"));
+}
+
 TEST(FeatureResolver, AKeptSourceKeepsWhatItIncludes)
 {
     // roller is used and its source includes Clip.h; clip is unused and would

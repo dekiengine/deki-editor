@@ -31,13 +31,14 @@ namespace DekiEditor
 
 enum class FeatureState
 {
-    Required,   // the descriptor says it can never go
-    Pinned,     // the project forced it on
-    Used,       // a scene or source names one of its components
-    Kept,       // a kept feature's sources include it
-    DefaultOn,  // nothing strips it: stripping is off, or it has no components to scan for
-    ForcedOff,  // the project forced it off
-    Stripped,   // unused, and stripping is on
+    Required,    // the descriptor says it can never go
+    Pinned,      // the project forced it on
+    Used,        // a scene or source names one of its components
+    Kept,        // a kept feature's sources include it
+    DefaultOn,   // nothing strips it: stripping is off, or it has no components to scan for
+    ForcedOff,   // the project forced it off
+    Stripped,    // unused, and stripping is on
+    DefaultOff,  // off until the project turns it on (defaultEnabled false)
 };
 
 DEKI_EDITOR_API const char* FeatureStateName(FeatureState state);

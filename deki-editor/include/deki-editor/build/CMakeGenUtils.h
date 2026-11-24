@@ -45,6 +45,9 @@ struct DEKI_EDITOR_API FeatureEntry
     std::string displayName;
     std::string buildDefine;
     bool required = false;
+    // False: off until the project turns it on (settings/build.json), such as a
+    // splash screen a game opts into. "defaultEnabled" in package.json.
+    bool defaultEnabled = true;
     std::vector<std::string> componentTypes;
 
     // Packages this feature needs, beyond what the whole package needs. They
@@ -275,12 +278,10 @@ DEKI_EDITOR_API void EmitIncludePaths(std::ostream& out, const std::string& targ
 /// shutting them down in reverse order. Without it a game built as a program
 /// never shut its packages down, and their memory (the render system, the
 /// passes, the 3D rasteriser's working memory) was reported as a leak.
-DEKI_EDITOR_API std::string GeneratePackageInitFile(const std::filesystem::path& outputDir,
-                                                    const std::vector<PackageEntry>& allPackages,
-                                                    const std::set<std::string>& activePackageIds,
-                                                    const std::filesystem::path& projectSrcPath = "",
-                                                    bool engineDefinesSystemInit = false,
-                                                    bool gameShutsPackagesDown = false);
+DEKI_EDITOR_API std::string
+GeneratePackageInitFile(const std::filesystem::path& outputDir, const std::vector<PackageEntry>& allPackages,
+                        const std::set<std::string>& activePackageIds, const std::filesystem::path& projectSrcPath = "",
+                        bool engineDefinesSystemInit = false, bool gameShutsPackagesDown = false);
 
 /// Writes `content` only if the file differs, so unchanged files cause no rebuild.
 DEKI_EDITOR_API bool WriteIfChanged(const std::filesystem::path& filePath, const std::string& content);

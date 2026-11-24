@@ -52,7 +52,7 @@ std::string Format(const char* format, const std::string& value)
 [[maybe_unused]] constexpr const char* kFeatureStateNames[] = { TrMark("required"), TrMark("pinned on"),
                                                                 TrMark("used"),     TrMark("kept"),
                                                                 TrMark("on"),       TrMark("forced off"),
-                                                                TrMark("stripped") };
+                                                                TrMark("stripped"), TrMark("off") };
 
 // Packs a theme colour into EditorUI's RGBA word for PushStyleColor.
 inline uint32_t Pack(const ImVec4& c)

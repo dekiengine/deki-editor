@@ -107,10 +107,10 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                 }
             }
             // Capability names, checked as platformRequires is.
-            for (const auto& [key, into] : { std::pair<const char*, std::vector<std::string>*>{
-                                                 "capabilityDefines", &info.capabilityDefines },
-                                             std::pair<const char*, std::vector<std::string>*>{
-                                                 "filtersTexturesWith", &info.filtersTexturesWith } })
+            for (const auto& [key, into] :
+                 { std::pair<const char*, std::vector<std::string>*>{ "capabilityDefines", &info.capabilityDefines },
+                   std::pair<const char*, std::vector<std::string>*>{ "filtersTexturesWith",
+                                                                      &info.filtersTexturesWith } })
             {
                 if (!j.contains(key) || !j[key].is_array())
                 {
@@ -127,8 +127,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                     {
                         DEKI_LOG_WARNING("Package '%s': %s '%s' is not a valid capability name (lowercase "
                                          "letters, digits and . - : _ only), so no platform can provide it",
-                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(), key,
-                                         name.c_str());
+                                         info.id.empty() ? info.dirName.c_str() : info.id.c_str(), key, name.c_str());
                     }
                     into->push_back(name);
                 }
@@ -146,6 +145,7 @@ static void ScanPackagesDir(const fs::path& packagesDir, std::vector<PackageEntr
                     fe.displayName = f.value("displayName", "");
                     fe.buildDefine = f.value("buildDefine", "");
                     fe.required = f.value("required", false);
+                    fe.defaultEnabled = f.value("defaultEnabled", true);
                     if (f.contains("componentTypes") && f["componentTypes"].is_array())
                     {
                         for (const auto& t : f["componentTypes"])
@@ -552,7 +552,8 @@ Directive ReadDirective(const std::string& line, bool& onlyWithSimulator)
         // as possibly compiled.
         const bool tests = squeezed.find("defined(SIMULATOR)") != std::string::npos ||
                            squeezed.find("definedSIMULATOR") != std::string::npos || squeezed == "SIMULATOR";
-        onlyWithSimulator = tests && squeezed.find("||") == std::string::npos && squeezed.find('!') == std::string::npos;
+        onlyWithSimulator =
+            tests && squeezed.find("||") == std::string::npos && squeezed.find('!') == std::string::npos;
         return Directive::Open;
     }
     if (name == "ifndef")
@@ -621,8 +622,7 @@ std::vector<std::string> SourcesDefiningMain(const fs::path& packageDir)
                     continue;
                 case Directive::None: break;
             }
-            const bool compiled =
-                std::none_of(blocks.begin(), blocks.end(), [](const Block& b) { return b.skipped; });
+            const bool compiled = std::none_of(blocks.begin(), blocks.end(), [](const Block& b) { return b.skipped; });
             if (compiled && DefinesMain(line))
             {
                 std::error_code ec;

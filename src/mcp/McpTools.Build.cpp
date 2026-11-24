@@ -10,6 +10,7 @@
 
 #include "McpTools.h"
 #include <deki-editor/build/PlatformTemplates.h>
+#include <deki-editor/BuildStripSettings.h>
 #include "McpToolRegistry.h"
 #include "../EditorApp.h"
 #include "../core/Project.h"
@@ -1251,6 +1252,42 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               return FirmwareBuildService::QueryStatus(static_cast<size_t>(std::clamp(lines, 0, 500)));
           } });
 
+    registry.Register(
+        { "set_build_feature",
+          "Turn a package feature on or off in the project's device builds (settings/build.json), as the Package "
+          "Manager's Auto/On/Off switch does. \"auto\" goes back to the package's own rule: in use, or on by "
+          "default unless the package says otherwise (deki-rendering's splash screen is off by default).",
+          { { "type", "object" },
+            { "properties",
+              { { "project_path",
+                  { { "type", "string" }, { "description", "Project directory (default: the open project)" } } },
+                { "package_id", { { "type", "string" }, { "description", "Package id, such as deki-rendering" } } },
+                { "feature_id", { { "type", "string" }, { "description", "Feature id, such as splash" } } },
+                { "value", { { "type", "string" }, { "enum", { "on", "off", "auto" } } } } } },
+            { "required", { "package_id", "feature_id", "value" } } },
+          [editor](const nlohmann::json& args) -> nlohmann::json
+          {
+              const std::string path = ResolveProjectPath(editor, args);
+              const std::string packageId = args.value("package_id", "");
+              const std::string featureId = args.value("feature_id", "");
+              const std::string value = args.value("value", "");
+              if (packageId.empty() || featureId.empty())
+              {
+                  throw std::runtime_error("package_id and feature_id are required");
+              }
+              if (value != "on" && value != "off" && value != "auto")
+              {
+                  throw std::runtime_error("value must be on, off or auto");
+              }
+              BuildStripSettings settings = BuildStripSettings::Load(path);
+              settings.SetOverride(packageId, featureId, value == "auto" ? "" : value);
+              if (!settings.Save(path))
+              {
+                  throw std::runtime_error("could not write " + BuildStripSettings::FilePath(path).string());
+              }
+              return nlohmann::json{ { "package_id", packageId }, { "feature_id", featureId }, { "value", value } };
+          } });
+
     registry.Register({ "cancel_build",
                         "Request cancellation of the in-flight build or flash. Returns "
                         "cancelled=false when nothing is running.",
@@ -1511,7 +1548,8 @@ void RegisterBuildTools(McpToolRegistry& registry, EditorApp* editor)
               { { "port",
                   { { "type", "string" },
                     { "description", "Serial port (COM3, /dev/ttyACM0); default: the only one there is" } } },
-                { "seconds", { { "type", "integer" }, { "description", "How long to measure (1 to 30, default 3)" } } } } } },
+                { "seconds",
+                  { { "type", "integer" }, { "description", "How long to measure (1 to 30, default 3)" } } } } } },
           [](const nlohmann::json& args) -> nlohmann::json
           {
               const std::string port = BoardPort(args);

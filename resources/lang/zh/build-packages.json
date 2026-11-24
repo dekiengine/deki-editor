@@ -77,6 +77,7 @@
     "on": "开启",
     "forced off": "强制关闭",
     "stripped": "已裁剪",
+    "off": "关闭",
     "PACKAGE MANAGER": "包管理器",
     "Open a project to manage packages.": "打开项目以管理包。",
     "All": "全部",
