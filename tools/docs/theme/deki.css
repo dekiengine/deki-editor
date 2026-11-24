@@ -189,15 +189,8 @@ div.title, .title, #projectname {
     font-weight: 400;
     text-decoration: none;
 }
-.deki-brand .deki-cat { display: block; width: 32px; height: 18px; flex-shrink: 0; }
-/* Every link here loads a whole page, so the cat stays still instead of climbing
- * back into view each time. */
-.deki-brand .deki-cat * { animation: none !important; }
-.deki-brand-name {
-    font-size: 12.5px;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-}
+.deki-brand .deki-icon { display: block; width: 26px; height: 26px; flex-shrink: 0; }
+.deki-brand .deki-wordmark { display: block; height: 17px; width: auto; aspect-ratio: 295.2 / 76.1; }
 .deki-slash { color: var(--page-secondary-foreground-color); }
 
 .deki-bar-tag {

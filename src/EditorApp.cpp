@@ -1,10 +1,12 @@
 #include "EditorApp.h"
+#include "EditorBrand.h"
 #include "EditorVersion.h"
 #include "core/SceneStats.h"
 #include "services/PackageManager.h"
 #include "services/PackageLifetime.h"
 #include <deki-editor/build/BuilderRegistry.h>
 #include <deki-editor/EditorTheme.h>
+#include <deki-editor/EditorTexture.h>
 #include <deki-editor/EditorUI.h>
 #include <deki-editor/EditorPaths.h>
 #include <deki-editor/Localization.h>
@@ -557,6 +559,15 @@ void EditorApp::DrawAboutWindow()
     }
     if (BeginSchematicModal(TrLabel("About Deki Editor"), 440.0f))
     {
+        // The editor logo, 70% of the window's width, then the version.
+        int logoW = 0;
+        int logoH = 0;
+        if (const uint32_t logo = Brand::EditorLogo(logoW, logoH))
+        {
+            const float w = IM_ROUND(ImGui::GetContentRegionAvail().x * 0.7f);
+            ImGui::Image(EditorTexture::ToImGui(logo), ImVec2(w, IM_ROUND(w * logoH / logoW)));
+            ImGui::Dummy(ImVec2(0.0f, ImGui::GetFontSize() * 0.5f));
+        }
         const std::string line = EditorVersionLine();
         ImGui::TextWrapped("%s", line.c_str());
         ImGui::PushStyleColor(ImGuiCol_Text, Palette::Dim);
@@ -915,7 +926,9 @@ void EditorApp::ReportIncompatiblePackages()
         std::string minEngine;
         if (DekiPackageInstaller::IsFromOlderRelease(packagesDir / dirName, minEngine))
         {
-            m_OutdatedPackages.push_back({ pkg.id.empty() ? dirName : pkg.name.empty() ? pkg.id : pkg.name,
+            m_OutdatedPackages.push_back({ pkg.id.empty()     ? dirName
+                                           : pkg.name.empty() ? pkg.id
+                                                              : pkg.name,
                                            pkg.installedVersion, minEngine, pkg.editable });
             DEKI_LOG_ERROR("Package compatibility: '%s': %s", dirName.c_str(), reason.c_str());
             continue;
@@ -1279,9 +1292,9 @@ void EditorApp::DrawUpgradeDialog()
                 headed = true;
             }
             ui.PushStyleColor(EditorUI::Col::Text, PackColor(Palette::Dim));
-            ui.TextWrapped(FormatText(Tr("  %s %s (made for %s)"), pkg.id.c_str(), pkg.version.c_str(),
-                                      pkg.minEngine.c_str())
-                               .c_str());
+            ui.TextWrapped(
+                FormatText(Tr("  %s %s (made for %s)"), pkg.id.c_str(), pkg.version.c_str(), pkg.minEngine.c_str())
+                    .c_str());
             ui.PopStyleColor();
         }
         for (const ProjectUpgrade::Package& pkg : m_PendingUpgrade.packages)
@@ -1398,7 +1411,8 @@ void EditorApp::DrawProjectChecksDialog()
             }
             if (check.findings.size() > kShown)
             {
-                ui.TextWrapped(FormatText(Tr("  and %d more"), static_cast<int>(check.findings.size() - kShown)).c_str());
+                ui.TextWrapped(
+                    FormatText(Tr("  and %d more"), static_cast<int>(check.findings.size() - kShown)).c_str());
             }
             ui.PopStyleColor();
         }

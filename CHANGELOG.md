@@ -15,6 +15,11 @@ are in [deki-engine/CHANGELOG.md](https://github.com/dekiengine/deki-engine/blob
   that export them, as it calls `DekiPluginOnPlayModeStart` and `Stop`. SDL3
   Integration pauses the game's sound with it.
 
+### Changed
+- The new Deki logo replaces the pixel cat: the app icon, the window's icon on
+  Linux and macOS, the mark in the title bar and the docs' header are the new
+  Deki icon, and Help > About shows the editor logo.
+
 ## 0.40.1 - 2026-11-15
 
 ### Fixed

@@ -1,6 +1,7 @@
 // Windows resources of the editor and its test runner.
 // The manifest: 1 = CREATEPROCESS_MANIFEST_RESOURCE_ID, 24 = RT_MANIFEST.
 1 24 "deki-editor.manifest"
-// The app icon, the Deki cat (tools/make-app-icon.py). Explorer and the
-// taskbar show the first icon, and SDL gives it to the editor's windows.
+// The app icon, the Deki icon (deki-brand's app-icon/deki-app-icon.ico, 16 to
+// 256 px). Explorer and the taskbar show it, and SDL gives it to the editor's
+// windows.
 1 ICON "deki.ico"

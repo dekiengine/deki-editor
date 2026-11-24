@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/brand/deki-editor-logo-horizontal-on-light.svg">
+  <img alt="Deki Editor" src="docs/brand/deki-editor-logo-horizontal-on-dark.svg" width="420">
+</picture>
+
 # Deki Editor
 
 A scene editor for [Deki](https://github.com/dekiengine/deki-engine), a modular

@@ -626,6 +626,8 @@ set(EDITOR_SOURCES
     src/EditorHeadless.h
     src/EditorBoot.cpp
     src/EditorBoot.h
+    src/EditorBrand.cpp
+    src/EditorBrand.h
     src/EditorCli.cpp
     src/EditorCli.h
     src/EditorApp.cpp
@@ -874,7 +876,7 @@ add_executable(DekiEditor ${EDITOR_SOURCES})
 
 # The application manifest (resources/windows/deki-editor.manifest): UTF-8 as
 # the process code page, so paths with non-ASCII letters open everywhere. And
-# the app icon, the Deki cat.
+# the app icon, the Deki icon.
 if(WIN32 AND NOT MSVC)
     enable_language(RC)
     target_sources(DekiEditor PRIVATE resources/windows/deki-editor.rc)
@@ -1037,6 +1039,16 @@ if(UNIX AND NOT APPLE)
     target_link_options(DekiEditor PRIVATE "LINKER:--version-script=${_deki_exports_map}")
     set_property(TARGET DekiEditor APPEND PROPERTY LINK_DEPENDS "${_deki_exports_map}")
 endif()
+
+# The brand pictures next to the executable: the window's icon on Linux and
+# macOS, and the logo in Help > About.
+add_custom_command(TARGET DekiEditor POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:DekiEditor>/resources/brand"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/resources/brand/deki-app-icon-256.png"
+        "${CMAKE_SOURCE_DIR}/resources/brand/deki-editor-logo.png"
+        "$<TARGET_FILE_DIR:DekiEditor>/resources/brand/"
+)
 
 # Copy font resources next to executable
 add_custom_command(TARGET DekiEditor POST_BUILD
