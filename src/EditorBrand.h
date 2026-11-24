@@ -10,10 +10,9 @@ struct SDL_Window;
 namespace DekiEditor::Brand
 {
 
-/// Draws the Deki icon (the blue block with ears, its screen and its two
-/// eyes, over its shadow) as a `size` x `size` square at `min`. Drawn from the
-/// brand's geometry, so it is sharp at any size; at 32 px or less the eyes are
-/// the larger ones the brand uses there.
+/// Draws the Deki icon (the blue block with ears and its solid depth, its
+/// screen and its two eyes) as a `size` x `size` square at `min`. Drawn from
+/// the brand's geometry, so it is sharp at any size.
 void DrawIcon(ImDrawList* drawList, const ImVec2& min, float size);
 
 /// Gives `window` the Deki app icon, resources/brand/deki-app-icon-256.png.

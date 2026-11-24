@@ -15,20 +15,21 @@ namespace DekiEditor::Brand
 namespace
 {
 
-// The brand's colours (deki-brand, HANDOFF §2).
+// The brand's colours (deki-brand v2).
 constexpr ImU32 kAccent = IM_COL32(0x3B, 0xC3, 0xFF, 255);
 constexpr ImU32 kAccentDim = IM_COL32(0x2B, 0x85, 0xC4, 255);
 constexpr ImU32 kScreen = IM_COL32(0x0A, 0x0B, 0x0D, 255);
 
 // The icon in the brand's 100 x 100 units. Its body is drawn with a round
-// stroke 6 wide, so it reaches 3 past these points; with the shadow 5 down and
-// to the right, the icon spans 11 to 94 across and 7 to 96 down. The square
-// drawn is the 94 units from (6, 6), as icon/deki-icon-animated.svg frames it.
-constexpr float kFrameOrigin = 6.0f;
+// stroke 6 wide, so it reaches 3 past these points; its depth is the body swept
+// 6 down and to the right. The square drawn is the 94 units from (6, 4), as
+// icon/deki-icon.svg frames it.
+constexpr float kFrameX = 6.0f;
+constexpr float kFrameY = 4.0f;
 constexpr float kFrameSize = 94.0f;
 constexpr ImVec2 kBody[] = { { 14, 10 }, { 38, 28 }, { 62, 28 }, { 86, 10 }, { 86, 88 }, { 14, 88 } };
 constexpr float kStroke = 6.0f;
-constexpr float kShadowOffset = 5.0f;
+constexpr int kDepth = 6;
 
 // The body and its round stroke: the shape filled, its outline drawn at the
 // stroke's width, and a disc at each corner for the round join.
@@ -38,8 +39,8 @@ void DrawBody(ImDrawList* drawList, const ImVec2& min, float scale, float offset
     ImVec2 points[kCount];
     for (int i = 0; i < kCount; ++i)
     {
-        points[i] = ImVec2(min.x + (kBody[i].x + offset - kFrameOrigin) * scale,
-                           min.y + (kBody[i].y + offset - kFrameOrigin) * scale);
+        points[i] =
+            ImVec2(min.x + (kBody[i].x + offset - kFrameX) * scale, min.y + (kBody[i].y + offset - kFrameY) * scale);
     }
     drawList->AddConcavePolyFilled(points, kCount, color);
     drawList->AddPolyline(points, kCount, color, ImDrawFlags_Closed, kStroke * scale);
@@ -62,21 +63,22 @@ void DrawIcon(ImDrawList* drawList, const ImVec2& min, float size)
 {
     const float scale = size / kFrameSize;
     const auto at = [&](float x, float y)
-    { return ImVec2(min.x + (x - kFrameOrigin) * scale, min.y + (y - kFrameOrigin) * scale); };
+    { return ImVec2(min.x + (x - kFrameX) * scale, min.y + (y - kFrameY) * scale); };
 
-    DrawBody(drawList, min, scale, kShadowOffset, kAccentDim);
+    // The depth: the body drawn at every unit step along the sweep, back to
+    // front, so the copies join into one solid side.
+    for (int step = kDepth; step > 0; --step)
+    {
+        DrawBody(drawList, min, scale, static_cast<float>(step), kAccentDim);
+    }
     DrawBody(drawList, min, scale, 0.0f, kAccent);
     drawList->AddRectFilled(at(22, 40), at(78, 76), kScreen, 4.0f * scale);
 
     // The eyes on whole pixels, so they stay crisp at the title bar's size.
-    const bool small = size <= 32.0f;
-    const float eyeY = small ? 46.0f : 48.0f;
-    const float eyeW = small ? 12.0f : 8.0f;
-    const float eyeH = small ? 22.0f : 16.0f;
-    for (const float eyeX : { small ? 31.0f : 34.0f, small ? 57.0f : 58.0f })
+    for (const float eyeX : { 34.0f, 58.0f })
     {
-        const ImVec2 a = at(eyeX, eyeY);
-        const ImVec2 b = at(eyeX + eyeW, eyeY + eyeH);
+        const ImVec2 a = at(eyeX, 48.0f);
+        const ImVec2 b = at(eyeX + 8.0f, 64.0f);
         drawList->AddRectFilled(ImVec2(std::round(a.x), std::round(a.y)), ImVec2(std::round(b.x), std::round(b.y)),
                                 kAccent);
     }

@@ -190,7 +190,7 @@ div.title, .title, #projectname {
     text-decoration: none;
 }
 .deki-brand .deki-icon { display: block; width: 26px; height: 26px; flex-shrink: 0; }
-.deki-brand .deki-wordmark { display: block; height: 17px; width: auto; aspect-ratio: 295.2 / 76.1; }
+.deki-brand .deki-wordmark { display: block; height: 17px; width: auto; aspect-ratio: 298 / 78.9; }
 .deki-slash { color: var(--page-secondary-foreground-color); }
 
 .deki-bar-tag {
