@@ -669,12 +669,13 @@ deki_add_package_tests(deki-spi TARGET DekiSPITests SOURCES DekiSPI.cpp SPIBusCo
 # Rgb666PanelIO and ParallelPanelIO, PanelDisplay's byte order, bands,
 # overlay, present worker and tear-free presenting, and touch (the GT911,
 # CST816 and FT5x06 against scripted I2C buses, XPT2046 readings, the mapping,
-# the input events), in both byte orders. The registries it finds its buses,
+# the input events), and the MIPI-DSI panel on a fake panel, in both byte
+# orders. The registries it finds its buses,
 # pins, input and scan order in are deki-spi's, deki-gpio's, deki-i2c's,
 # deki-input's and deki-rendering's.
 set(_deki_display_srcs InitSequence.cpp Controllers.cpp PanelController.cpp PanelDisplay.cpp SpiPanelIO.cpp
                        QspiPanelIO.cpp ParallelPanelIO.cpp Rgb666PanelIO.cpp ScanlineClock.cpp
-                       DisplayPanelComponent.cpp
+                       DisplayPanelComponent.cpp MipiDsi.cpp DsiDisplay.cpp DsiPanelComponent.cpp
                        TouchMapper.cpp GT911Touch.cpp CST816Touch.cpp FT5x06Touch.cpp XPT2046Touch.cpp
                        PanelTouchInput.cpp
                        TouchPanelComponent.cpp ../deki-spi/DekiSPI.cpp ../deki-gpio/DekiGPIO.cpp
@@ -731,6 +732,14 @@ deki_add_package_tests(deki-lilygo-boards TARGET DekiLilyGOBoardsTests NEEDS_EDI
                        DEFINES "DEKI_LILYGO_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-lilygo-boards\""
                        LIBS nlohmann_json::nlohmann_json)
 
+# deki-elecrow-boards has no code either: its boards are checked the same way.
+deki_add_package_tests(deki-elecrow-boards TARGET DekiElecrowBoardsTests NEEDS_EDITOR
+                       SOURCES ../deki-esp32-integration/editor/ESPIDFBuilder.cpp
+                               ../deki-esp32-integration/editor/ESPIDFToolchain.cpp
+                               ../deki-esp32-integration/editor/ESPIDFInstaller.cpp
+                       DEFINES "DEKI_ELECROW_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-elecrow-boards\""
+                       LIBS nlohmann_json::nlohmann_json)
+
 # deki-miyoo-boards' builder off a Miyoo: the toolchain file and CMake it
 # writes for the shipped platform, the Onion app it packs, and installing it
 # on SD cards that are fake folders; and the display's row widening, whose
@@ -750,6 +759,22 @@ deki_add_package_tests(deki-anbernic-boards TARGET DekiAnbernicBoardsTests NEEDS
                                AnbernicRows.cpp AnbernicInput.cpp AnbernicVolume.cpp
                        DEFINES "DEKI_ANBERNIC_BOARDS_DIR=\"${DEKI_PACKAGES_DIR}/deki-anbernic-boards\""
                        LIBS nlohmann_json::nlohmann_json)
+
+# deki-raspberrypi-integration off a Pico: the toolchain its builder pins, the
+# platform settings, the Pico SDK project it writes, the UF2 it packs and the
+# Picos it offers to flash (fake drives); the SD card protocol against a fake
+# card, and our FAT32/FAT16 code on disk images in memory.
+deki_add_package_tests(deki-raspberrypi-integration TARGET DekiRaspberryPiIntegrationTests NEEDS_EDITOR
+                       SOURCES editor/PicoBuilder.cpp editor/PicoToolchain.cpp editor/PicoDevices.cpp
+                               editor/Uf2Writer.cpp pico/sd/SdSpiCard.cpp pico/sd/FatVolume.cpp
+                               pico/sd/FatFileSystem.cpp pico/sd/PicoSDCard.cpp
+                       LIBS nlohmann_json::nlohmann_json)
+
+# deki-clockworkpi-boards off a PicoCalc: which Deki key each keyboard code
+# presses, the keyboard controller's register protocol against a scripted
+# controller, and keys staying down from their press to their release.
+deki_add_package_tests(deki-clockworkpi-boards TARGET DekiClockworkPiBoardsTests
+                       SOURCES PicoCalcKeys.cpp PicoCalcController.cpp PicoCalcKeyboard.cpp PicoCalc.cpp)
 
 # The state machine interpreter. The action library is left out: its actions
 # reach into objects, scenes, deki-2d and deki-tween, which would make this a

@@ -498,6 +498,235 @@ void MockSmallEnumComponent::Register()
 }
 
 // ============================================================================
+// MockListComponent - a list of each simple element type
+// ============================================================================
+
+const Deki::PropertyInfo MockListComponent::kProperties[] = {
+    { "floats",
+      "Floats",
+      Deki::PropertyType::Array,
+      offsetof(MockListComponent, floats),
+      nullptr,
+      0,
+      0,
+      false,
+      nullptr,
+      nullptr,
+      0,
+      0,
+      Deki::PropertyType::Float,
+      nullptr,
+      0,
+      0,
+      nullptr,
+      false,
+      false,
+      nullptr,
+      false,
+      nullptr,
+      nullptr },
+    { "ints",
+      "Ints",
+      Deki::PropertyType::Array,
+      offsetof(MockListComponent, ints),
+      nullptr,
+      0,
+      0,
+      false,
+      nullptr,
+      nullptr,
+      0,
+      0,
+      Deki::PropertyType::Int32,
+      nullptr,
+      0,
+      0,
+      nullptr,
+      false,
+      false,
+      nullptr,
+      false,
+      nullptr,
+      nullptr },
+    { "strings",
+      "Strings",
+      Deki::PropertyType::Array,
+      offsetof(MockListComponent, strings),
+      nullptr,
+      0,
+      0,
+      false,
+      nullptr,
+      nullptr,
+      0,
+      0,
+      Deki::PropertyType::String,
+      nullptr,
+      0,
+      0,
+      nullptr,
+      false,
+      false,
+      nullptr,
+      false,
+      nullptr,
+      nullptr },
+    { "bools",
+      "Bools",
+      Deki::PropertyType::Array,
+      offsetof(MockListComponent, bools),
+      nullptr,
+      0,
+      0,
+      false,
+      nullptr,
+      nullptr,
+      0,
+      0,
+      Deki::PropertyType::Bool,
+      nullptr,
+      0,
+      0,
+      nullptr,
+      false,
+      false,
+      nullptr,
+      false,
+      nullptr,
+      nullptr },
+};
+
+const int MockListComponent::kPropertyCount = sizeof(kProperties) / sizeof(kProperties[0]);
+
+const Deki::ComponentMeta MockListComponent::kComponentMeta = {
+    "MockListComponent",
+    Deki::TypeName<MockListComponent>(),
+    "Testing",
+    "Mock component with lists for testing how a compiled scene writes them",
+    MockListComponent::kStaticType,
+    0,
+    false,
+    false,
+    false,
+    false,
+    sizeof(MockListComponent),
+    []() -> Deki::Component* { return new MockListComponent(); },
+    MockListComponent::kProperties,
+    MockListComponent::kPropertyCount,
+    {},
+    false
+};
+
+const Deki::ComponentTypeInfo MockListComponent::kTypeInfo = { Deki::TypeName<MockListComponent>(),
+                                                               "MockListComponent",
+                                                               MockListComponent::kStaticType,
+                                                               Deki::TypeId<Deki::Component>(),
+                                                               false,  // isAbstract
+                                                               false,  // declaresUpdate
+                                                               []() -> Deki::Component*
+                                                               { return new MockListComponent(); },
+                                                               &MockListComponent::DeserializeImpl,
+                                                               nullptr,
+                                                               nullptr,
+                                                               nullptr,
+                                                               0,
+                                                               &MockListComponent::kComponentMeta };
+
+// Reads each list the way the reflection generator's loader does.
+bool MockListComponent::DeserializeImpl(Deki::Component* c, Deki::SceneFormat::SceneMsgPackParser& parser,
+                                        uint32_t mapSize)
+{
+    auto& self = *static_cast<MockListComponent*>(c);
+    for (uint32_t i = 0; i < mapSize; i++)
+    {
+        const char* key;
+        uint16_t keyLen;
+        if (!parser.ReadString(key, keyLen))
+        {
+            return false;
+        }
+
+        uint32_t arrSize = 0;
+        switch (Deki::HashStringLen(key, keyLen))
+        {
+            case Deki::HashString("floats"):
+            {
+                if (parser.ReadArraySize(arrSize))
+                {
+                    self.floats.clear();
+                    for (uint32_t e = 0; e < arrSize; e++)
+                    {
+                        float v;
+                        if (parser.ReadFloat(v))
+                        {
+                            self.floats.push_back(v);
+                        }
+                    }
+                }
+                break;
+            }
+            case Deki::HashString("ints"):
+            {
+                if (parser.ReadArraySize(arrSize))
+                {
+                    self.ints.clear();
+                    for (uint32_t e = 0; e < arrSize; e++)
+                    {
+                        int32_t v;
+                        if (parser.ReadInt(v))
+                        {
+                            self.ints.push_back(v);
+                        }
+                    }
+                }
+                break;
+            }
+            case Deki::HashString("strings"):
+            {
+                if (parser.ReadArraySize(arrSize))
+                {
+                    self.strings.clear();
+                    for (uint32_t e = 0; e < arrSize; e++)
+                    {
+                        const char* s;
+                        uint16_t len;
+                        if (parser.ReadString(s, len))
+                        {
+                            self.strings.push_back(std::string(s, len));
+                        }
+                    }
+                }
+                break;
+            }
+            case Deki::HashString("bools"):
+            {
+                if (parser.ReadArraySize(arrSize))
+                {
+                    self.bools.clear();
+                    for (uint32_t e = 0; e < arrSize; e++)
+                    {
+                        int32_t v;
+                        if (parser.ReadInt(v))
+                        {
+                            self.bools.push_back(static_cast<bool>(v));
+                        }
+                    }
+                }
+                break;
+            }
+            default: parser.SkipValue(); break;
+        }
+    }
+    return true;
+}
+
+void MockListComponent::Register()
+{
+    Deki::ComponentRegistry::Instance().Register(&kComponentMeta);
+    Deki::ComponentFactory::Instance().Register(&kTypeInfo);
+}
+
+// ============================================================================
 // MockRefComponent - ObjectRef fields for reference serialization
 // ============================================================================
 

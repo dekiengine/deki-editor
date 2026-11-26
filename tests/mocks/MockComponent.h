@@ -7,6 +7,7 @@
 #include <deki/assets/AssetRef.h>
 #include <deki/Color.h>
 #include <string>
+#include <vector>
 
 namespace DekiEditor::Tests
 {
@@ -82,6 +83,31 @@ public:
     SmallEnum smallEnum2 = SmallEnum::A;    // 1-byte enum, next to it
     MediumEnum mediumEnum = MediumEnum::X;  // 2-byte enum
     uint8_t* trailingPointer = nullptr;     // right after the enums; must stay null
+
+    static bool DeserializeImpl(Deki::Component* self, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
+
+    static const Deki::PropertyInfo kProperties[];
+    static const int kPropertyCount;
+    static const Deki::ComponentMeta kComponentMeta;
+
+    static void Register();
+};
+
+/// Test component with a list of each simple element type, for lists written
+/// to a compiled scene by their element type.
+class MockListComponent : public Deki::Component
+{
+public:
+    // Hand-written (not reflected), but identified like every component: by
+    // its qualified class name. The instance carries its entry.
+    static constexpr Deki::ComponentType kStaticType = Deki::TypeId<MockListComponent>();
+    static const Deki::ComponentTypeInfo kTypeInfo;
+    MockListComponent() { SetTypeInfo(&kTypeInfo); }
+
+    std::vector<float> floats;
+    std::vector<int32_t> ints;
+    std::vector<std::string> strings;
+    std::vector<bool> bools;
 
     static bool DeserializeImpl(Deki::Component* self, Deki::SceneFormat::SceneMsgPackParser& parser, uint32_t mapSize);
 
