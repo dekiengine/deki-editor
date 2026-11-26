@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -39,7 +40,15 @@ public:
     /// Writes the cache file (e.g. "cache/guids.json").
     void Save(const std::string& cachePath) const;
 
-    /// Clears the cache and reads every .data file under the absolute assets root.
+    /// Folders outside the assets root whose files are assets too: the
+    /// packages' (AssetPipeline's package assets). Their files are keyed
+    /// relative to the assets root ("../packages/<id>/assets/..."), and read
+    /// before the root's, so a package's file keeps its GUID when a project
+    /// holds a copy of it.
+    void SetExtraRoots(const std::vector<std::string>& roots) { m_ExtraRoots = roots; }
+
+    /// Clears the cache and reads every .data file under the absolute assets
+    /// root and the extra roots.
     void Rebuild(const std::string& assetsRoot);
 
     /// Updates the cache from the files that changed under the absolute assets root.
@@ -98,6 +107,11 @@ private:
     Entry ParseSidecar(const std::string& dataPath) const;
     int64_t GetFileMtime(const std::string& path) const;
     std::string NormalizePath(const std::string& path) const;
+    std::vector<std::string> m_ExtraRoots;
+    // Every .data under the extra roots and the assets root, in that order.
+    std::vector<std::filesystem::path> AllSidecars(const std::string& assetsRoot) const;
+    // An asset's path keyed as the cache keys it, without following links.
+    std::string KeyOf(const std::string& assetAbsPath, const std::string& assetsRoot) const;
     void AddEntry(const std::string& path, const Entry& entry);
     void RemoveEntry(const std::string& path);
     std::string GetSidecarPath(const std::string& assetPath) const;

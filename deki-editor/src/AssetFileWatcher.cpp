@@ -120,6 +120,12 @@ struct AssetFileWatcher::Impl : public efsw::FileWatchListener
         {
             return false;
         }
+        // A package folder can be a link to a checkout elsewhere: then the
+        // path as written says where in the project the file is.
+        if (rel.empty() || rel.string().rfind("..", 0) == 0)
+        {
+            rel = abs.lexically_normal().lexically_relative(fs::path(projectPath).lexically_normal());
+        }
 
         std::string relStr = rel.string();
         if (relStr.empty() || relStr.rfind("..", 0) == 0)
@@ -210,6 +216,23 @@ void AssetFileWatcher::Start(const std::string& watchPath, const std::string& pr
     impl.watcher->watch();
     impl.watching = true;
     DEKI_LOG_DEBUG("AssetFileWatcher: watching %s (id=%d)", watchPath.c_str(), static_cast<int>(impl.watchId));
+}
+
+void AssetFileWatcher::AddWatch(const std::string& watchPath)
+{
+    Impl& impl = *m_Impl;
+    if (!impl.watcher)
+    {
+        return;
+    }
+    const efsw::WatchID id = impl.watcher->addWatch(watchPath, &impl, /*recursive*/ true);
+    if (id < 0)
+    {
+        DEKI_LOG_ERROR("AssetFileWatcher: addWatch failed for %s (efsw error %d)", watchPath.c_str(),
+                       static_cast<int>(id));
+        return;
+    }
+    DEKI_LOG_DEBUG("AssetFileWatcher: also watching %s (id=%d)", watchPath.c_str(), static_cast<int>(id));
 }
 
 void AssetFileWatcher::Stop()

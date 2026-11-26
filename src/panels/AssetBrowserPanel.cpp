@@ -699,6 +699,7 @@ void AssetBrowserPanel::BuildFolderTree()
     }
 
     m_RootNode = FolderNode();
+    m_PackagesNode = FolderNode();
     m_Entries.clear();
     m_SelectedAsset = nullptr;
     m_SelectedIndex = -1;
@@ -717,6 +718,59 @@ void AssetBrowserPanel::BuildFolderTree()
 
     // The root folder starts expanded.
     m_ExpandedFolders.insert(m_RootPath);
+
+    // What the packages ship, each under its name.
+    AssetPipeline* pipeline = m_App ? m_App->GetAssetPipeline() : nullptr;
+    if (m_BrowserMode == BrowserMode::Assets && pipeline && !pipeline->GetPackageAssetRoots().empty())
+    {
+        m_PackagesNode.name = "Packages";
+        m_PackagesNode.path = (fs::path(m_ProjectRoot) / "packages").lexically_normal().string();
+        for (const std::string& root : pipeline->GetPackageAssetRoots())
+        {
+            FolderNode package;
+            package.name = fs::path(root).parent_path().filename().string();
+            package.path = root;
+            BuildFolderTreeRecursive(package, fs::path(root));
+            if (!package.files.empty() || !package.subfolders.empty())
+            {
+                m_PackagesNode.subfolders.push_back(std::move(package));
+            }
+        }
+    }
+}
+
+bool AssetBrowserPanel::IsPackagePath(const std::string& path) const
+{
+    namespace fs = std::filesystem;
+    if (m_ProjectRoot.empty() || path.empty())
+    {
+        return false;
+    }
+    // As written: a package folder can be a link to a checkout elsewhere.
+    const std::string rel = fs::path(path)
+                                .lexically_normal()
+                                .lexically_relative(fs::path(m_ProjectRoot).lexically_normal())
+                                .generic_string();
+    return rel == "packages" || rel.rfind("packages/", 0) == 0;
+}
+
+bool AssetBrowserPanel::SelectionHasPackageAsset() const
+{
+    for (int idx : m_SelectedIndices)
+    {
+        if (idx >= 0 && idx < static_cast<int>(m_Entries.size()) && IsPackagePath(m_Entries[idx].path))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+void AssetBrowserPanel::RefusePackageEdit(const std::string& path) const
+{
+    DEKI_LOG_WARNING("'%s' belongs to its package, so it cannot be changed here. Duplicate it to get a copy in "
+                     "your assets you can change.",
+                     std::filesystem::path(path).filename().string().c_str());
 }
 
 void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::filesystem::path& dirPath)
@@ -774,7 +828,7 @@ void AssetBrowserPanel::BuildFolderTreeRecursive(FolderNode& node, const std::fi
             AssetEntry asset;
             asset.name = name;
             asset.path = entry.path().string();
-            asset.relativePath = fs::relative(entry.path(), m_ProjectRoot).string();
+            asset.relativePath = entry.path().lexically_relative(m_ProjectRoot).string();
             // Forward slashes.
             for (char& c : asset.relativePath)
             {
@@ -963,6 +1017,10 @@ void AssetBrowserPanel::DrawAssetTree()
     m_Entries.clear();  // the flat row list, rebuilt by the draw for selection
     int flatIndex = 0;
     DrawFolderNode(m_RootNode, flatIndex);
+    if (!m_PackagesNode.subfolders.empty())
+    {
+        DrawFolderNode(m_PackagesNode, flatIndex);
+    }
     if (!m_AssetFilterLower.empty() && m_Entries.empty())
     {
         DekiEditor::EmptyStateText(Tr("No assets match the search."));
@@ -1035,7 +1093,14 @@ void AssetBrowserPanel::DrawAssetTree()
         // Delete and Ctrl+D, as the context menu lists them.
         if (ImGui::IsKeyPressed(ImGuiKey_Delete) && !m_SelectedIndices.empty())
         {
-            m_DeleteConfirmDialog->Open();
+            if (SelectionHasPackageAsset())
+            {
+                RefusePackageEdit(m_Entries[*m_SelectedIndices.begin()].path);
+            }
+            else
+            {
+                m_DeleteConfirmDialog->Open();
+            }
         }
         if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D) && m_SelectedIndices.size() == 1)
         {
@@ -1050,7 +1115,11 @@ void AssetBrowserPanel::DrawAssetTree()
         if ((ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_F2)) && m_SelectedIndices.size() == 1)
         {
             int idx = *m_SelectedIndices.begin();
-            if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
+            if (idx >= 0 && idx < static_cast<int>(m_Entries.size()) && IsPackagePath(m_Entries[idx].path))
+            {
+                RefusePackageEdit(m_Entries[idx].path);
+            }
+            else if (idx >= 0 && idx < static_cast<int>(m_Entries.size()))
             {
                 std::string currentName = fs::path(m_Entries[idx].name).stem().string();
                 m_RenameDialog->Open(idx, currentName, m_Entries[idx].isDirectory);
@@ -1264,13 +1333,18 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
     if (ImGui::BeginPopupContextItem())
     {
         PushContextMenuItemStyle();
-        if (ImGui::MenuItem(TrLabel("New Folder")))
+        const bool packageFolder = IsPackagePath(node.path);
+        if (!packageFolder && ImGui::MenuItem(TrLabel("New Folder")))
         {
             m_CurrentPath = node.path;
             m_CreateFolderDialog->Open();
         }
 
-        if (m_BrowserMode == BrowserMode::Scripts)
+        if (packageFolder)
+        {
+            // Its package's: nothing is made in it here.
+        }
+        else if (m_BrowserMode == BrowserMode::Scripts)
         {
             if (ImGui::MenuItem(TrLabel("Create C++ Script")))
             {
@@ -1309,8 +1383,8 @@ void AssetBrowserPanel::DrawFolderNode(FolderNode& node, int& flatIndex)
             RevealInFileExplorer(node.path);
         }
 
-        // Rename and Delete, except on the root.
-        if (node.path != m_RootPath)
+        // Rename and Delete, except on the root and a package's folders.
+        if (node.path != m_RootPath && !packageFolder)
         {
             ImGui::Separator();
             if (ImGui::MenuItem(TrLabel("Rename"), "Enter"))
@@ -1689,7 +1763,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
             ImGui::Separator();
         }
 
-        if (m_SelectedIndices.size() == 1)
+        const bool packageAsset = SelectionHasPackageAsset();
+        if (m_SelectedIndices.size() == 1 && !packageAsset)
         {
             if (ImGui::MenuItem(TrLabel("Rename"), "Enter"))
             {
@@ -1700,7 +1775,8 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
         if (m_SelectedIndices.size() == 1)
         {
-            if (ImGui::MenuItem(TrLabel("Duplicate"), "Ctrl+D"))
+            // A package's asset is copied into the project's assets, to change there.
+            if (ImGui::MenuItem(packageAsset ? TrLabel("Copy to Assets") : TrLabel("Duplicate"), "Ctrl+D"))
             {
                 m_DeferredActions.push_back([this, p = entry.path]() { DuplicateAsset(p); });
             }
@@ -1716,7 +1792,11 @@ void AssetBrowserPanel::DrawFileNode(AssetEntry& entry, int flatIndex)
 
         ImGui::Separator();
 
-        if (m_SelectedIndices.size() > 1)
+        if (packageAsset)
+        {
+            // A package's: not deleted here.
+        }
+        else if (m_SelectedIndices.size() > 1)
         {
             char menuLabel[64];
             snprintf(menuLabel, sizeof(menuLabel), Tr("Delete %zu items"), m_SelectedIndices.size());
@@ -2535,7 +2615,8 @@ void AssetBrowserPanel::DrawContextMenu()
         }
         else
         {
-            if (ImGui::MenuItem(TrLabel("New Folder")))
+            const bool packageFolder = IsPackagePath(m_CurrentPath);
+            if (!packageFolder && ImGui::MenuItem(TrLabel("New Folder")))
             {
                 m_CreateFolderDialog->Open();
             }
@@ -2544,7 +2625,7 @@ void AssetBrowserPanel::DrawContextMenu()
             // "Create..." submenu. The labels leave out "Create ", as the
             // submenu already says it.
             const auto& creatableTypes = AssetTypeRegistry::Instance().GetTypes();
-            if (!creatableTypes.empty() && ImGui::BeginMenu(TrLabel("Create...")))
+            if (!packageFolder && !creatableTypes.empty() && ImGui::BeginMenu(TrLabel("Create...")))
             {
                 for (const auto& type : creatableTypes)
                 {
@@ -2611,6 +2692,11 @@ void AssetBrowserPanel::HandleFileDrop(const std::string& droppedPath)
 
     // Into the hovered folder, or else the current one.
     const std::string targetDir = m_HoveredFolderPath.empty() ? m_CurrentPath : m_HoveredFolderPath;
+    if (IsPackagePath(targetDir))
+    {
+        RefusePackageEdit(targetDir);
+        return;
+    }
 
     std::string error;
     if (!AssetImportDrop::Import(droppedPath, targetDir, m_App ? m_App->GetAssetPipeline() : nullptr, error))
@@ -2625,6 +2711,11 @@ void AssetBrowserPanel::HandleFileDrop(const std::string& droppedPath)
 
 void AssetBrowserPanel::DeferMove(std::string srcPath, std::string destPath)
 {
+    if (IsPackagePath(srcPath) || IsPackagePath(destPath))
+    {
+        RefusePackageEdit(IsPackagePath(srcPath) ? srcPath : destPath);
+        return;
+    }
     m_DeferredActions.push_back(
         [this, src = std::move(srcPath), dest = std::move(destPath)]()
         {
@@ -2668,16 +2759,19 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
         return;
     }
 
-    fs::path parentDir = src.parent_path();
+    // A package's asset is copied into the project's assets, under its own
+    // name when that is free: the project's copy, to change.
+    const bool fromPackage = IsPackagePath(srcPath);
+    fs::path parentDir = fromPackage ? fs::path(m_AssetsRoot) : src.parent_path();
     std::string stem = src.stem().string();
     std::string ext = src.extension().string();
     bool isDir = fs::is_directory(src);
 
     // First free name of name_1, name_2, ...
     fs::path destPath;
-    for (int i = 1; i < 1000; ++i)
+    for (int i = fromPackage ? 0 : 1; i < 1000; ++i)
     {
-        std::string newName = stem + "_" + std::to_string(i);
+        std::string newName = i == 0 ? stem : stem + "_" + std::to_string(i);
         if (!isDir)
         {
             newName += ext;
@@ -2719,7 +2813,7 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
     // Tell the asset pipeline.
     if (m_App && m_App->GetAssetPipeline())
     {
-        std::string newRelPath = fs::relative(destPath, m_ProjectRoot).string();
+        std::string newRelPath = destPath.lexically_relative(m_ProjectRoot).string();
         for (char& c : newRelPath)
         {
             if (c == '\\')
@@ -2737,6 +2831,11 @@ void AssetBrowserPanel::DuplicateAsset(const std::string& srcPath)
 
 void AssetBrowserPanel::RenameAssetWithData(const std::string& oldPath, const std::string& newName)
 {
+    if (IsPackagePath(oldPath))
+    {
+        RefusePackageEdit(oldPath);
+        return;
+    }
     std::string newPath;
     if (AssetFileOps::RenameWithData(oldPath, newName, m_App ? m_App->GetAssetPipeline() : nullptr, m_ProjectRoot,
                                      &newPath) &&
@@ -2781,6 +2880,11 @@ void AssetBrowserPanel::CreateScript(const std::string& directory, const std::st
 void AssetBrowserPanel::SaveObjectAsScene(Deki::Object* obj, const std::string& folderPath)
 {
     namespace fs = std::filesystem;
+    if (IsPackagePath(folderPath))
+    {
+        RefusePackageEdit(folderPath);
+        return;
+    }
 
     const std::string targetPath = SceneExport::SaveObjectAsScene(obj, folderPath);
     if (targetPath.empty())

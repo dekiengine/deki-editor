@@ -61,6 +61,11 @@ public:
     /// and project/packages. Event paths are made relative to `projectPath`.
     void Start(const std::string& watchPath, const std::string& projectPath);
 
+    /// Watches another folder (absolute) inside the project as well, after
+    /// Start: a package's assets. Its events are made relative to the same
+    /// project, without following a link the folder's path goes through.
+    void AddWatch(const std::string& watchPath);
+
     /// Stops the watcher thread and clears pending events.
     void Stop();
 

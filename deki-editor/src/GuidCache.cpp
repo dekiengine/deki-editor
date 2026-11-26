@@ -150,6 +150,27 @@ std::vector<fs::path> SortedSidecars(const std::string& root)
 }
 }  // namespace
 
+std::vector<fs::path> GuidCache::AllSidecars(const std::string& assetsRoot) const
+{
+    std::vector<fs::path> all;
+    for (const std::string& root : m_ExtraRoots)
+    {
+        std::vector<fs::path> some = SortedSidecars(root);
+        all.insert(all.end(), some.begin(), some.end());
+    }
+    std::vector<fs::path> own = SortedSidecars(assetsRoot);
+    all.insert(all.end(), own.begin(), own.end());
+    return all;
+}
+
+std::string GuidCache::KeyOf(const std::string& assetAbsPath, const std::string& assetsRoot) const
+{
+    return NormalizePath(fs::path(assetAbsPath)
+                             .lexically_normal()
+                             .lexically_relative(fs::path(assetsRoot).lexically_normal())
+                             .generic_string());
+}
+
 void GuidCache::Rebuild(const std::string& assetsRoot)
 {
     m_AssetsRoot = assetsRoot;
@@ -163,13 +184,12 @@ void GuidCache::Rebuild(const std::string& assetsRoot)
     }
 
     int count = 0;
-    for (const fs::path& sidecar : SortedSidecars(assetsRoot))
+    for (const fs::path& sidecar : AllSidecars(assetsRoot))
     {
         std::string dataPath = sidecar.string();
         std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);  // without ".data"
 
-        std::string relativePath = fs::relative(assetAbsPath, assetsRoot).string();
-        relativePath = NormalizePath(relativePath);
+        std::string relativePath = KeyOf(assetAbsPath, assetsRoot);
 
         Entry entry = ParseSidecar(dataPath);
         if (entry.guid.empty())
@@ -226,12 +246,11 @@ void GuidCache::Sync(const std::string& assetsRoot)
     std::unordered_map<std::string, bool> seenPaths;
     int added = 0, updated = 0;
 
-    for (const fs::path& sidecar : SortedSidecars(assetsRoot))
+    for (const fs::path& sidecar : AllSidecars(assetsRoot))
     {
         std::string dataPath = sidecar.string();
         std::string assetAbsPath = dataPath.substr(0, dataPath.length() - 5);
-        std::string relativePath = fs::relative(assetAbsPath, assetsRoot).string();
-        relativePath = NormalizePath(relativePath);
+        std::string relativePath = KeyOf(assetAbsPath, assetsRoot);
 
         seenPaths[relativePath] = true;
 

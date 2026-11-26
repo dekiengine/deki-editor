@@ -645,11 +645,13 @@ bool EditorApp::OpenProject(const std::string& path)
         Deki::AssetManager::Get()->RegisterGuid(info.guid, info.guid);
 
         // path:type alias for AssetManager::Load<T>(path) lookups.
+        // As the exported table keys it: without the leading "assets/". A
+        // package's asset keeps its whole path ("packages/<id>/assets/..."),
+        // so it never takes the key of a project asset with the same name.
         std::string exportPath = info.path;
-        size_t assetsPos = exportPath.find("assets/");
-        if (assetsPos != std::string::npos)
+        if (exportPath.rfind("assets/", 0) == 0)
         {
-            exportPath = exportPath.substr(assetsPos + 7);
+            exportPath = exportPath.substr(7);
         }
         size_t dotPos = exportPath.rfind('.');
         if (dotPos != std::string::npos)

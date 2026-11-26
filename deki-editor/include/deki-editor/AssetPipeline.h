@@ -249,8 +249,27 @@ public:
     using TextFontResolver = std::string (*)(const std::string& sourceGuid, int fontSize);
     static void SetTextFontResolver(TextFontResolver resolver);
 
-    /// An absolute path made project-relative, with forward slashes.
+    /// An absolute path made project-relative, with forward slashes. A path
+    /// inside a package stays inside it, even when the package folder is a
+    /// link to a checkout elsewhere.
     std::string MakeProjectRelative(const std::string& absolutePath) const;
+
+    /// Package assets: what a package ships in its own `assets` folder
+    /// (project/packages/<id>/assets), imported as the project's assets are
+    /// and referred to the same way, by GUID. They belong to the package, so
+    /// they are read only: a project that wants its own copies them into its
+    /// assets. A file with no .data beside it gets a GUID made from its path,
+    /// the same in every project.
+    ///
+    /// Whether a project-relative path is a package's asset.
+    static bool IsPackageAssetPath(const std::string& relativePath);
+    /// The package's id of a package asset's path; "" for any other path.
+    static std::string PackageOfAssetPath(const std::string& relativePath);
+    /// The GUID a package asset with no .data gets: made from its path, so
+    /// every project gives it the same one.
+    static std::string PackageAssetGuid(const std::string& relativePath);
+    /// Each package's assets folder (absolute), for the packages that have one.
+    const std::vector<std::string>& GetPackageAssetRoots() const { return m_PackageAssetRoots; }
 
     /// Starts the pipeline on the absolute assets folder and project root.
     void Start(const std::string& assetsPath, const std::string& projectPath);
@@ -355,6 +374,16 @@ private:
     std::string m_AssetsPath;
     std::string m_ProjectPath;
     std::string m_AssetsPrefix;  // m_AssetsPath relative to m_ProjectPath, forward slashes; set with them
+    // project/packages/<id>/assets of each package that has one, absolute.
+    std::vector<std::string> m_PackageAssetRoots;
+    // Every folder assets are imported from: the packages', then the project's.
+    std::vector<std::string> AssetRoots() const;
+    // An absolute path relative to m_AssetsPath, forward slashes, without
+    // following links: what the GUID cache keys a file by. A package's file
+    // is "../packages/<id>/assets/...".
+    std::string AssetsRelative(const std::string& absolutePath) const;
+    // The packages' assets folders, found again (a package added or removed).
+    void FindPackageAssetRoots();
     // Rewriting the asset table walks the whole cache folder and writes a
     // file, so during ImportAllAssets it is deferred and done once at the end.
     bool m_ImportingAll = false;

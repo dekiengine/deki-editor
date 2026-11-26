@@ -190,11 +190,12 @@ AssetPicker::AssetPicker()
 }
 
 bool AssetPicker::Open(const std::string& popupId, const std::string& currentValue, AssetFilterType filter,
-                       std::string& outSelectedPath)
+                       std::string& outSelectedPath, const std::string& assetType)
 {
-    if (filter != m_CurrentFilter || m_NeedsRefresh)
+    if (filter != m_CurrentFilter || assetType != m_CurrentType || m_NeedsRefresh)
     {
         m_CurrentFilter = filter;
+        m_CurrentType = assetType;
         RefreshAssets(filter);
         m_NeedsRefresh = false;
     }
@@ -572,8 +573,25 @@ void AssetPicker::RefreshAssets(AssetFilterType filter)
         return;
     }
 
-    auto extensions = GetExtensionsForFilter(filter);
+    // The property's own asset type, when a package registered it: a shader
+    // field lists shaders, a mesh field models.
+    std::vector<std::string> extensions;
+    if (const AssetTypeHandler* handler =
+            m_CurrentType.empty() ? nullptr : AssetTypeRegistry::Instance().GetHandler(m_CurrentType))
+    {
+        extensions = handler->extensions;
+    }
+    if (extensions.empty())
+    {
+        extensions = GetExtensionsForFilter(filter);
+    }
     ScanDirectory(assetsPath, assetsPath, extensions, pipeline);
+    // What the packages ship, listed under their names.
+    for (const std::string& root : pipeline->GetPackageAssetRoots())
+    {
+        const std::string id = fs::path(root).parent_path().filename().string();
+        ScanDirectory(root, root, extensions, pipeline, "Packages/" + id + "/");
+    }
 
     auto comparator = [](const AssetPickerEntry& a, const AssetPickerEntry& b)
     { return a.displayName < b.displayName; };
@@ -634,7 +652,8 @@ std::vector<std::string> AssetPicker::GetExtensionsForFilter(AssetFilterType fil
 }
 
 void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseDir,
-                                const std::vector<std::string>& extensions, AssetPipeline* pipeline)
+                                const std::vector<std::string>& extensions, AssetPipeline* pipeline,
+                                const std::string& displayPrefix)
 {
     try
     {
@@ -642,7 +661,7 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
         {
             if (entry.is_directory())
             {
-                ScanDirectory(entry.path().string(), baseDir, extensions, pipeline);
+                ScanDirectory(entry.path().string(), baseDir, extensions, pipeline, displayPrefix);
             }
             else if (entry.is_regular_file())
             {
@@ -690,8 +709,8 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
                 {
                     AssetPickerEntry asset;
                     asset.fullPath = entry.path().string();
-                    asset.relativePath = fs::relative(entry.path(), baseDir).string();
-                    asset.displayName = asset.relativePath;
+                    asset.relativePath = entry.path().lexically_relative(baseDir).string();
+                    asset.displayName = displayPrefix + asset.relativePath;
 
                     // Convert backslashes to forward slashes for consistency
                     for (char& c : asset.relativePath)
@@ -715,14 +734,9 @@ void AssetPicker::ScanDirectory(const std::string& dir, const std::string& baseD
                         const std::string projectPath = pipeline->GetProjectPath();
                         if (!projectPath.empty())
                         {
-                            std::string projectRelativePath = fs::relative(entry.path(), projectPath).string();
-                            for (char& c : projectRelativePath)
-                            {
-                                if (c == '\\')
-                                {
-                                    c = '/';
-                                }
-                            }
+                            // Without following links: a package folder can be one.
+                            const std::string projectRelativePath =
+                                pipeline->MakeProjectRelative(entry.path().string());
                             const AssetInfo* info = pipeline->GetAssetInfo(projectRelativePath);
                             if (info)
                             {

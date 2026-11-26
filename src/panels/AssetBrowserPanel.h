@@ -190,6 +190,16 @@ private:
 
     // Tree view
     FolderNode m_RootNode;
+    // What the packages ship (AssetPipeline's package assets), one folder a
+    // package, under the project's assets. Read only.
+    FolderNode m_PackagesNode;
+    /// Whether a path (absolute) is in a package: its assets are the
+    /// package's, so they cannot be moved, renamed, deleted or added to here.
+    bool IsPackagePath(const std::string& path) const;
+    /// Whether any selected asset is a package's.
+    bool SelectionHasPackageAsset() const;
+    /// Says once why an edit to a package's asset did nothing.
+    void RefusePackageEdit(const std::string& path) const;
     std::set<std::string> m_ExpandedFolders;
     std::string m_PendingRevealPath;  // absolute path to select on the next draw
     bool m_PendingTreeRebuild = false;

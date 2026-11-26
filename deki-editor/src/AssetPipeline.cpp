@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cstring>
 #include <algorithm>
+#include <cstdio>
 #include <unordered_set>
 #include <nlohmann/json.hpp>
 
@@ -353,6 +354,16 @@ std::string AssetPipeline::MakeProjectRelative(const std::string& absolutePath) 
     {
         return absolutePath;
     }
+    // By the path as written: a package folder can be a link to a checkout
+    // elsewhere, and following it would leave the project.
+    const std::string lexical = fs::path(absolutePath)
+                                    .lexically_normal()
+                                    .lexically_relative(fs::path(m_ProjectPath).lexically_normal())
+                                    .generic_string();
+    if (!lexical.empty() && lexical.rfind("..", 0) != 0)
+    {
+        return lexical;
+    }
     std::string rel = fs::relative(absolutePath, m_ProjectPath).string();
     for (char& c : rel)
     {
@@ -362,6 +373,69 @@ std::string AssetPipeline::MakeProjectRelative(const std::string& absolutePath) 
         }
     }
     return rel;
+}
+
+std::string AssetPipeline::AssetsRelative(const std::string& absolutePath) const
+{
+    return fs::path(absolutePath)
+        .lexically_normal()
+        .lexically_relative(fs::path(m_AssetsPath).lexically_normal())
+        .generic_string();
+}
+
+bool AssetPipeline::IsPackageAssetPath(const std::string& relativePath)
+{
+    return !PackageOfAssetPath(relativePath).empty();
+}
+
+std::string AssetPipeline::PackageOfAssetPath(const std::string& relativePath)
+{
+    // packages/<id>/assets/...
+    static const std::string kPackages = "packages/";
+    if (relativePath.rfind(kPackages, 0) != 0)
+    {
+        return {};
+    }
+    const size_t idEnd = relativePath.find('/', kPackages.size());
+    if (idEnd == std::string::npos || relativePath.compare(idEnd, 8, "/assets/") != 0)
+    {
+        return {};
+    }
+    return relativePath.substr(kPackages.size(), idEnd - kPackages.size());
+}
+
+std::string AssetPipeline::PackageAssetGuid(const std::string& relativePath)
+{
+    // A seed of its own kind (asset-system.md, "Seed Formats").
+    return GenerateDeterministicGuid("package-asset:" + relativePath);
+}
+
+void AssetPipeline::FindPackageAssetRoots()
+{
+    m_PackageAssetRoots.clear();
+    std::error_code ec;
+    const fs::path packages = fs::path(m_ProjectPath) / "packages";
+    if (!fs::is_directory(packages, ec))
+    {
+        return;
+    }
+    for (fs::directory_iterator it(packages, ec), end; !ec && it != end; it.increment(ec))
+    {
+        const fs::path assets = it->path() / "assets";
+        std::error_code dirEc;
+        if (fs::is_directory(assets, dirEc))
+        {
+            m_PackageAssetRoots.push_back(assets.lexically_normal().string());
+        }
+    }
+    std::sort(m_PackageAssetRoots.begin(), m_PackageAssetRoots.end());
+}
+
+std::vector<std::string> AssetPipeline::AssetRoots() const
+{
+    std::vector<std::string> roots = m_PackageAssetRoots;
+    roots.push_back(m_AssetsPath);
+    return roots;
 }
 
 // =========================================================================
@@ -438,6 +512,8 @@ void AssetPipeline::Start(const std::string& assetsPath, const std::string& proj
         }
     }
     m_Running = true;
+    FindPackageAssetRoots();
+    m_GuidCache.SetExtraRoots(m_PackageAssetRoots);
 
     s_Instance = this;
 
@@ -633,7 +709,17 @@ void AssetPipeline::ImportAllAssets()
 
     // Pass 1: non-scene assets.
     auto tPass1Start = std::chrono::steady_clock::now();
-    for (const auto& entry : fs::recursive_directory_iterator(m_AssetsPath))
+    std::vector<fs::directory_entry> files;
+    for (const std::string& root : AssetRoots())
+    {
+        std::error_code rootEc;
+        for (fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, rootEc), end;
+             !rootEc && it != end; it.increment(rootEc))
+        {
+            files.push_back(*it);
+        }
+    }
+    for (const auto& entry : files)
     {
         if (!entry.is_regular_file())
         {
@@ -653,14 +739,7 @@ void AssetPipeline::ImportAllAssets()
             continue;
         }
 
-        std::string relativePath = fs::relative(entry.path(), m_ProjectPath).string();
-        for (char& c : relativePath)
-        {
-            if (c == '\\')
-            {
-                c = '/';
-            }
-        }
+        const std::string relativePath = MakeProjectRelative(entry.path().string());
 
         // Scenes wait for pass 2.
         std::string extLower = ext;
@@ -705,14 +784,7 @@ void AssetPipeline::ImportAllAssets()
 
             // GuidCache needs the entry for GUID -> path lookups.
             std::string absolutePath = GetAbsolutePath(scenePath);
-            std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
-            for (char& c : assetsRelativePath)
-            {
-                if (c == '\\')
-                {
-                    c = '/';
-                }
-            }
+            std::string assetsRelativePath = AssetsRelative(absolutePath);
             if (!m_GuidCache.Contains(assetsRelativePath))
             {
                 m_GuidCache.OnFileCreated(assetsRelativePath);
@@ -791,6 +863,10 @@ void AssetPipeline::ImportAllAssets()
         m_FileWatcher = std::make_unique<AssetFileWatcher>();
     }
     m_FileWatcher->Start(m_AssetsPath, m_ProjectPath);
+    for (const std::string& root : m_PackageAssetRoots)
+    {
+        m_FileWatcher->AddWatch(root);
+    }
 }
 
 // The registered component types and their properties, as one hash. A
@@ -951,42 +1027,41 @@ void AssetPipeline::ResyncWithDisk()
     std::unordered_set<std::string> onDisk;
 
     std::error_code ec;
-    fs::recursive_directory_iterator it(m_AssetsPath, fs::directory_options::skip_permission_denied, ec);
-    for (const fs::recursive_directory_iterator end; !ec && it != end; it.increment(ec))
+    for (const std::string& root : AssetRoots())
     {
-        std::error_code entryEc;
-        const std::string ext = it->path().extension().string();
-        if (!it->is_regular_file(entryEc) || ext == ".dekiguid" || ext == ".data" || !IsAssetFile(ext))
+        fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec);
+        for (const fs::recursive_directory_iterator end; !ec && it != end; it.increment(ec))
         {
-            continue;
-        }
+            std::error_code entryEc;
+            const std::string ext = it->path().extension().string();
+            if (!it->is_regular_file(entryEc) || ext == ".dekiguid" || ext == ".data" || !IsAssetFile(ext))
+            {
+                continue;
+            }
 
-        const std::string relativePath = fs::relative(it->path(), m_ProjectPath, entryEc).generic_string();
-        if (entryEc)
-        {
-            continue;
-        }
-        onDisk.insert(relativePath);
+            const std::string relativePath = MakeProjectRelative(it->path().string());
+            onDisk.insert(relativePath);
 
-        const auto known = m_Assets.find(relativePath);
-        if (known == m_Assets.end())
-        {
-            events.push_back({ Kind::Added, relativePath });
-            continue;
+            const auto known = m_Assets.find(relativePath);
+            if (known == m_Assets.end())
+            {
+                events.push_back({ Kind::Added, relativePath });
+                continue;
+            }
+            // An asset with no stamp (its source is its own cache, or it is not
+            // cached) cannot be told unchanged, so it is processed again.
+            const auto stamp = m_CacheStamps.find(known->second.guid);
+            if (stamp == m_CacheStamps.end() || stamp->second != MakeCacheStamp(it->path().string()))
+            {
+                events.push_back({ Kind::Modified, relativePath });
+            }
         }
-        // An asset with no stamp (its source is its own cache, or it is not
-        // cached) cannot be told unchanged, so it is processed again.
-        const auto stamp = m_CacheStamps.find(known->second.guid);
-        if (stamp == m_CacheStamps.end() || stamp->second != MakeCacheStamp(it->path().string()))
+        if (ec)
         {
-            events.push_back({ Kind::Modified, relativePath });
+            // A partial listing would read as every asset after it being deleted.
+            DEKI_LOG_WARNING("AssetPipeline: could not list %s: %s", root.c_str(), ec.message().c_str());
+            return;
         }
-    }
-    if (ec)
-    {
-        // A partial listing would read as every asset after it being deleted.
-        DEKI_LOG_WARNING("AssetPipeline: could not list %s: %s", m_AssetsPath.c_str(), ec.message().c_str());
-        return;
     }
 
     // Scenes after the assets they can refer to, as in ImportAllAssets.
@@ -996,7 +1071,8 @@ void AssetPipeline::ResyncWithDisk()
     const std::string assetsPrefix = fs::relative(m_AssetsPath, m_ProjectPath, ec).generic_string() + "/";
     for (const auto& [relativePath, info] : m_Assets)
     {
-        if (relativePath.rfind(assetsPrefix, 0) == 0 && onDisk.count(relativePath) == 0)
+        if ((relativePath.rfind(assetsPrefix, 0) == 0 || IsPackageAssetPath(relativePath)) &&
+            onDisk.count(relativePath) == 0)
         {
             events.push_back({ Kind::Deleted, relativePath });
         }
@@ -1038,14 +1114,7 @@ void AssetPipeline::ProcessFileEvents(std::vector<AssetFileWatcher::Event> event
                 break;
             }
         }
-        std::string assetsRelative = fs::relative(GetAbsolutePath(relativePath), m_AssetsPath).string();
-        for (char& c : assetsRelative)
-        {
-            if (c == '\\')
-            {
-                c = '/';
-            }
-        }
+        std::string assetsRelative = AssetsRelative(GetAbsolutePath(relativePath));
         m_GuidCache.OnFileDeleted(assetsRelative);
         if (guidLivesOn)
         {
@@ -1168,14 +1237,7 @@ void AssetPipeline::ProcessAsset(const std::string& relativePath, bool forceRebu
     // gives the copy a GUID of its own here. Must stay before the compile, or
     // the copy overwrites the original's cache file.
     {
-        std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
-        for (char& c : assetsRelativePath)
-        {
-            if (c == '\\')
-            {
-                c = '/';
-            }
-        }
+        std::string assetsRelativePath = AssetsRelative(absolutePath);
         if (m_GuidCache.Contains(assetsRelativePath))
         {
             m_GuidCache.OnFileModified(assetsRelativePath);
@@ -1393,14 +1455,7 @@ std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
     // cannot say: it is missing (deleted, or not copied with the asset) or
     // unreadable with no recoverable GUID. A new GUID would break every
     // reference to the asset.
-    std::string assetsRelative = fs::relative(absolutePath, m_AssetsPath).string();
-    for (char& c : assetsRelative)
-    {
-        if (c == '\\')
-        {
-            c = '/';
-        }
-    }
+    std::string assetsRelative = AssetsRelative(absolutePath);
     const std::string remembered = m_GuidCache.GetGuid(assetsRelative);
     std::error_code ec;
     const bool sidecarExists = fs::exists(dataPath, ec);
@@ -1429,6 +1484,13 @@ std::string AssetPipeline::GetOrCreateAssetGuid(const std::string& relativePath)
                 return remembered;
             }
         }
+    }
+    if (!sidecarExists && IsPackageAssetPath(relativePath))
+    {
+        AssetData data;
+        data.guid = PackageAssetGuid(relativePath);
+        SaveAssetData(dataPath, data);
+        return data.guid;
     }
     return ::DekiEditor::GetOrCreateAssetGuid(absolutePath);
 }
@@ -1864,14 +1926,7 @@ void AssetPipeline::RemoveAsset(const std::string& relativePath)
     m_Assets.erase(relativePath);
 
     std::string absolutePath = GetAbsolutePath(relativePath);
-    std::string assetsRelativePath = fs::relative(absolutePath, m_AssetsPath).string();
-    for (char& c : assetsRelativePath)
-    {
-        if (c == '\\')
-        {
-            c = '/';
-        }
-    }
+    std::string assetsRelativePath = AssetsRelative(absolutePath);
     m_GuidCache.OnFileDeleted(assetsRelativePath);
 }
 
@@ -1891,6 +1946,11 @@ const AssetInfo* AssetPipeline::GetAssetInfoByGuid(const std::string& guid) cons
         // To a project-relative path ("project/assets/fonts/..."). The prefix
         // is fixed for the session, set with the paths.
         std::string projectRelativePath = m_AssetsPrefix + "/" + assetsRelativePath;
+        if (assetsRelativePath.rfind("../", 0) == 0)
+        {
+            // A package's asset: "../packages/<id>/assets/...".
+            projectRelativePath = fs::path(projectRelativePath).lexically_normal().generic_string();
+        }
         return GetAssetInfo(projectRelativePath);
     }
     return nullptr;

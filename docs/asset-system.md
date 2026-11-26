@@ -74,6 +74,7 @@ Virtual/derived assets use deterministic GUIDs generated from a seed string via 
 | Font atlas | `sourceGuid + ":" + fontSize + ":atlas"` | `"abc-123:16:atlas"` |
 | Sprite frame | `parentGuid + ":" + frameIndex` | `"abc-123:0"` |
 | Preview font | `"preview:" + sourceGuid + ":" + fontSize` | `"preview:abc-123:16"` |
+| Package asset with no .data | `"package-asset:" + projectRelativePath` | `"package-asset:packages/deki-terrain/assets/shaders/terrain.shader"` |
 
 The `"preview:"` prefix prevents collision with real font variant GUIDs.
 
@@ -86,6 +87,43 @@ The `"preview:"` prefix prevents collision with real font variant GUIDs.
 - `src/PlayMode.cpp` - Play mode font setup
 - `deki-editor/src/AssetPipeline.cpp` - Cache management
 - `deki-editor/src/TextureImporter.cpp` - Sprite frame generation
+
+## Package assets
+
+A package can ship assets: a shader, a model, an image, a sample scene. They
+go in the package's own `assets` folder, and nothing needs declaring in
+`package.json`:
+
+```
+packages/deki-terrain/
+  assets/
+    shaders/terrain.shader
+```
+
+The editor imports `packages/<id>/assets/` of every package in the project as
+it imports the project's `assets/`, and they are referred to the same way, by
+GUID. Their project-relative path is `packages/<id>/assets/...`.
+
+- **Same GUID in every project.** Commit each file's `.data` with the
+  package. A file without one gets a GUID made from its path (above), so it
+  is the same in every project the package is in.
+- **Read only.** The Asset Browser lists them under **Packages**, one folder a
+  package, and will not rename, move, delete or add to them. **Copy to Assets**
+  copies one into the project's `assets/`, with a new GUID, to change there.
+- **In the pickers.** An asset field's picker lists a package's assets under
+  `Packages/<id>/`. A field of a registered asset type (a Shader, a Mesh) lists
+  the files of that type.
+- **Shipped when used.** A build takes a package's asset only when one of the
+  project's scenes uses it. A package's own scenes are not roots of a build.
+- **Links are followed as written.** A package folder can be a link (a
+  junction) to a checkout elsewhere; its assets keep their
+  `packages/<id>/assets/...` paths.
+- **Lookup keys.** The `path:type` key of a project asset drops the leading
+  `assets/`; a package asset keeps its whole path, so the two never share a key.
+
+Not yet: a package installed or removed while the editor is open is picked up
+when the project is opened again, and the stripping scan does not read a
+package's scenes.
 
 ## Asset Lookup Table (asset_table.bin)
 

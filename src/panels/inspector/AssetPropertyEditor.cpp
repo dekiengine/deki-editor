@@ -488,7 +488,7 @@ bool AssetPropertyEditor::DrawAssetRefProperty(Deki::Component* comp, const Deki
 
         AssetFilterType filter = GetAssetFilterType(prop.assetType ? prop.assetType : "");
         std::string selectedGuid;
-        m_AssetPicker->Open(popupId, displayGuid, filter, selectedGuid);
+        m_AssetPicker->Open(popupId, displayGuid, filter, selectedGuid, prop.assetType ? prop.assetType : "");
     }
 
     std::string selectedGuid;

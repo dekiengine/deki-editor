@@ -449,6 +449,12 @@ AssetUsageCollection AssetExporter::CollectUsedAssets()
         {
             continue;
         }
+        // A package's scene (a sample of what it does) is not the game's: it
+        // ships only when one of the game's scenes uses it.
+        if (AssetPipeline::IsPackageAssetPath(info.path))
+        {
+            continue;
+        }
 
         std::string absolutePath = m_Pipeline->GetAbsolutePath(info.path);
         if (!fs::exists(absolutePath))
