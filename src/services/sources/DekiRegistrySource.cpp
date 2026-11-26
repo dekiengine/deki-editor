@@ -194,6 +194,8 @@ std::vector<RegistryPackageEntry> DekiRegistrySource::ParseIndexJson(const std::
         entry.description = str(pkg, "description");
         entry.repo = str(pkg, "repo");
         entry.experimental = pkg.value("experimental", false);
+        entry.replacedBy = str(pkg, "replacedBy");
+        entry.deprecated = pkg.value("deprecated", false) || !entry.replacedBy.empty();
         {
             // The id names a directory in every project that installs the
             // package, and the repo names the clone target. An entry that

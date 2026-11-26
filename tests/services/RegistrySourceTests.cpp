@@ -53,6 +53,26 @@ TEST(RegistrySource, IndexToleratesANewerSchemaAndSkipsBrokenEntries)
     EXPECT_EQ(entries[0].id, "deki-tween");
 }
 
+// A deprecated package says what replaces it; replacedBy alone deprecates it.
+TEST(RegistrySource, DeprecatedEntriesSayWhatReplacesThem)
+{
+    const std::string index = R"({"schemaVersion": 1, "packages": [
+        {"id": "deki-old", "repo": "dekiengine/deki-old", "latest": "0.40.0", "deprecated": true,
+         "replacedBy": "deki-new"},
+        {"id": "deki-older", "repo": "dekiengine/deki-older", "latest": "0.30.0", "replacedBy": "deki-new"},
+        {"id": "deki-gone", "repo": "dekiengine/deki-gone", "latest": "0.20.0", "deprecated": true},
+        {"id": "deki-new", "repo": "dekiengine/deki-new", "latest": "0.50.0"}
+    ]})";
+    const auto entries = DekiRegistrySource::ParseIndexJson(index);
+    ASSERT_EQ(entries.size(), 4u);
+    EXPECT_TRUE(entries[0].deprecated);
+    EXPECT_EQ(entries[0].replacedBy, "deki-new");
+    EXPECT_TRUE(entries[1].deprecated);
+    EXPECT_TRUE(entries[2].deprecated);
+    EXPECT_EQ(entries[2].replacedBy, "");
+    EXPECT_FALSE(entries[3].deprecated);
+}
+
 TEST(RegistrySource, MalformedOrShapelessIndexYieldsNothing)
 {
     EXPECT_TRUE(DekiRegistrySource::ParseIndexJson("{ this is not json").empty());

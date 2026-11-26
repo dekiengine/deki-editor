@@ -42,7 +42,7 @@ These are what downstream projects and packages depend on:
 | Project descriptor `deki.json` | `structure` field (`v5`) | |
 | Package manifest `deki-packages.json`, lock file | `schemaVersion` / `lockVersion` | |
 | Package descriptor `package.json`, `package.cmake` | | Editor reads unknown keys tolerantly |
-| Registry index | `https://dekiengine.github.io/registry/index.json` | `schemaVersion`; fields are only added (`docs` was added at schema 1) |
+| Registry index | `https://dekiengine.github.io/registry/index.json` | `schemaVersion`; fields are only added (`docs` was added at schema 1; `deprecated` and `replacedBy` in 0.50: a deprecated package is not offered, and a project that has it is told what replaces it) |
 | Package versions | git tags, bare semver (`1.2.0`), used verbatim as the checkout ref | |
 | Public engine headers | `deki-engine/include/deki/`, spelled `#include <deki/Object.h>` | Deprecation window (below); everything under `deki-engine/src/` is internal and may change without notice |
 | Reflection ABI between editor and package DLLs | `kDekiReflectionAbiVersion` in `deki-engine/include/deki/interop/ReflectionAbi.h` | Handshake at load; a mismatched DLL is refused and rebuilt |

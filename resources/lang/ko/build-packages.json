@@ -252,5 +252,9 @@
     "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection URL (includes session token)": "MCP 서버가 127.0.0.1:3000에서 실행 중입니다\n마우스 오른쪽 버튼을 클릭하면 연결 URL을 복사합니다 (세션 토큰 포함)",
     "Start MCP server (local only, port 3000)": "MCP 서버 시작 (로컬 전용, 포트 3000)",
     "Remove": "제거",
-    "Add...": "추가..."
+    "Add...": "추가...",
+    "Deprecated packages": "지원 중단된 패키지",
+    "These packages get no more releases. Move to the package named beside each; its README says how.": "이 패키지들은 더 이상 릴리스되지 않습니다. 각 항목 옆에 적힌 패키지로 옮기세요. 방법은 README에 있습니다.",
+    "Deprecated - it gets no more releases.": "지원 중단 - 더 이상 릴리스되지 않습니다.",
+    "Deprecated - use %s instead. It gets no more releases.": "지원 중단 - 대신 %s을(를) 사용하세요. 더 이상 릴리스되지 않습니다."
 }

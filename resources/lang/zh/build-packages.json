@@ -252,5 +252,9 @@
     "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection URL (includes session token)": "MCP 服务器正在 127.0.0.1:3000 上运行\n右键单击可复制连接 URL（包含会话令牌）",
     "Start MCP server (local only, port 3000)": "启动 MCP 服务器（仅限本地，端口 3000）",
     "Remove": "移除",
-    "Add...": "添加..."
+    "Add...": "添加...",
+    "Deprecated packages": "已弃用的包",
+    "These packages get no more releases. Move to the package named beside each; its README says how.": "这些包不再发布新版本。请改用每项旁边写明的包，方法见其 README。",
+    "Deprecated - it gets no more releases.": "已弃用 - 不再发布新版本。",
+    "Deprecated - use %s instead. It gets no more releases.": "已弃用 - 请改用 %s。不再发布新版本。"
 }

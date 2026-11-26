@@ -137,6 +137,9 @@ private:
     // package id -> the engine the registry's latest version needs. Not the
     // PackageEntry's minEngine: an installed package's entry keeps its own.
     std::map<std::string, std::string> m_LatestMinEngines;
+    // Deprecated packages, from the registry, and what replaces each ("" for
+    // nothing named). Not offered; a project that has one is told.
+    std::map<std::string, std::string> m_ReplacedBy;
     bool m_RegistryFetching = false;
 
     void FetchRegistryIndex(bool forceRefresh = false);

@@ -618,6 +618,21 @@ void PackageManagerPanel::DrawPackageDetails()
         TextCol(ui, Palette::Amber, Tr("Experimental - its API and formats can change without a migration path."));
         ui.Spacing();
     }
+    if (const auto replaced = m_ReplacedBy.find(pkg.id); replaced != m_ReplacedBy.end())
+    {
+        if (replaced->second.empty())
+        {
+            TextCol(ui, Palette::Amber, Tr("Deprecated - it gets no more releases."));
+        }
+        else
+        {
+            char text[256];
+            std::snprintf(text, sizeof(text), Tr("Deprecated - use %s instead. It gets no more releases."),
+                          replaced->second.c_str());
+            TextCol(ui, Palette::Amber, text);
+        }
+        ui.Spacing();
+    }
 
     // Shown before the Install button. The installer makes the same check,
     // but only after cloning the package; the registry already says which
@@ -1556,10 +1571,18 @@ void PackageManagerPanel::FetchRegistryIndex(bool forceRefresh)
                     {
                         m_LatestVersions.clear();
                         m_LatestMinEngines.clear();
+                        m_ReplacedBy.clear();
                         for (const auto& entry : packages)
                         {
                             m_LatestVersions[entry.id] = entry.latest;
                             m_LatestMinEngines[entry.id] = entry.minEngine;
+                            // Deprecated: not offered. A project that has it
+                            // still lists it, from its own manifest.
+                            if (entry.deprecated)
+                            {
+                                m_ReplacedBy[entry.id] = entry.replacedBy;
+                                continue;
+                            }
 
                             // Each registry package is listed as available
                             PackageEntry pkg;
@@ -1637,10 +1660,17 @@ bool PackageManagerPanel::RefreshPackagesBlocking(int timeoutSeconds)
     const auto packages = future.get();
     m_LatestVersions.clear();
     m_LatestMinEngines.clear();
+    m_ReplacedBy.clear();
     for (const auto& entry : packages)
     {
         m_LatestVersions[entry.id] = entry.latest;
         m_LatestMinEngines[entry.id] = entry.minEngine;
+        // Deprecated: not offered. A project that has it still lists it.
+        if (entry.deprecated)
+        {
+            m_ReplacedBy[entry.id] = entry.replacedBy;
+            continue;
+        }
 
         PackageEntry pkg;
         pkg.id = entry.id;
@@ -2109,6 +2139,12 @@ void PackageManagerPanel::FetchCustomRegistry(const CustomRegistryInfo& registry
                             auto packages = registrySource->ParseIndexJson(json);
                             for (const auto& entry : packages)
                             {
+                                // Deprecated: not offered from this registry either.
+                                if (entry.deprecated)
+                                {
+                                    m_ReplacedBy[entry.id] = entry.replacedBy;
+                                    continue;
+                                }
                                 PackageEntry pkg;
                                 pkg.id = entry.id;
                                 pkg.name = entry.id;

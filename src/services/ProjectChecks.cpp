@@ -276,6 +276,35 @@ std::vector<std::string> FindEditablePackagesBelow(const std::string& projectPat
     return found;
 }
 
+// Each package the project has whose package.json says it is deprecated, with
+// what replaces it.
+std::vector<std::string> FindDeprecatedPackages(const std::string& projectPath)
+{
+    std::vector<std::string> found;
+    std::error_code ec;
+    const fs::path packages = GetPackagesDirectory(projectPath);
+    for (fs::directory_iterator it(packages, ec), end; !ec && it != end; it.increment(ec))
+    {
+        const nlohmann::json manifest = ReadJson(it->path() / "package.json");
+        if (!manifest.is_object())
+        {
+            continue;
+        }
+        const std::string replacedBy = manifest.contains("replacedBy") && manifest["replacedBy"].is_string()
+                                           ? manifest["replacedBy"].get<std::string>()
+                                           : std::string();
+        const bool deprecated = (manifest.contains("deprecated") && manifest["deprecated"].is_boolean() &&
+                                 manifest["deprecated"].get<bool>()) ||
+                                !replacedBy.empty();
+        if (deprecated)
+        {
+            found.push_back(it->path().filename().string() + (replacedBy.empty() ? "" : " (use " + replacedBy + ")"));
+        }
+    }
+    std::sort(found.begin(), found.end());
+    return found;
+}
+
 std::vector<std::string> FindOldEditablePackages(const std::string& projectPath)
 {
     return FindEditablePackagesBelow(projectPath, "0.22.0");
@@ -288,9 +317,9 @@ std::vector<std::string> FindEditablePackagesBefore040(const std::string& projec
 
 std::vector<std::string> FindEditorOpenGl(const std::string& projectPath)
 {
-    static const std::vector<const char*> kNames = { "glGenTextures",   "glBindTexture",    "glTexImage2D",
-                                                     "glTexSubImage2D", "glTexParameteri",  "glDeleteTextures",
-                                                     "glPixelStorei",   "GL/gl.h",          "glad/glad.h" };
+    static const std::vector<const char*> kNames = { "glGenTextures",   "glBindTexture",   "glTexImage2D",
+                                                     "glTexSubImage2D", "glTexParameteri", "glDeleteTextures",
+                                                     "glPixelStorei",   "GL/gl.h",         "glad/glad.h" };
     std::vector<std::string> found;
     for (const fs::path& package : EditablePackages(projectPath))
     {
@@ -307,7 +336,8 @@ std::vector<std::string> FindModelTextureSettings(const std::string& projectPath
                 {
                     const std::string name = file.filename().string();
                     const std::string suffix = ".obj.data";
-                    if (name.size() <= suffix.size() || name.compare(name.size() - suffix.size(), suffix.size(), suffix) != 0)
+                    if (name.size() <= suffix.size() ||
+                        name.compare(name.size() - suffix.size(), suffix.size(), suffix) != 0)
                     {
                         return;
                     }
@@ -379,9 +409,9 @@ std::vector<std::string> FindPlatformsDrawing2DOnGpu(const std::string& projectP
             continue;
         }
         bool turnedOff = false;
-        ForEachFile(entry.path(),
-                    [&](const fs::path& file)
-                    { turnedOff = turnedOff || (file.extension() == ".scene" && SetsFalse(ReadText(file), "draw2DOnGpu")); });
+        ForEachFile(
+            entry.path(), [&](const fs::path& file)
+            { turnedOff = turnedOff || (file.extension() == ".scene" && SetsFalse(ReadText(file), "draw2DOnGpu")); });
         if (!turnedOff)
         {
             found.push_back(Relative(entry.path(), projectPath));
@@ -420,23 +450,36 @@ const std::vector<ProjectCheckDefinition> kChecks = {
       TrMark("Mesh tints had their channels swapped and now draw as written; a saved black tint now draws black. "
              "Check each colour."),
       FindTintedMeshes },
-    { "mesh-indices-lights", "0.30.0", TrMark("Mesh indices and software lighting"),
+    { "mesh-indices-lights",
+      "0.30.0",
+      TrMark("Mesh indices and software lighting"),
       TrMark("Mesh3D::indices is read through IndexAt. RasterConfig's lightDirection and float ambient are now a "
              "colour ambient and lights. Port any of these that use them."),
-      nullptr, { "lightDirection", "RasterConfig", ".indices", "->indices" } },
+      nullptr,
+      { "lightDirection", "RasterConfig", ".indices", "->indices" } },
     { "model-texture-settings", "0.30.0", TrMark("Texture settings on models"),
       TrMark("A model's own texture settings are lost when it is saved. Set them on the images instead."),
       FindModelTextureSettings },
-    { "asset-ref-headers", "0.30.0", TrMark("AssetRef and animation loading"),
+    { "asset-ref-headers",
+      "0.30.0",
+      TrMark("AssetRef and animation loading"),
       TrMark("A component's header needs the full type of each AssetRef it uses, not a forward declaration. The "
              "loader name \"FrameAnimationData\" is now \"Animation\"."),
-      nullptr, { "AssetRef<", "FrameAnimationData" } },
-    { "feature-defines", "0.30.0", TrMark("Code behind feature defines"),
+      nullptr,
+      { "AssetRef<", "FrameAnimationData" } },
+    { "feature-defines",
+      "0.30.0",
+      TrMark("Code behind feature defines"),
       TrMark("The scan that strips unused packages ignores code inside #ifdef DEKI_FEATURE_*. If a feature is used "
              "only there, pin it on."),
-      nullptr, { "DEKI_FEATURE_*" } },
-    { "host-file-system", "0.30.0", TrMark("DesktopFileSystem"),
-      TrMark("It moved to the engine as Deki::HostFileSystem. Rename it."), nullptr, { "DesktopFileSystem" } },
+      nullptr,
+      { "DEKI_FEATURE_*" } },
+    { "host-file-system",
+      "0.30.0",
+      TrMark("DesktopFileSystem"),
+      TrMark("It moved to the engine as Deki::HostFileSystem. Rename it."),
+      nullptr,
+      { "DesktopFileSystem" } },
     { "capability-defines", "0.30.0", TrMark("Packages with undeclared capabilities"),
       TrMark("These packages use DEKI_CAPABILITY_ defines. Declare them as capabilityDefines in package.json; until "
              "then each build warns."),
@@ -461,33 +504,50 @@ const std::vector<ProjectCheckDefinition> kChecks = {
           }
           return found;
       } },
-    { "editor-api-030", "0.30.0", TrMark("Removed editor API"),
+    { "editor-api-030",
+      "0.30.0",
+      TrMark("Removed editor API"),
       TrMark("PropertyTypeHandlers.h and PlatformConfig::CapabilityDefines are gone, and builders need rebuilding "
              "for the new ABI. Port these."),
-      nullptr, { "PropertyTypeHandlers.h", "CapabilityDefines" } },
+      nullptr,
+      { "PropertyTypeHandlers.h", "CapabilityDefines" } },
 
-    { "mesh-renderer-gpu", "0.30.3", TrMark("Mesh3DRenderer::Gpu"), TrMark("It is now Mesh3DRenderer::GPU. Rename it."),
-      nullptr, { "Mesh3DRenderer::Gpu" } },
+    { "mesh-renderer-gpu",
+      "0.30.3",
+      TrMark("Mesh3DRenderer::Gpu"),
+      TrMark("It is now Mesh3DRenderer::GPU. Rename it."),
+      nullptr,
+      { "Mesh3DRenderer::Gpu" } },
 
     { "rotation-scenes", "0.40.0", TrMark("Rotated objects in scenes"),
       TrMark("Positive rotation now draws counter-clockwise. If one of these was rotated by eye, flip the sign of its "
              "rotation."),
       FindRotatedObjects },
-    { "rotation-code", "0.40.0", TrMark("Code that sets a rotation"),
-      TrMark("These lines now turn the other way on screen. Flip the sign where the direction matters."), nullptr,
+    { "rotation-code",
+      "0.40.0",
+      TrMark("Code that sets a rotation"),
+      TrMark("These lines now turn the other way on screen. Flip the sign where the direction matters."),
+      nullptr,
       { "SetRotation" } },
     { "version-macros", "0.40.0", TrMark("Engine version macros"),
       TrMark("DEKI_ENGINE_VERSION and DEKI_OLDEST_SUPPORTED_PACKAGE are no longer compile definitions. Include "
              "<deki/EngineVersion.h> in these files."),
       FindUnincludedVersionMacros },
-    { "deferred-destroy", "0.40.0", TrMark("Destroying objects and removing components"),
+    { "deferred-destroy",
+      "0.40.0",
+      TrMark("Destroying objects and removing components"),
       TrMark("From a component's Awake, Start or Update these now free the object or component when that phase ends, "
              "not at once. Check that nothing here relies on its destructor having run by the next line."),
-      nullptr, { "DestroyDekiObject", "RemoveComponent" } },
+      nullptr,
+      { "DestroyDekiObject", "RemoveComponent" } },
     { "editable-packages-0-40", "0.40.0", TrMark("Editable packages made before 0.40"),
       TrMark("The reflection ABI changed, so packages made for an engine older than 0.40 are refused, and upgrading "
              "leaves editable ones alone. Rebuild each one against 0.40 and raise its minEngine to 0.40.0."),
       FindEditablePackagesBefore040 },
+
+    { "deprecated-packages-0-50", "0.50.0", TrMark("Deprecated packages"),
+      TrMark("These packages get no more releases. Move to the package named beside each; its README says how."),
+      FindDeprecatedPackages },
 };
 
 nlohmann::json ReadProjectFile(const std::string& projectPath)

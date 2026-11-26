@@ -252,5 +252,9 @@
     "MCP server running on 127.0.0.1:3000\nRight-click to copy the connection URL (includes session token)": "MCP サーバーが 127.0.0.1:3000 で実行中です\n右クリックで接続 URL をコピーします (セッショントークンを含みます)",
     "Start MCP server (local only, port 3000)": "MCP サーバーを起動します (ローカルのみ、ポート 3000)",
     "Remove": "削除",
-    "Add...": "追加..."
+    "Add...": "追加...",
+    "Deprecated packages": "非推奨のパッケージ",
+    "These packages get no more releases. Move to the package named beside each; its README says how.": "これらのパッケージは今後リリースされません。それぞれの横にあるパッケージに移行してください。方法は README にあります。",
+    "Deprecated - it gets no more releases.": "非推奨 - 今後リリースされません。",
+    "Deprecated - use %s instead. It gets no more releases.": "非推奨 - 代わりに %s を使ってください。今後リリースされません。"
 }

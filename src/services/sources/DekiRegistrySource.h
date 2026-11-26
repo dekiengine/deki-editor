@@ -20,6 +20,10 @@ struct RegistryPackageEntry
     // Published to be tried, not depended on: its API and formats can change
     // without a migration path.
     bool experimental = false;
+    // No longer offered: projects that have it keep it, and are pointed at
+    // `replacedBy` (a package id, or empty).
+    bool deprecated = false;
+    std::string replacedBy;
 };
 
 class DekiRegistrySource : public IPackageSource

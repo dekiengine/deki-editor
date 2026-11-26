@@ -64,7 +64,8 @@ TEST(ProjectChecks, AnOlderProjectIsToldWhatToLookAt)
     const std::vector<ProjectCheck> checks = RunProjectChecks(root.string());
     ASSERT_EQ(checks.size(), 2u);
     ASSERT_NE(Find(checks, "rotation-scenes"), nullptr);
-    EXPECT_EQ(Find(checks, "rotation-scenes")->findings, (std::vector<std::string>{ "assets/scenes/level.scene: Root/Ramp" }));
+    EXPECT_EQ(Find(checks, "rotation-scenes")->findings,
+              (std::vector<std::string>{ "assets/scenes/level.scene: Root/Ramp" }));
     ASSERT_NE(Find(checks, "rotation-code"), nullptr);
     EXPECT_EQ(Find(checks, "rotation-code")->findings, (std::vector<std::string>{ "src/Spin.cpp:3" }))
         << "SetRotationX turns about another axis";
@@ -72,9 +73,23 @@ TEST(ProjectChecks, AnOlderProjectIsToldWhatToLookAt)
     fs::remove_all(root);
 }
 
+TEST(ProjectChecks, DeprecatedPackagesAreNamedWithWhatReplacesThem)
+{
+    const fs::path root = Project("deki-checks-deprecated", R"({"lastSavedBy":"0.40.1"})");
+    Write(root / "packages" / "deki-old" / "package.json",
+          R"({"id":"deki-old","deprecated":true,"replacedBy":"deki-new"})");
+    Write(root / "packages" / "deki-gone" / "package.json", R"({"id":"deki-gone","deprecated":true})");
+    Write(root / "packages" / "deki-fine" / "package.json", R"({"id":"deki-fine","deprecated":false})");
+    const std::vector<ProjectCheck> checks = RunProjectChecks(root.string());
+    const ProjectCheck* check = Find(checks, "deprecated-packages-0-50");
+    ASSERT_NE(check, nullptr);
+    EXPECT_EQ(check->findings, (std::vector<std::string>{ "deki-gone", "deki-old (use deki-new)" }));
+    fs::remove_all(root);
+}
+
 TEST(ProjectChecks, AProjectFromThatReleaseOrLaterHasNone)
 {
-    const fs::path root = Project("deki-checks-current", R"({"lastSavedBy":"0.40.0"})");
+    const fs::path root = Project("deki-checks-current", R"({"lastSavedBy":"0.50.0"})");
     const std::string before = Read(root / "deki.json");
     EXPECT_TRUE(RunProjectChecks(root.string()).empty());
     EXPECT_EQ(Read(root / "deki.json"), before) << "a current project's file is left alone";
@@ -167,7 +182,9 @@ TEST(ProjectChecks, NamesMatchWholeWordsInTheProjectAndItsEditablePackages)
     Write(root / "packages" / "mine" / "Code.cpp", "OldName();\nMyOldNameHere();\nPrefix_ANY;\n");
     Write(root / "packages" / "mine" / "generated" / "Gen.cpp", "OldName();\n");
     Write(root / "packages" / "theirs" / "Code.cpp", "OldName();\n");
-    const std::vector<ProjectCheckDefinition> table = { { "n", "0.40.0", "T", "D", nullptr, { "OldName", "Prefix_*" } } };
+    const std::vector<ProjectCheckDefinition> table = {
+        { "n", "0.40.0", "T", "D", nullptr, { "OldName", "Prefix_*" } }
+    };
 
     const std::vector<ProjectCheck> checks = RunProjectChecks(root.string(), table);
     ASSERT_EQ(checks.size(), 1u);
